@@ -1,0 +1,20 @@
+{
+  "name": "toppturvarsel",
+  "version": "1.0.0",
+  "description": "Live ski touring conditions service for Norway and Sweden: snow depth, new snow, avalanche danger, field observations and powder alerts.",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "refresh": "node src/cli-refresh.js",
+    "test": "node --test",
+    "demo:simulate": "node demo/simulate.mjs demo/out",
+    "demo:record": "node demo/record.mjs demo/out demo/toppturvarsel-demo.mp4",
+    "demo:record-full": "node demo/record-full.mjs demo/out demo/toppturvarsel-walkthrough.mp4"
+  },
+  "dependencies": {},
+  "optionalDependencies": {},
+  "license": "MIT"
+}

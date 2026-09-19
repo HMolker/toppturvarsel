@@ -1,0 +1,823 @@
+import { COAST, BORDER } from './geo.js';
+import { renderRouteMap, renderProfile, routeSummary, renderForecast, renderPhotos } from './route.js';
+
+/* ------------------------------------------------------------------ *
+ * state
+ * ------------------------------------------------------------------ */
+
+const state = {
+  snapshot: null,
+  alerts: null,
+  layer: 'depth',
+  showTours: true,
+  sel: null,
+  selRegion: null,
+  q: '',
+  country: '',
+  region: '',
+  grade: '',
+  sort: 'quality',
+};
+
+const FAV_KEY = 'toppturvarsel.favs.v1';
+let FAVS = readStore(FAV_KEY, {});
+
+function readStore(k, fallback) {
+  try {
+    const v = localStorage.getItem(k);
+    return v ? JSON.parse(v) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+function writeStore(k, v) {
+  try {
+    localStorage.setItem(k, JSON.stringify(v));
+  } catch {
+    /* private mode; favourites are a convenience, not state we depend on */
+  }
+}
+
+/**
+ * Snow is shown in whole centimetres. The model reports tenths, but a tenth
+ * of a centimetre of modelled snow in a 1 km cell is precision the data does
+ * not have; the raw values stay in the API for anyone who wants them.
+ */
+const cm = (v) => (v == null ? v : Math.round(v));
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const esc = (s) =>
+  String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+
+const regionById = () => Object.fromEntries((state.snapshot?.regions ?? []).map((r) => [r.id, r]));
+
+/* ------------------------------------------------------------------ *
+ * data
+ * ------------------------------------------------------------------ */
+
+async function load() {
+  const [condRes, alertRes] = await Promise.allSettled([
+    fetch('/api/conditions').then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))),
+    fetch('/api/alerts').then((r) => (r.ok ? r.json() : null)),
+  ]);
+
+  if (condRes.status === 'rejected') {
+    $('#freshTxt').textContent = 'no data yet';
+    $('#freshDot').className = 'dot bad';
+    $('#tourlist').innerHTML =
+      '<div class="skeleton">No snapshot yet. The first refresh may still be running — ' +
+      'press “Refresh now”, or check <code>/api/health</code>.</div>';
+    $('#alerts').innerHTML = '<p class="quiet">Waiting for the first data refresh.</p>';
+    return;
+  }
+
+  state.snapshot = condRes.value;
+  state.alerts = alertRes.status === 'fulfilled' ? alertRes.value : null;
+
+  renderFreshness();
+  fillRegionSelect();
+  renderAlerts();
+  renderList();
+  renderSources();
+  drawMap();
+}
+
+function renderFreshness() {
+  const snap = state.snapshot;
+  const ageMin = Math.round((Date.now() - new Date(snap.fetchedAt).getTime()) / 60000);
+  const dot = $('#freshDot');
+  const txt = $('#freshTxt');
+
+  if (snap.status === 'out-of-season') {
+    dot.className = 'dot';
+    txt.textContent = 'out of season — no bulletins published';
+  } else if (ageMin < 240) {
+    dot.className = 'dot ok';
+    txt.textContent = `updated ${ageMin < 2 ? 'just now' : `${ageMin} min ago`}`;
+  } else {
+    dot.className = 'dot warn';
+    txt.textContent = `data is ${Math.round(ageMin / 60)} h old`;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * map
+ * ------------------------------------------------------------------ */
+
+const S = 44, CX = 250, LAT0 = 71.9, LON0 = 17;
+const proj = (lat, lon) => ({
+  x: CX + (lon - LON0) * Math.cos((lat * Math.PI) / 180) * S,
+  y: (LAT0 - lat) * S,
+});
+
+function pathFrom(pts, close) {
+  const d = pts
+    .map((p, i) => {
+      const q = proj(p[0], p[1]);
+      return `${i ? 'L' : 'M'}${q.x.toFixed(1)} ${q.y.toFixed(1)}`;
+    })
+    .join(' ');
+  return close ? `${d} Z` : d;
+}
+
+/* ------------------------------------------------------------------ *
+ * colour — Molker graphical profile
+ *
+ * The profile's grammar, applied literally:
+ *  - bulk data in grayscale ink            -> snow depth ramp
+ *  - one single-hue white->maroon ramp     -> new snow (the loading signal)
+ *  - signal red for the critical point     -> powder alerts only
+ * The one deliberate exception is avalanche danger, which keeps the EAWS
+ * standard colours: every tourer in Europe reads green/yellow/orange/red/black
+ * the same way, and a safety scale is not the place for a house style.
+ * ------------------------------------------------------------------ */
+
+const RED = '#C0392B';
+
+// EAWS standard danger-scale colours. Level 5 is officially black/red
+// chequered; we draw it black with a red rim.
+const DANGER_COL = [null, '#CCFF66', '#FFFF00', '#FF9900', '#FF0000', '#1A1A1A'];
+
+// Grayscale depth ramp built only from the profile's neutrals
+// (paper -> line -> steel -> ink).
+const DEPTH_BANDS = [
+  [30, '#F4F3EF', '<30 cm'],
+  [60, '#E3E0D8', '30–60'],
+  [100, '#B5B1A8', '60–100'],
+  [160, '#8C8880', '100–160'],
+  [250, '#4A473F', '160–250'],
+  [Infinity, '#1A1A1A', '250+'],
+];
+
+// The thesis's Fig. 26 ramp, all six steps. The alert threshold (30 cm)
+// lands on #C2402A, so "red on the map" and "red alert" mean the same thing.
+const NEW_BANDS = [
+  [5, '#FDF1ED', '<5 cm'],
+  [10, '#FBD6CB', '5–10'],
+  [20, '#F4A891', '10–20'],
+  [30, '#E8734F', '20–30'],
+  [50, '#C2402A', '30–50'],
+  [Infinity, '#6E1E15', '50+'],
+];
+
+const band = (bands, v) => (v == null ? null : bands.find(([max]) => v < max)[1]);
+const depthCol = (cm) => band(DEPTH_BANDS, cm);
+const newCol = (cm) => band(NEW_BANDS, cm);
+
+/** Ink or paper text, whichever reads on the given fill. */
+function textOn(hex) {
+  if (!hex || hex[0] !== '#') return 'var(--ink)';
+  const n = parseInt(hex.slice(1), 16);
+  const lin = (c) => {
+    const s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  };
+  const L = 0.2126 * lin((n >> 16) & 255) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255);
+  return L > 0.28 ? '#1A1A1A' : '#FFFFFF';
+}
+
+const regionValue = (r) => {
+  if (state.layer === 'danger') return r.bulletin?.danger ?? null;
+  if (state.layer === 'new48') return r.snow?.new48 ?? null;
+  return r.snow?.depthCm ?? null;
+};
+
+function fillFor(r) {
+  const v = regionValue(r);
+  if (state.layer === 'danger') return v ? DANGER_COL[v] : null;
+  if (state.layer === 'new48') return newCol(v);
+  return depthCol(v);
+}
+
+/**
+ * Region markers are kept deliberately small. The Troms/Lofoten regions sit
+ * within ~60 km of each other, so a scale generous enough to look good in
+ * the south turns the north into one unreadable blob exactly when it matters
+ * most - a big northern storm is when every circle is at maximum size.
+ */
+function radiusFor(r) {
+  const v = regionValue(r);
+  if (state.layer === 'danger') return v == null ? 6 : 7.5 + v * 1.1;
+  if (v == null) return 6;
+  return state.layer === 'new48'
+    ? Math.min(14, 7 + v * 0.14)
+    : Math.min(14.5, 6.5 + Math.sqrt(v) * 0.62);
+}
+
+function drawMap() {
+  const map = $('#map');
+  if (!state.snapshot) return;
+  const firing = new Set((state.alerts?.firing ?? []).map((a) => a.regionId));
+  const parts = [];
+  const labels = [];
+
+  // White ground, thin grey lines: the profile's plot background.
+  parts.push(
+    `<path d="${pathFrom(COAST, true)}" fill="var(--land)" stroke="var(--coast)" stroke-width=".9" stroke-linejoin="round"/>`,
+    `<path d="${pathFrom(BORDER, false)}" fill="none" stroke="var(--coast)" stroke-width=".8" stroke-dasharray="3 3"/>`
+  );
+
+  for (const la of [60, 65, 70]) {
+    const p = proj(la, 30.5);
+    parts.push(
+      `<text x="${p.x + 6}" y="${p.y + 4}" class="mono" font-size="9" fill="var(--muted)">${la}°N</text>`
+    );
+  }
+
+  // Biggest first, so a small marker inside a crowded cluster stays clickable
+  // and its label is not buried under a neighbour.
+  const ordered = state.snapshot.regions
+    .filter((r) => !r.offMap)
+    .map((r) => ({ r, rad: radiusFor(r) }))
+    .sort((a, b) => b.rad - a.rad);
+
+  for (const { r, rad } of ordered) {
+    const p = proj(r.lat, r.lon);
+    const v = regionValue(r);
+    const fill = fillFor(r);
+    const isSel = state.selRegion === r.id;
+    // Alert rings are a snow signal; on the danger layer they would sit next
+    // to EAWS red and blur two different meanings of red.
+    const isFiring = firing.has(r.id) && state.layer !== 'danger';
+    const label = v == null ? '' : String(Math.round(v));
+    const cx = p.x.toFixed(1);
+    const cy = p.y.toFixed(1);
+
+    const tip = [
+      r.name,
+      r.snow?.depthCm != null ? `${cm(r.snow.depthCm)} cm base` : null,
+      r.snow?.new48 != null ? `+${cm(r.snow.new48)} cm/48h` : null,
+      r.bulletin?.danger ? `danger ${r.bulletin.danger}` : 'danger not assessed',
+    ].filter(Boolean).join(' · ');
+
+    // No data: an empty dashed ring, never a colour that could be read as a value.
+    const noData = fill == null;
+    const isFive = state.layer === 'danger' && v === 5;
+    const stroke = isSel ? 'var(--ink)' : isFive ? RED : noData ? 'var(--steel)' : 'var(--marker-edge)';
+    const sw = isSel ? 2.2 : isFive ? 1.8 : 0.9;
+
+    parts.push(
+      `<g class="reg" data-region="${esc(r.id)}" style="cursor:pointer">` +
+        // Signal red is reserved for this: a region over the alert threshold.
+        (isFiring
+          ? `<circle cx="${cx}" cy="${cy}" r="${(rad + 4.5).toFixed(1)}" fill="none" stroke="${RED}" stroke-width="1.6"/>` +
+            `<circle cx="${cx}" cy="${cy}" r="${(rad + 8).toFixed(1)}" fill="none" stroke="${RED}" stroke-width=".7" opacity=".6"/>`
+          : '') +
+        `<circle cx="${cx}" cy="${cy}" r="${rad.toFixed(1)}" fill="${noData ? 'var(--paper)' : fill}" ` +
+        `stroke="${stroke}" stroke-width="${sw}"${noData ? ' stroke-dasharray="2 2"' : ''}/>` +
+        `<title>${esc(tip)}</title></g>`
+    );
+
+    // Labels go into a separate pass appended after the tour pins, so a pin
+    // can never bury the number it sits on. Only label a marker big enough
+    // to hold the text: a 1-char danger level fits, a 3-digit depth needs room.
+    if (label && rad >= (label.length > 2 ? 10 : 7)) {
+      labels.push(
+        `<text x="${cx}" y="${(p.y + 3.1).toFixed(1)}" text-anchor="middle" class="mono" ` +
+          `font-size="${label.length > 2 ? 8 : 9}" font-weight="600" fill="${textOn(fill)}" ` +
+          `pointer-events="none">${esc(label)}</text>`
+      );
+    }
+  }
+
+  // Tours are the primary series: ink markers, as in the thesis plots.
+  if (state.showTours) {
+    for (const t of visibleTours()) {
+      const p = proj(t.lat, t.lon);
+      const sel = state.sel === t.name;
+      parts.push(
+        `<g class="tourpin" data-tour="${esc(t.name)}" style="cursor:pointer">` +
+          `<path d="M${p.x.toFixed(1)} ${(p.y - 5.5).toFixed(1)} l4 7.2 h-8 Z" fill="var(--ink)" stroke="var(--paper)" stroke-width=".8"/>` +
+          (sel
+            ? `<circle cx="${p.x.toFixed(1)}" cy="${(p.y - 1).toFixed(1)}" r="10" fill="none" stroke="var(--ink)" stroke-width="1.6"/>` +
+              `<circle cx="${p.x.toFixed(1)}" cy="${(p.y - 1).toFixed(1)}" r="15" fill="none" stroke="var(--ink)" stroke-width=".7"/>`
+            : '') +
+          `<title>${esc(t.name)} · ${t.summit_m} m${t.snow?.depthCm != null ? ` · ${cm(t.snow.depthCm)} cm` : ''}</title></g>`
+      );
+    }
+  }
+
+  // The selected tour gets a name callout, drawn last so nothing covers it.
+  const selTour = state.showTours && state.sel ? visibleTours().find((t) => t.name === state.sel) : null;
+  if (selTour) {
+    const p = proj(selTour.lat, selTour.lon);
+    const left = p.x > 330;
+    labels.push(
+      `<text x="${(p.x + (left ? -20 : 20)).toFixed(1)}" y="${(p.y + 3).toFixed(1)}" text-anchor="${left ? 'end' : 'start'}" ` +
+        `class="callout" pointer-events="none">${esc(selTour.name)}</text>`
+    );
+  }
+
+  map.innerHTML = parts.concat(labels).join('');
+  drawLegend();
+}
+
+function drawLegend() {
+  const bands =
+    state.layer === 'danger'
+      ? [1, 2, 3, 4, 5].map((i) => [String(i), DANGER_COL[i]])
+      : (state.layer === 'new48' ? NEW_BANDS : DEPTH_BANDS).map(([, c, l]) => [l, c]);
+
+  const title =
+    state.layer === 'danger' ? 'EAWS danger' : state.layer === 'new48' ? 'New snow / 48 h' : 'Snow depth';
+
+  $('#legend').innerHTML =
+    `<span class="eyebrow">${title}</span>` +
+    bands
+      .map(
+        ([l, c]) =>
+          `<span><i class="sw" style="background:${c}${c === DANGER_COL[5] ? `;border-color:${RED}` : ''}"></i>${l}</span>`
+      )
+      .join('') +
+    `<span><i class="sw sw-none"></i>${state.layer === 'danger' ? 'not assessed' : 'no data'}</span>` +
+    (state.layer !== 'danger'
+      ? `<span><i class="sw sw-alert"></i>over alert threshold</span>`
+      : '') +
+    `<span class="legend-key">▲ tour · ● forecast region</span>`;
+}
+
+$('#map').addEventListener('click', (e) => {
+  const tour = e.target.closest('g.tourpin');
+  if (tour) return selectTour(tour.dataset.tour);
+  const reg = e.target.closest('g.reg');
+  if (reg) selectRegion(reg.dataset.region);
+});
+
+/* ------------------------------------------------------------------ *
+ * tours
+ * ------------------------------------------------------------------ */
+
+function visibleTours() {
+  const tours = state.snapshot?.tours ?? [];
+  const regions = regionById();
+  const q = state.q.toLowerCase();
+
+  const out = tours.filter((t) => {
+    const reg = regions[t.region];
+    if (!reg) return false;
+    if (state.country && reg.country !== state.country) return false;
+    if (state.region && t.region !== state.region) return false;
+    if (state.grade && t.difficulty > +state.grade) return false;
+    if (q) {
+      const hay = `${t.name} ${reg.name} ${t.access} ${t.note}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  const num = (v) => (v == null ? -1 : v);
+  out.sort((a, b) => {
+    switch (state.sort) {
+      case 'name': return a.name.localeCompare(b.name);
+      case 'vert': return b.vertical_m - a.vertical_m;
+      case 'grade': return a.difficulty - b.difficulty || b.quality - a.quality;
+      case 'new': return num(b.snow?.new48) - num(a.snow?.new48) || b.quality - a.quality;
+      case 'depth': return num(b.snow?.depthCm) - num(a.snow?.depthCm) || b.quality - a.quality;
+      case 'fav': return (FAVS[b.name] ? 1 : 0) - (FAVS[a.name] ? 1 : 0) || b.quality - a.quality;
+      default: return b.quality - a.quality || b.vertical_m - a.vertical_m;
+    }
+  });
+  return out;
+}
+
+const stars = (n) => '★★★★★'.slice(0, n) + '☆☆☆☆☆'.slice(0, 5 - n);
+
+function renderList() {
+  const list = visibleTours();
+  const regions = regionById();
+
+  $('#tourlist').innerHTML =
+    list
+      .map((t) => {
+        const reg = regions[t.region];
+        const snow = t.snow;
+        const badge =
+          snow?.depthCm != null
+            ? `<span class="snowbadge${snow.new48 != null && snow.new48 >= (state.alerts?.threshold ?? 30) ? ' hot' : ''}">` +
+              `${cm(snow.depthCm)} cm${cm(snow.new48) >= 1 ? ` · +${cm(snow.new48)}` : ''}</span>`
+            : '';
+        return (
+          `<div class="trow${state.sel === t.name ? ' sel' : ''}" tabindex="0" data-tour="${esc(t.name)}">` +
+          `<div><div class="tname"><button class="fav${FAVS[t.name] ? ' on' : ''}" data-fav="${esc(t.name)}" aria-label="Favourite">${FAVS[t.name] ? '★' : '☆'}</button>${esc(t.name)} ${badge}</div>` +
+          `<div class="tmeta">${esc(reg.name)} · ${t.summit_m} m · ${t.vertical_m} m vert · ${esc(t.aspect)}</div></div>` +
+          `<div style="text-align:right"><div class="stars">${stars(t.quality)}</div><div class="grade">diff ${t.difficulty}/5</div></div></div>`
+        );
+      })
+      .join('') || '<div class="skeleton">Nothing matches those filters.</div>';
+
+  $('#tourCount').textContent = `${list.length} of ${state.snapshot?.tours?.length ?? 0}`;
+}
+
+$('#tourlist').addEventListener('click', (e) => {
+  const fav = e.target.closest('[data-fav]');
+  if (fav) {
+    const n = fav.dataset.fav;
+    FAVS[n] = !FAVS[n];
+    writeStore(FAV_KEY, FAVS);
+    return renderList();
+  }
+  const row = e.target.closest('.trow');
+  if (row) selectTour(row.dataset.tour);
+});
+$('#tourlist').addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const row = e.target.closest('.trow');
+  if (row) {
+    e.preventDefault();
+    selectTour(row.dataset.tour);
+  }
+});
+
+/* ------------------------------------------------------------------ *
+ * detail
+ * ------------------------------------------------------------------ */
+
+const DANGER_NAME = { 1: 'Low', 2: 'Moderate', 3: 'Considerable', 4: 'High', 5: 'Very high' };
+
+/** EAWS-coloured level chip; text colour follows the fill so 2 (yellow) and 5 (black) both read. */
+const pill = (d) =>
+  `<span class="dangerpill" style="background:${DANGER_COL[d]};color:${textOn(DANGER_COL[d])}` +
+  `${d === 5 ? `;box-shadow:inset 0 0 0 1.5px ${RED}` : ''}">${d}</span>`;
+
+function dangerPill(region) {
+  const d = region.bulletin?.danger;
+  if (!d) {
+    const why = region.bulletin?.seasonOver
+      ? 'season over'
+      : region.bulletin?.error
+        ? 'could not be read'
+        : 'not assessed';
+    return `<span class="note">danger ${why}</span>`;
+  }
+  return `${pill(d)} <span class="note">${DANGER_NAME[d]}</span>`;
+}
+
+function bulletinBlock(region) {
+  const b = region.bulletin ?? {};
+  const bits = [];
+
+  if (b.emergencyWarning) {
+    bits.push(`<div class="warnbox"><strong>Emergency warning:</strong> ${esc(b.emergencyWarning)}</div>`);
+  }
+  if (b.headline) bits.push(`<p class="bulletintext">${esc(b.headline)}</p>`);
+
+  if (b.problems?.length) {
+    bits.push(
+      `<h4>Avalanche problems</h4><div>` +
+        b.problems
+          .map(
+            (p) =>
+              `<span class="problem">${esc(p.type)}${p.probability ? ` · ${esc(p.probability)}` : ''}${p.size ? ` · ${esc(p.size)}` : ''}</span>`
+          )
+          .join('') +
+        `</div>`
+    );
+  }
+
+  for (const [label, val] of [
+    ['Snow surface', b.snowSurface],
+    ['Current weak layers', b.weakLayers],
+    ['Recent avalanche activity', b.latestAvalancheActivity],
+    ['Latest observations', b.latestObservations],
+  ]) {
+    if (val) bits.push(`<h4>${label}</h4><p class="bulletintext">${esc(val)}</p>`);
+  }
+
+  if (b.scraped && b.confidence !== 'parsed') {
+    bits.push(
+      `<p class="note">${esc(b.note ?? 'Swedish bulletin could not be read automatically.')}</p>`
+    );
+  }
+  if (b.error) bits.push(`<p class="note">Bulletin unavailable: ${esc(b.error)}</p>`);
+
+  return bits.join('') || '<p class="note">No bulletin text available for this region right now.</p>';
+}
+
+function snowBlock(snow, label = 'Snow') {
+  if (!snow || snow.error || snow.depthCm == null) {
+    return `<p class="note">No modelled snow data for this point.</p>`;
+  }
+  const parts = [
+    `<strong>${cm(snow.depthCm)} cm</strong> modelled depth`,
+    snow.new24 != null ? `+${cm(snow.new24)} cm/24h` : null,
+    snow.new48 != null ? `<strong>+${cm(snow.new48)} cm/48h</strong>` : null,
+    snow.new72 != null ? `+${cm(snow.new72)} cm/72h` : null,
+    snow.gridAltitude != null ? `grid cell ${snow.gridAltitude} m` : null,
+  ].filter(Boolean);
+
+  // A fallback sample is one grid cell at the region marker, which may sit
+  // far below the terrain people ski. Say so rather than letting it read as
+  // a representative depth.
+  const caveat = snow.fallback
+    ? `<p class="note">No tours listed in this region, so this is a single sample at the region marker` +
+      `${snow.gridAltitude != null ? ` (${snow.gridAltitude} m)` : ''} — treat it as indicative only.</p>`
+    : '';
+
+  return `<p class="bulletintext">${label}: ${parts.join(' · ')}</p>${caveat}`;
+}
+
+function selectTour(name) {
+  const t = (state.snapshot?.tours ?? []).find((x) => x.name === name);
+  if (!t) return;
+  state.sel = name;
+  state.selRegion = t.region;
+  const reg = regionById()[t.region];
+
+  $('#detailTitle').textContent = t.name;
+  $('#detail').innerHTML =
+    `<div class="tourgrid">` +
+    `<div class="tourcol">` +
+    `<div class="routemap" id="routeMap"></div>` +
+    `<div class="profile" id="routeProfile"></div>` +
+    `<div id="routeMeta">${routeSummary(null, t)}</div>` +
+    `<h4>Photos near the summit</h4><div id="photos"></div>` +
+    `<p class="attrib">Map © ${reg.country === 'SE' ? 'OpenTopoMap, © OpenStreetMap contributors' : 'Kartverket'} · ` +
+    `Route © OpenStreetMap contributors (ODbL) · Elevation: ${reg.country === 'SE' ? 'Copernicus DEM GLO-90 via Open-Meteo' : 'Kartverket (DTM 1 m / 10 m)'} · ` +
+    `Photos: Wikimedia Commons, credited per image</p>` +
+    `</div>` +
+    `<div class="tourcol">` +
+    `<dl>` +
+    `<dt>Region</dt><dd>${esc(reg.name)} (${reg.country === 'NO' ? 'Norway' : 'Sweden'}) — ${dangerPill(reg)}</dd>` +
+    `<dt>Summit / vertical</dt><dd>${t.summit_m} m · ≈${t.vertical_m} m of descent</dd>` +
+    `<dt>Main aspect</dt><dd>${esc(t.aspect)}</dd>` +
+    `<dt>Difficulty</dt><dd>${t.difficulty}/5 &nbsp; <span class="stars">${stars(t.quality)}</span></dd>` +
+    `<dt>Access</dt><dd>${esc(t.access)}</dd>` +
+    `<dt>Usual window</dt><dd>${esc(t.season)}</dd>` +
+    `</dl>` +
+    `<p class="bulletintext">${esc(t.note)}</p>` +
+    snowBlock(t.snow, 'At this tour') +
+    `<h4>Next 5 days</h4><div id="forecast"></div>` +
+    bulletinBlock(reg) +
+    `<div class="linkrow"><a class="btn primary" href="${esc(reg.bulletinUrl)}" target="_blank" rel="noopener">Bulletin — ${esc(reg.name)}</a>` +
+    (reg.country === 'NO'
+      ? `<a class="btn" href="https://www.regobs.no/" target="_blank" rel="noopener">Regobs observations</a>`
+      : '') +
+    `<button class="btn" data-region="${esc(reg.id)}">Region overview</button></div>` +
+    `</div></div>`;
+
+  state.tourView = { route: null, terrain: null, photos: null };
+  renderRouteMap($('#routeMap'), { route: null, tour: t, country: reg.country });
+  renderForecast($('#forecast'), null);
+  renderPhotos($('#photos'), null, t, null);
+  loadTourExtras(t, reg);
+
+  drawMap();
+  renderList();
+  $('#detailCard').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+/**
+ * Route and forecast load after the panel is on screen. If the user has
+ * picked another tour by the time a response lands, it is dropped rather
+ * than painted over the wrong tour.
+ */
+async function loadTourExtras(t, reg) {
+  const q = encodeURIComponent(t.name);
+  const still = () => state.sel === t.name;
+  const view = state.tourView;
+  const getJson = (url) =>
+    fetch(url)
+      .then((r) => r.json().then((b) => (r.ok ? b : { error: b.detail ?? b.error ?? `HTTP ${r.status}`, ...b })))
+      .catch((e) => ({ error: e.message }));
+
+  // Route, terrain and photos all feed the one map; repaint as each arrives.
+  const paint = () => {
+    if (!still()) return;
+    const mapEl = $('#routeMap');
+    renderRouteMap(mapEl, {
+      route: view.route?.error ? { found: false, reason: view.route.error } : view.route,
+      tour: t,
+      country: reg.country,
+      terrain: view.terrain?.error ? null : view.terrain,
+      photos: view.photos?.photos ?? [],
+    });
+    if (view.route) renderProfile($('#routeProfile'), view.route, mapEl);
+    if (view.photos) renderPhotos($('#photos'), view.photos, t, mapEl);
+  };
+
+  getJson(`/api/track?tour=${q}`).then((route) => {
+    if (!still()) return;
+    if (route.error && route.found === undefined) route = { found: false, reason: `Route lookup failed (${route.error}).` };
+    view.route = route;
+    state.route = route;
+    $('#routeMeta').innerHTML = routeSummary(route, t);
+    paint();
+  });
+  getJson(`/api/terrain?tour=${q}`).then((terrain) => {
+    view.terrain = terrain;
+    paint();
+  });
+  getJson(`/api/photos?tour=${q}`).then((photos) => {
+    view.photos = photos;
+    paint();
+  });
+  getJson(`/api/forecast?tour=${q}`).then((fc) => {
+    if (still()) renderForecast($('#forecast'), fc);
+  });
+}
+
+function selectRegion(id) {
+  const reg = regionById()[id];
+  if (!reg) return;
+  state.selRegion = id;
+  state.sel = null;
+  const inReg = (state.snapshot?.tours ?? []).filter((t) => t.region === id);
+
+  $('#detailTitle').textContent = reg.name;
+  $('#detail').innerHTML =
+    `<p class="bulletintext">${dangerPill(reg)} &nbsp; <span class="note">${
+      reg.country === 'NO'
+        ? 'Norwegian forecast region (NVE / Varsom)'
+        : 'Swedish forecast region (Naturvårdsverket)'
+    }${reg.bulletin?.publishTime ? ` · published ${esc(String(reg.bulletin.publishTime).slice(0, 16).replace('T', ' '))}` : ''}</span></p>` +
+    snowBlock(reg.snow, `Across ${reg.snow?.sampleCount ?? 0} tour points`) +
+    bulletinBlock(reg) +
+    `<div class="linkrow"><a class="btn primary" href="${esc(reg.bulletinUrl)}" target="_blank" rel="noopener">Open bulletin</a>` +
+    (reg.country === 'NO'
+      ? `<a class="btn" href="https://www.regobs.no/" target="_blank" rel="noopener">Regobs observations</a>`
+      : '') +
+    `<a class="btn" href="https://www.senorge.no/" target="_blank" rel="noopener">seNorge snow maps</a></div>` +
+    (inReg.length
+      ? `<p class="note" style="margin:14px 0 4px">Tours in this region</p><div>` +
+        inReg
+          .sort((a, b) => (b.snow?.new48 ?? -1) - (a.snow?.new48 ?? -1))
+          .map(
+            (t) =>
+              `<button class="btn" data-tour="${esc(t.name)}" style="margin:0 6px 6px 0">${esc(t.name)}${t.snow?.depthCm != null ? ` <span class="grade">${cm(t.snow.depthCm)} cm</span>` : ''}</button>`
+          )
+          .join('') +
+        `</div>`
+      : '<p class="note">No tours listed in this region yet.</p>');
+
+  drawMap();
+}
+
+$('#detail').addEventListener('click', (e) => {
+  const t = e.target.closest('[data-tour]');
+  if (t) return selectTour(t.dataset.tour);
+  const r = e.target.closest('[data-region]');
+  if (r) selectRegion(r.dataset.region);
+});
+
+/* ------------------------------------------------------------------ *
+ * alerts + sources
+ * ------------------------------------------------------------------ */
+
+function renderAlerts() {
+  const a = state.alerts;
+  const el = $('#alerts');
+  if (!a) {
+    el.innerHTML = '<p class="quiet">Alert status unavailable.</p>';
+    return;
+  }
+
+  const channels = [a.channels?.email && 'email', a.channels?.ntfy && 'push'].filter(Boolean);
+  $('#alertMeta').textContent =
+    `over ${a.threshold} cm / 48 h · ` +
+    (channels.length ? `notifying by ${channels.join(' + ')}` : 'no notification channel configured') +
+    ` · quiet ${a.quietHours.from}:00–${a.quietHours.to}:00`;
+
+  if (!a.firing?.length) {
+    el.innerHTML =
+      `<p class="quiet">Nothing over ${a.threshold} cm in the last 48 hours. ` +
+      `The server checks on every refresh and will notify you without the page being open.</p>` +
+      (a.pending?.length ? `<p class="note">${a.pending.length} alert(s) held until quiet hours end.</p>` : '');
+    return;
+  }
+
+  el.innerHTML =
+    `<div class="firedgrid">` +
+    a.firing
+      .map((f) => {
+        const danger = f.dangerKnown
+          ? `${pill(f.danger)} ${DANGER_NAME[f.danger]}`
+          : '<span class="note">danger level not available — read the bulletin</span>';
+        return (
+          `<div class="fired"><div class="big">+${cm(f.new48)}<span style="font-size:12px"> cm</span></div>` +
+          `<div style="flex:1"><div class="who">${esc(f.regionName)}</div>` +
+          `<div class="quiet">${f.depthCm != null ? `${cm(f.depthCm)} cm base · ` : ''}${danger}` +
+          `${f.topTour ? ` · biggest load near ${esc(f.topTour)}` : ''}</div>` +
+          (f.problems?.length
+            ? `<div style="margin-top:4px">${f.problems.map((p) => `<span class="problem">${esc(p)}</span>`).join('')}</div>`
+            : '') +
+          `<div class="linkrow" style="margin-top:6px">` +
+          `<a class="btn primary" href="${esc(f.bulletinUrl)}" target="_blank" rel="noopener">Read the bulletin first</a>` +
+          `<button class="btn" data-region="${esc(f.regionId)}">Show region</button></div></div></div>`
+        );
+      })
+      .join('') +
+    `</div>` +
+    `<p class="quiet">A big load is exactly when the bulletin matters most — these are “go and read”, not “go and ski”.</p>`;
+}
+
+$('#alerts').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-region]');
+  if (b) {
+    selectRegion(b.dataset.region);
+    $('#map').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+});
+
+function renderSources() {
+  const s = state.snapshot?.sources ?? {};
+  const cards = [
+    ['Varsom (NO avalanche)', s.varsom?.ok, s.varsom ? `${s.varsom.regions} regions fetched` : 'not run'],
+    [
+      'lavinprognoser.se (SE avalanche)',
+      s.lavinprognoser?.ok,
+      s.lavinprognoser ? `${s.lavinprognoser.regions} regions · scraped, best-effort` : 'not run',
+    ],
+    ['seNorge (snow depth)', s.senorge?.ok, s.senorge ? `${s.senorge.points} tour points sampled` : 'not run'],
+    [
+      'Regobs (observations)',
+      s.regobs?.enabled ? s.regobs.verified : null,
+      s.regobs?.enabled
+        ? s.regobs.verified
+          ? 'enabled and returning data'
+          : `enabled but unverified${s.regobs.lastError ? `: ${s.regobs.lastError}` : ''}`
+        : 'disabled — using the forecaster’s observation summary instead',
+    ],
+  ];
+
+  $('#sources').innerHTML = cards
+    .map(
+      ([name, ok, detail]) =>
+        `<div class="src${ok === false ? ' bad' : ''}"><h4>${esc(name)}</h4><div class="note">${esc(detail)}</div></div>`
+    )
+    .join('');
+}
+
+/* ------------------------------------------------------------------ *
+ * controls
+ * ------------------------------------------------------------------ */
+
+function fillRegionSelect() {
+  const sel = $('#fRegion');
+  const cur = state.region;
+  const regions = (state.snapshot?.regions ?? []).filter(
+    (r) => !r.offMap && (!state.country || r.country === state.country)
+  );
+  sel.innerHTML =
+    '<option value="">All regions</option>' +
+    regions.map((r) => `<option value="${esc(r.id)}">${esc(r.name)}</option>`).join('');
+  if (regions.some((r) => r.id === cur)) sel.value = cur;
+  else state.region = '';
+}
+
+$$('.seg button').forEach((b) =>
+  b.addEventListener('click', () => {
+    $$('.seg button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    state.layer = b.dataset.layer;
+    drawMap();
+  })
+);
+$('#showTours').addEventListener('change', (e) => {
+  state.showTours = e.target.checked;
+  drawMap();
+});
+$('#q').addEventListener('input', (e) => {
+  state.q = e.target.value;
+  renderList();
+  drawMap();
+});
+$('#fCountry').addEventListener('change', (e) => {
+  state.country = e.target.value;
+  fillRegionSelect();
+  renderList();
+  drawMap();
+});
+$('#fRegion').addEventListener('change', (e) => {
+  state.region = e.target.value;
+  renderList();
+  drawMap();
+});
+$('#fGrade').addEventListener('change', (e) => {
+  state.grade = e.target.value;
+  renderList();
+  drawMap();
+});
+$('#fSort').addEventListener('change', (e) => {
+  state.sort = e.target.value;
+  renderList();
+});
+
+$('#refreshBtn').addEventListener('click', async (e) => {
+  const btn = e.target;
+  btn.disabled = true;
+  btn.textContent = 'Refreshing…';
+  try {
+    await fetch('/api/refresh', { method: 'POST' });
+    await load();
+  } catch {
+    $('#freshTxt').textContent = 'refresh failed';
+    $('#freshDot').className = 'dot bad';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Refresh now';
+  }
+});
+
+load();
+// Pick up server-side refreshes without a reload; cheap, and the server
+// coalesces so this cannot stampede upstream.
+setInterval(load, 10 * 60 * 1000);

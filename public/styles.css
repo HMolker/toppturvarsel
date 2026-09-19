@@ -1,0 +1,402 @@
+/* =====================================================================
+ * Toppturvarsel — Henrik Molker graphical profile
+ *
+ * Source: the colour scheme derived from H. Molker, "Industrial framework
+ * for hot-spot identification and verification in automotive composite
+ * structures", Chalmers 2019 (Figs. 2, 14, 16, 26).
+ *
+ *   Ink black     #1A1A1A   primary series, text
+ *   Steel grey    #8C8880   secondary series, hairlines
+ *   Signal red    #C0392B   the critical point — powder alerts only
+ *   Paper white   #FFFFFF   plot/panel ground
+ *   Page          #F4F3EF   surrounding ground
+ *   Ramp          #FDF1ED #FBD6CB #F4A891 #E8734F #C2402A #6E1E15
+ *
+ * Restrained colour, used only to encode meaning, never decoration.
+ * The profile defines a light, print-style look; the dark theme below is
+ * derived from the same inks for pre-dawn checks and is not part of the
+ * source profile.
+ * ===================================================================== */
+
+/* IBM Plex, self-hosted when present. No network fetch: if the files are
+   not in /fonts and Plex is not installed locally, the stack falls back
+   cleanly. See public/fonts/README.md. */
+@font-face { font-family: "IBM Plex Sans"; font-weight: 400; font-style: normal; font-display: swap;
+  src: local("IBM Plex Sans"), local("IBMPlexSans"), url("/fonts/IBMPlexSans-Regular.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Sans"; font-weight: 500; font-style: normal; font-display: swap;
+  src: local("IBM Plex Sans Medium"), local("IBMPlexSans-Medium"), url("/fonts/IBMPlexSans-Medium.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Sans"; font-weight: 600; font-style: normal; font-display: swap;
+  src: local("IBM Plex Sans SemiBold"), local("IBMPlexSans-SemiBold"), url("/fonts/IBMPlexSans-SemiBold.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Sans"; font-weight: 700; font-style: normal; font-display: swap;
+  src: local("IBM Plex Sans Bold"), local("IBMPlexSans-Bold"), url("/fonts/IBMPlexSans-Bold.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Mono"; font-weight: 400; font-style: normal; font-display: swap;
+  src: local("IBM Plex Mono"), local("IBMPlexMono"), url("/fonts/IBMPlexMono-Regular.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Mono"; font-weight: 600; font-style: normal; font-display: swap;
+  src: local("IBM Plex Mono SemiBold"), local("IBMPlexMono-SemiBold"), url("/fonts/IBMPlexMono-SemiBold.woff2") format("woff2"); }
+
+:root {
+  --sans: "IBM Plex Sans", "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+  --page: #F4F3EF;
+  --paper: #FFFFFF;
+  --ink: #1A1A1A;
+  --ink-2: #4A473F;
+  --muted: #706C64;
+  --steel: #8C8880;
+  --line: #E3E0D8;
+  --line-2: #D8D5CC;
+  --red: #C0392B;
+  --red-ink: #C0392B;
+
+  --land: #F4F3EF;
+  --coast: #8C8880;
+  --marker-edge: #1A1A1A;
+
+  --r-card: 14px;
+  --r-ctl: 8px;
+}
+
+:root { color-scheme: light; }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --page: #121211;
+    --paper: #1A1A1A;
+    --ink: #EDEBE5;
+    --ink-2: #C7C4BC;
+    --muted: #A8A49B;
+    --steel: #8C8880;
+    --line: #2E2C28;
+    --line-2: #3A3833;
+    --red-ink: #E46A5C;   /* signal red lifted for text contrast on ink */
+    --land: #24231F;
+    --coast: #5E5B54;
+    --marker-edge: #EDEBE5;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --page: #121211; --paper: #1A1A1A; --ink: #EDEBE5; --ink-2: #C7C4BC; --muted: #A8A49B;
+  --steel: #8C8880; --line: #2E2C28; --line-2: #3A3833; --red-ink: #E46A5C;
+  --land: #24231F; --coast: #5E5B54; --marker-edge: #EDEBE5;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--page);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-text-size-adjust: 100%;
+}
+a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--steel); text-underline-offset: 2px; }
+a:hover { text-decoration-color: var(--ink); }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.mono, code { font-family: var(--mono); }
+
+/* The profile's label voice: small mono caps, letterspaced. */
+.eyebrow {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* ---------- header ---------- */
+header.top {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 36px 20px 22px;
+  display: flex;
+  gap: 16px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  border-bottom: 2px solid var(--ink);
+}
+/* The logotype is drawn on paper: in the dark theme it sits on a paper
+   tile rather than being inverted, so its colours stay as designed. */
+.brandmark { display: block; height: 120px; width: auto; flex: none; align-self: center; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .brandmark { background: #F2EEE3; border-radius: var(--r-ctl, 6px); padding: 6px 8px; }
+}
+:root[data-theme="dark"] .brandmark { background: #F2EEE3; border-radius: var(--r-ctl, 6px); padding: 6px 8px; }
+header.top h1 { font-size: 30px; line-height: 1.15; margin: 6px 0 6px; font-weight: 700; letter-spacing: -.01em; }
+.sub { color: var(--ink-2); font-size: 14.5px; margin: 0; max-width: 720px; }
+.status { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--mono); font-size: 12px; color: var(--ink-2);
+  background: var(--paper); border: 1px solid var(--line-2);
+  padding: 6px 10px; border-radius: var(--r-ctl);
+}
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--steel); flex: none; }
+.dot.ok { background: var(--ink); }
+.dot.warn { background: var(--steel); box-shadow: 0 0 0 2px var(--line-2); }
+.dot.bad { background: var(--red); }
+
+/* ---------- layout ---------- */
+.wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  gap: 20px;
+  padding: 28px 20px 48px;
+  max-width: 1440px;
+  margin: 0 auto;
+}
+@media (max-width: 980px) {
+  .wrap { grid-template-columns: 1fr; padding: 16px; gap: 16px; }
+  header.top { padding: 24px 16px 18px; }
+  header.top h1 { font-size: 24px; }
+  .brandmark { height: 84px; }
+}
+
+.card {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  overflow: hidden;
+}
+.card .hd {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
+  display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+}
+.card .hd h2 {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+.card .bd { padding: 18px; }
+.full { grid-column: 1 / -1; }
+
+/* ---------- map ---------- */
+svg.map { display: block; width: 100%; height: auto; background: var(--paper); touch-action: manipulation; }
+svg.map .mono { font-family: var(--mono); }
+.mapbox { position: relative; }
+.maphint {
+  position: absolute; right: 12px; top: 12px;
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: .04em; color: var(--muted);
+  background: var(--paper); border: 1px solid var(--line); padding: 3px 8px; border-radius: 6px;
+  pointer-events: none;
+}
+
+.seg { display: flex; gap: 2px; background: var(--page); border: 1px solid var(--line-2); border-radius: var(--r-ctl); padding: 2px; }
+.seg button {
+  background: none; border: 0; color: var(--ink-2);
+  font: inherit; font-size: 13px; padding: 6px 11px; border-radius: 6px; cursor: pointer; min-height: 32px;
+}
+.seg button:hover { color: var(--ink); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper); font-weight: 500; }
+
+.legend {
+  display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center;
+  padding: 12px 18px; border-top: 1px solid var(--line);
+  font-size: 12px; color: var(--ink-2);
+}
+.legend .eyebrow { margin-right: 2px; }
+.legend-key { margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.sw {
+  width: 13px; height: 13px; border-radius: 3px; display: inline-block; vertical-align: -2px; margin-right: 5px;
+  border: 1px solid var(--marker-edge);
+}
+.sw-none { background: var(--paper); border: 1px dashed var(--steel); }
+.sw-alert { background: transparent; border: 1.6px solid var(--red); border-radius: 50%; }
+
+/* ---------- tour list ---------- */
+.controls { display: flex; gap: 8px; flex-wrap: wrap; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+input[type=search], select {
+  background: var(--paper); border: 1px solid var(--line-2); color: var(--ink);
+  border-radius: var(--r-ctl); padding: 8px 10px; font: inherit; font-size: 13.5px; min-width: 0; min-height: 38px;
+}
+input[type=search] { flex: 1 1 160px; }
+input[type=search]::placeholder { color: var(--muted); }
+input[type=checkbox] { accent-color: var(--ink); }
+
+.tourlist { max-height: 640px; overflow: auto; }
+.trow {
+  display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center;
+  padding: 12px 18px; border-bottom: 1px solid var(--line); cursor: pointer;
+}
+.trow:hover { background: var(--page); }
+.trow:focus-visible { outline-offset: -2px; }
+.trow.sel { background: var(--page); box-shadow: inset 3px 0 0 var(--ink); }
+.tname { font-weight: 600; font-size: 14.5px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.tmeta { color: var(--muted); font-size: 12.5px; }
+.stars { font-size: 12px; color: var(--ink); letter-spacing: 1px; white-space: nowrap; }
+.grade { font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
+.fav { border: 0; background: none; color: var(--steel); cursor: pointer; font-size: 15px; line-height: 1; padding: 4px; }
+.fav.on { color: var(--ink); }
+.snowbadge {
+  font-family: var(--mono); font-size: 11.5px; font-weight: 400; color: var(--ink-2);
+  border: 1px solid var(--line-2); border-radius: 6px; padding: 1px 6px; white-space: nowrap;
+}
+/* Over the alert threshold: the one place red touches the list. */
+.snowbadge.hot { color: var(--red-ink); border-color: var(--red); }
+
+/* ---------- detail ---------- */
+.detail dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 18px; margin: 0 0 14px; font-size: 14px; }
+.detail dt { font-family: var(--mono); font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding-top: 2px; }
+.detail dd { margin: 0; }
+.linkrow { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+
+.btn {
+  display: inline-flex; align-items: center; min-height: 38px;
+  background: var(--paper); border: 1px solid var(--line-2); color: var(--ink);
+  text-decoration: none; font: inherit; font-size: 13.5px; padding: 7px 13px; border-radius: var(--r-ctl); cursor: pointer;
+}
+.btn:hover { border-color: var(--ink); }
+.btn.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); font-weight: 500; }
+.btn.primary:hover { background: var(--ink-2); border-color: var(--ink-2); }
+.btn[disabled] { opacity: .5; cursor: default; }
+
+.note { font-size: 12.5px; color: var(--muted); }
+.quiet { font-size: 13.5px; color: var(--ink-2); margin: 0; }
+
+.dangerpill {
+  display: inline-block; min-width: 22px; text-align: center;
+  font-family: var(--mono); font-weight: 600; font-size: 12px;
+  border-radius: 5px; padding: 1px 6px; border: 1px solid rgba(26,26,26,.35);
+}
+.problem {
+  display: inline-block; font-size: 12px; color: var(--ink-2);
+  border: 1px solid var(--line-2); border-radius: 6px; padding: 2px 8px; margin: 0 4px 4px 0;
+}
+.bulletintext { font-size: 14px; margin: 8px 0; color: var(--ink); max-width: 820px; }
+.detail h4, .bulletintext h4 {
+  margin: 16px 0 2px; font-family: var(--mono); font-size: 11.5px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .08em; color: var(--muted);
+}
+.warnbox {
+  border: 1px solid var(--red); color: var(--ink);
+  padding: 10px 12px; border-radius: var(--r-ctl); font-size: 13.5px; margin: 0 0 12px;
+}
+.warnbox strong { color: var(--red-ink); }
+
+/* ---------- alerts ---------- */
+.fired {
+  display: flex; gap: 18px; align-items: flex-start;
+  border: 1px solid var(--line-2); border-radius: var(--r-ctl);
+  padding: 14px 16px; margin-bottom: 10px;
+}
+.fired .big {
+  font-size: 30px; font-weight: 700; line-height: 1; color: var(--red-ink);
+  font-variant-numeric: tabular-nums; min-width: 78px; letter-spacing: -.01em;
+}
+.fired .big span { font-family: var(--mono); font-size: 12px; font-weight: 400; color: var(--muted); }
+.fired .who { font-weight: 700; font-size: 15px; margin-bottom: 2px; }
+
+/* ---------- sources ---------- */
+.srcgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+.src { border: 1px solid var(--line-2); border-radius: var(--r-ctl); padding: 12px 14px; font-size: 12.5px; }
+.src h4 { margin: 0 0 4px; font-size: 13.5px; font-weight: 600; }
+.src.bad { border-color: var(--red); }
+.src.bad h4 { color: var(--red-ink); }
+
+/* ---------- footer ---------- */
+footer {
+  max-width: 1440px; margin: 0 auto; padding: 22px 20px 56px;
+  color: var(--ink-2); font-size: 13px;
+  border-top: 1px solid var(--line-2);
+}
+footer h3 {
+  color: var(--ink); margin: 20px 0 6px;
+  font-family: var(--mono); font-size: 11.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+}
+footer ul { margin: 0; padding-left: 18px; max-width: 980px; }
+footer p { max-width: 980px; }
+footer li { margin: 4px 0; }
+.colophon { margin-top: 26px; font-size: 11.5px; color: var(--muted); }
+
+.skeleton { color: var(--muted); padding: 28px 18px; text-align: center; font-size: 13px; }
+
+/* A storm can put seven regions over threshold at once; a grid keeps the
+   alert block to a couple of rows instead of pushing the map off-screen. */
+.firedgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px; margin-bottom: 12px; }
+.firedgrid .fired { margin: 0; padding: 12px 14px; gap: 14px; }
+.firedgrid .fired .big { font-size: 26px; min-width: 64px; }
+.firedgrid .linkrow { margin-top: 8px; }
+.firedgrid .btn { min-height: 34px; padding: 5px 11px; font-size: 13px; }
+
+/* ---------- tour detail: route, profile, forecast ---------- */
+.tourgrid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 28px; align-items: start; }
+@media (max-width: 980px) { .tourgrid { grid-template-columns: 1fr; } }
+.tourcol > h4:first-child { margin-top: 0; }
+
+.routemap { border: 1px solid var(--line-2); border-radius: var(--r-ctl); overflow: hidden; background: var(--page); }
+.routesvg { display: block; width: 100%; height: auto; }
+/* Topo tiles are toned down to grey so the only strong mark is the route:
+   colour is for meaning, and the map's greens and blues would be decoration. */
+.routesvg .tiles { filter: grayscale(1) contrast(.95); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .routesvg .tiles { filter: grayscale(1) invert(1) brightness(.85) contrast(.9); }
+}
+:root[data-theme="dark"] .routesvg .tiles { filter: grayscale(1) invert(1) brightness(.85) contrast(.9); }
+.maplabel { font-family: var(--mono); font-size: 11px; fill: var(--ink); paint-order: stroke; stroke: var(--paper); stroke-width: 3px; stroke-linejoin: round; }
+svg.map .callout { font-family: var(--sans); font-size: 11.5px; font-weight: 700; fill: var(--ink); paint-order: stroke; stroke: var(--paper); stroke-width: 3.5px; stroke-linejoin: round; }
+
+.profile { position: relative; margin-top: 12px; }
+.profilesvg { display: block; width: 100%; height: auto; }
+.profilesvg .axis { font-family: var(--mono); font-size: 10.5px; fill: var(--muted); }
+.profilesvg .axis.strong { fill: var(--ink); font-weight: 600; }
+.profilesvg .hit { cursor: crosshair; }
+.profiletip {
+  position: absolute; top: 0; transform: translateX(-50%); pointer-events: none;
+  font-family: var(--mono); font-size: 11.5px; background: var(--ink); color: var(--paper);
+  padding: 2px 7px; border-radius: 5px; white-space: nowrap;
+}
+.routehead { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; margin-top: 12px; }
+.routehead .eyebrow { color: var(--ink); font-weight: 600; }
+.routefacts { margin: 4px 0; font-size: 14.5px; }
+.attrib { font-size: 11px; color: var(--muted); margin: 10px 0 0; }
+
+table.fc { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+table.fc caption { text-align: left; caption-side: bottom; padding-top: 6px; }
+table.fc th, table.fc td { padding: 6px 4px; text-align: center; vertical-align: bottom; border-bottom: 1px solid var(--line); }
+table.fc thead th { border-bottom: 1px solid var(--line-2); }
+table.fc tbody th {
+  text-align: left; font-family: var(--mono); font-size: 10.5px; font-weight: 600; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--muted); width: 74px;
+}
+table.fc .eyebrow { display: block; color: var(--ink); font-weight: 600; }
+.fcdate { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.fcsub { display: block; font-size: 11.5px; color: var(--muted); }
+.fcnum { display: block; font-family: var(--mono); font-size: 12px; }
+.wx { width: 26px; height: 26px; color: var(--ink); display: block; margin: 0 auto 2px; }
+/* Daily new snow in the same Fig. 26 ramp the map uses, so a colour always
+   means the same amount; 4px rounded ends per the chart spec. */
+.snowbar { display: block; width: 16px; margin: 0 auto 3px; border-radius: 4px 4px 0 0; box-shadow: inset 0 0 0 1px rgba(26,26,26,.25); }
+.wind { display: inline-flex; align-items: center; gap: 3px; font-family: var(--mono); font-weight: 600; }
+.wind svg { width: 12px; height: 12px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+/* ---------- contours + photos ---------- */
+.contourlabel { font-family: var(--mono); font-size: 9px; fill: var(--muted); paint-order: stroke; stroke: var(--page); stroke-width: 3px; }
+.photonum { font-family: var(--mono); font-size: 10px; font-weight: 600; fill: var(--ink); }
+.photomk { cursor: pointer; }
+.photomk.on rect { fill: var(--ink); }
+.photomk.on text { fill: var(--paper); }
+.photogrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.photo {
+  position: relative; display: flex; flex-direction: column; text-decoration: none; color: var(--ink);
+  border: 1px solid var(--line-2); border-radius: var(--r-ctl); overflow: hidden; background: var(--page);
+}
+.photo img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block; background: var(--line); }
+.photo.noimg img { visibility: hidden; }
+.photo:hover, .photo.on { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
+.photocap { padding: 6px 8px 8px; font-size: 11.5px; line-height: 1.35; display: grid; gap: 2px; }
+.photocap span { color: var(--muted); font-size: 10.5px; }
+.photonumtag {
+  position: absolute; top: 6px; left: 6px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 4px;
+  background: var(--paper); border: 1px solid var(--ink); font-family: var(--mono); font-size: 11px; font-weight: 600;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.photo.on .photonumtag { background: var(--ink); color: var(--paper); }

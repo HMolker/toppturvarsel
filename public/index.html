@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fjällskred — free-touring monitor</title>
+<meta name="description" content="Live snow depth, new snow, avalanche danger and field observations for ski touring in Norway and Sweden.">
+<link rel="stylesheet" href="/styles.css">
+<link rel="icon" type="image/png" sizes="64x64" href="/brand/icon-64.png">
+<link rel="apple-touch-icon" href="/brand/icon-180.png">
+<meta name="theme-color" content="#F4F3EF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121211" media="(prefers-color-scheme: dark)">
+</head>
+<body>
+
+<header class="top">
+  <img class="brandmark" src="/brand/logo-header.png" width="107" height="120"
+       alt="Fjällskred — Molker Digital free-touring monitor">
+  <div>
+    <div class="eyebrow">Fjällskred · Molker Digital — Norway &amp; Sweden</div>
+    <h1>Ski touring conditions</h1>
+    <p class="sub">Snow depth, new snow, avalanche danger and field observations, refreshed from NVE, Varsom and Naturvårdsverket.</p>
+  </div>
+  <div class="status">
+    <span class="chip"><span class="dot" id="freshDot"></span><span id="freshTxt">loading…</span></span>
+    <button class="btn primary" id="refreshBtn">Refresh now</button>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <section class="card full" id="alertCard">
+    <div class="hd">
+      <h2>Powder alerts</h2>
+      <span class="note" id="alertMeta"></span>
+    </div>
+    <div class="bd" id="alerts"><div class="skeleton">loading…</div></div>
+  </section>
+
+  <section class="card mapbox">
+    <div class="hd">
+      <h2>Map</h2>
+      <div class="seg" role="group" aria-label="Map layer">
+        <button data-layer="depth" aria-pressed="true">Snow depth</button>
+        <button data-layer="new48" aria-pressed="false">New snow 48h</button>
+        <button data-layer="danger" aria-pressed="false">Avalanche danger</button>
+      </div>
+      <label class="note" style="display:flex;align-items:center;gap:6px">
+        <input type="checkbox" id="showTours" checked> tours
+      </label>
+    </div>
+    <div style="position:relative">
+      <svg class="map" id="map" viewBox="0 0 560 760" role="img"
+           aria-label="Map of Norway and Sweden showing avalanche forecast regions and ski touring objectives"></svg>
+      <div class="maphint">Schematic — not for navigation</div>
+    </div>
+    <div class="legend" id="legend"></div>
+  </section>
+
+  <section class="card">
+    <div class="hd"><h2>Tours</h2><span class="note" id="tourCount"></span></div>
+    <div class="controls">
+      <input type="search" id="q" placeholder="Search tour, massif or area…" aria-label="Search tours">
+      <select id="fCountry" aria-label="Country">
+        <option value="">All countries</option><option value="NO">Norway</option><option value="SE">Sweden</option>
+      </select>
+      <select id="fRegion" aria-label="Region"><option value="">All regions</option></select>
+      <select id="fGrade" aria-label="Max difficulty">
+        <option value="">Any difficulty</option>
+        <option value="1">≤ 1 — easy</option><option value="2">≤ 2 — moderate</option>
+        <option value="3">≤ 3 — demanding</option><option value="4">≤ 4 — steep</option>
+      </select>
+      <select id="fSort" aria-label="Sort">
+        <option value="quality">Best first</option>
+        <option value="new">Most new snow</option>
+        <option value="depth">Deepest base</option>
+        <option value="vert">Most vertical</option>
+        <option value="grade">Easiest first</option>
+        <option value="name">A–Z</option>
+        <option value="fav">Favourites first</option>
+      </select>
+    </div>
+    <div class="tourlist" id="tourlist"><div class="skeleton">loading…</div></div>
+  </section>
+
+  <section class="card detail full" id="detailCard">
+    <div class="hd"><h2 id="detailTitle">Select a tour or region</h2></div>
+    <div class="bd" id="detail">
+      <p class="note">Pick a pin on the map or a tour from the list to get its live snow depth,
+      the current bulletin for its region, the avalanche problems in play and what observers
+      have been reporting.</p>
+    </div>
+  </section>
+
+  <section class="card full">
+    <div class="hd"><h2>Data sources &amp; freshness</h2></div>
+    <div class="bd"><div class="srcgrid" id="sources"></div></div>
+  </section>
+
+</div>
+
+<footer>
+  <h3>Where the numbers come from</h3>
+  <ul>
+    <li><strong>Avalanche danger, Norway:</strong> the Norwegian Avalanche Warning Service (NVE) via the Varsom API — 23 mainland regions plus Nordenskiöld Land, published daily before 16:00, 1 Dec – 31 May. Danger level, avalanche problems, mountain weather and the forecaster's summary of recent observations and avalanche activity. Data © NVE / Varsom.no.</li>
+    <li><strong>Avalanche danger, Sweden:</strong> Naturvårdsverket's lavinprognoser.se. Sweden publishes no API, so this is read from the public page and is best-effort — if it can't be read, the page says so and links you to the bulletin rather than guessing. Swedish forecasts resume 11 December.</li>
+    <li><strong>Snow depth and new snow:</strong> NVE's seNorge model grid (gts.nve.no), 1 km cells, daily at 06:00, sampled at each tour's own coordinates rather than a region centroid. The grid covers the Swedish mountains too, so both countries use it. New snow is the <em>rise in modelled depth</em>, which settlement makes conservative: 40 cm falling may read as +30 by morning.</li>
+    <li><strong>Field observations:</strong> for Norway, the forecaster's own observation and avalanche-activity summary from the bulletin. Raw Regobs counts are available but off by default — see the README for why. Regobs data requires crediting both Regobs and the individual observer.</li>
+  </ul>
+  <h3>Ratings</h3>
+  <p>Quality (★1–5) and difficulty (1–5) are an editorial call, not an official grade. Roughly: 1 = rolling fjäll; 2 = sustained 25–30°; 3 = 30–35° with exposure or a crux; 4 = 35–45° faces and couloirs, no-fall sections; 5 = ski-mountaineering, rope/glacier/rappel likely. Coordinates and summit heights are approximate — they exist to put a pin in the right cirque and to sample the right grid cell, not to navigate by.</p>
+  <h3>Reality check</h3>
+  <p>A regional bulletin describes a region, not your slope. Modelled snow depth is a model, not a pit. Nothing here replaces terrain assessment, a partner, transceiver/shovel/probe, and the willingness to turn around.</p>
+  <p class="colophon">Graphical profile: Henrik Molker — palette derived from “Industrial framework for hot-spot identification and verification in automotive composite structures”, Chalmers 2019. Avalanche danger uses the EAWS standard colours.</p>
+</footer>
+
+<script type="module" src="/app.js"></script>
+</body>
+</html>

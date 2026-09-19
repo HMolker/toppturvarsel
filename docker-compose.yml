@@ -1,0 +1,23 @@
+services:
+  toppturvarsel:
+    build: .
+    # Or, once you have pushed an image somewhere:
+    # image: ghcr.io/you/toppturvarsel:latest
+    container_name: toppturvarsel
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    volumes:
+      # Snapshots, alert ledger and history survive restarts and upgrades.
+      - ./data/cache:/app/data/cache
+      # Your own GPX files, one per tour slug; read-only is enough.
+      - ./data/tracks:/app/data/tracks:ro
+    # The service holds no secrets beyond the notification keys in .env and
+    # writes nothing outside its volume, so it can run read-only.
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true

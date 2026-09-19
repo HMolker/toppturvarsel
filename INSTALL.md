@@ -213,6 +213,7 @@ git checkout master              # back to the latest
 | Logs say `EACCES` / permission denied under `/app/data/cache` | `sudo chown -R 1000:1000 data/cache` and `docker compose restart`. |
 | `port is already allocated` | Pick another port in step 4. |
 | Container shows `unhealthy` | `docker compose logs --tail 100`. `/api/health` is unhealthy when the data is stale, i.e. refreshing has stopped working, not only when the process is down. |
+| `Rejected request from RFC1918 IP to public server address` | That page comes from the **router**, not from Fjällskred: the request reached the router's own web server from inside your network. Test on mobile data with Wi-Fi off, and include `:8095` in the address. At home, use `http://<pi-ip>:8095`. |
 | Works at home, not from outside | Check the port forward and fixed IP. If it still fails, your ISP may use CG-NAT (no public IPv4): ask them for a public IP, or use a tunnel (e.g. Cloudflare Tunnel or Tailscale Funnel). |
 | No push arrives | Check `NTFY_TOPIC` is exactly the topic subscribed in the app, then run the test in step 7. |
 | No email arrives | `MAIL_FROM` must be on a domain verified in Resend; check the Resend dashboard's logs. |

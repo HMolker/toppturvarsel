@@ -196,6 +196,7 @@ cards are overlays, and every frame is labelled as simulated.
 npm run demo:simulate      # 7 daily snapshots into demo/out/
 npm run demo:record        # 30 s teaser; needs Playwright + Chromium and ffmpeg
 npm run demo:record-full   # ~2 min walkthrough of every feature
+npm run demo:music         # add the original soundtrack (demo/music.py; numpy, scipy)
 ```
 
 For the walkthrough, the simulation also stands in for OpenStreetMap and

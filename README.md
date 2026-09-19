@@ -24,7 +24,7 @@ process, zero npm dependencies, one Docker container.
 - **Snow depth and new snow** from NVE's seNorge 1 km model grid, sampled at
   **each tour's own coordinates** rather than a region centroid — so
   Rørnestinden gets Rørnestinden's snow, not the fjord's.
-- **48 curated tours** with difficulty and quality ratings, filterable and
+- **60 curated tours** with difficulty and quality ratings, filterable and
   sortable by how much snow just fell on them.
 - **Powder alerts** by email and phone push when new snow over 48 h crosses
   your threshold, with the current danger level and problems in the message.
@@ -84,7 +84,7 @@ Node 22 or newer, then:
 ```bash
 npm start            # serve on $PORT (default 8080)
 npm run refresh      # one-shot fetch, useful from host cron
-npm test             # 101 tests, no network needed
+npm test             # 103 tests, no network needed
 ```
 
 ## Routes, elevation and forecast
@@ -359,6 +359,13 @@ unhealthy instead of looking fine.
   "note": "Why this one is worth the drive."
 }
 ```
+
+Optional `links` point to route descriptions elsewhere, shown on the tour
+card as "Route descriptions on …": `[{"site": "Freeride.se", "title":
+"Storsylens norgeåk", "url": "https://…"}]`. Link, don't copy: the tours
+south of Åre added from Freeride.se's route list carry only a name, our own
+summit data (positions and heights from PeakVisor/OpenStreetMap) and our
+own short note, with the route descriptions a click away on Freeride.
 
 `region` must match an `id` in `data/regions.json`. The coordinates do real
 work — they choose the seNorge grid cell the snow depth comes from — so put

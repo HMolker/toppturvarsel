@@ -670,6 +670,20 @@ function snowBlock(snow, label = 'Snow') {
   return `<p class="bulletintext">${label}: ${parts.join(' · ')}</p>${caveat}`;
 }
 
+/** Route descriptions elsewhere (e.g. Freeride.se), linked, never copied. */
+function linksBlock(links) {
+  const ok = (links ?? []).filter((l) => /^https:\/\//.test(l.url ?? ''));
+  if (!ok.length) return '';
+  const bySite = {};
+  for (const l of ok) (bySite[l.site ?? 'More'] ??= []).push(l);
+  return Object.entries(bySite)
+    .map(([site, ls]) =>
+      `<div class="morelinks"><span class="eyebrow">Route descriptions on ${esc(site)}</span>` +
+      ls.map((l) => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.title)} ↗</a>`).join('') +
+      `</div>`)
+    .join('');
+}
+
 function selectTour(name) {
   const t = (state.snapshot?.tours ?? []).find((x) => x.name === name);
   if (!t) return;
@@ -699,6 +713,7 @@ function selectTour(name) {
     `<dt>Usual window</dt><dd>${esc(t.season)}</dd>` +
     `</dl>` +
     `<p class="bulletintext">${esc(t.note)}</p>` +
+    linksBlock(t.links) +
     snowBlock(t.snow, 'At this tour') +
     `<h4>Next 5 days</h4><div id="forecast"></div>` +
     bulletinBlock(reg) +

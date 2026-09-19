@@ -566,8 +566,8 @@
   {
     "name": "Storsnasen (Snasahögarna)",
     "region": "s-jamtland",
-    "lat": 63.2,
-    "lon": 12.35,
+    "lat": 63.2288,
+    "lon": 12.3437,
     "summit_m": 1463,
     "vertical_m": 800,
     "aspect": "N–E",
@@ -575,21 +575,50 @@
     "quality": 5,
     "access": "Storulvån fjällstation / E14",
     "season": "Feb–May",
-    "note": "The Jämtland benchmark: north-facing bowls and gullies that hold cold snow, with genuine slab terrain. Read the Södra Jämtlandsfjällen bulletin carefully."
+    "note": "The Jämtland benchmark: north-facing bowls and gullies that hold cold snow, with genuine slab terrain. Read the Södra Jämtlandsfjällen bulletin carefully.",
+    "links": [
+      {
+        "site": "Freeride.se",
+        "title": "Storsnasen klassikern",
+        "url": "https://www.freeride.se/topptur/r/storsnasen-klassikern.104/"
+      },
+      {
+        "site": "Freeride.se",
+        "title": "Storsnasen Oppdalsbäcken",
+        "url": "https://www.freeride.se/topptur/r/storsnasen-oppdalsbacken.105/"
+      },
+      {
+        "site": "Freeride.se",
+        "title": "All Storulvån routes",
+        "url": "https://www.freeride.se/topptur/storulvan.9/"
+      }
+    ]
   },
   {
     "name": "Getryggen",
     "region": "s-jamtland",
-    "lat": 63.2,
-    "lon": 12.42,
-    "summit_m": 1281,
+    "lat": 63.1837,
+    "lon": 12.3088,
+    "summit_m": 1382,
     "vertical_m": 500,
     "aspect": "N–E",
     "difficulty": 3,
     "quality": 4,
     "access": "Storulvån",
     "season": "Feb–May",
-    "note": "Short lines, quick laps, and the classic 'let's see what the snowpack is doing' objective from Storulvån."
+    "note": "Short lines, quick laps, and the classic 'let's see what the snowpack is doing' objective from Storulvån.",
+    "links": [
+      {
+        "site": "Freeride.se",
+        "title": "Getryggens framsida",
+        "url": "https://www.freeride.se/topptur/r/getryggens-framsida.96/"
+      },
+      {
+        "site": "Freeride.se",
+        "title": "All Storulvån routes",
+        "url": "https://www.freeride.se/topptur/storulvan.9/"
+      }
+    ]
   },
   {
     "name": "Tväråklumpen",
@@ -603,13 +632,30 @@
     "quality": 5,
     "access": "Tvärån / Storulvån",
     "season": "Feb–Apr",
-    "note": "Couloir country — the steepest easily-reached skiing in Jämtland. Small terrain that behaves like big terrain."
+    "note": "Couloir country — the steepest easily-reached skiing in Jämtland. Small terrain that behaves like big terrain.",
+    "links": [
+      {
+        "site": "Freeride.se",
+        "title": "Sönner Tväråklumpen standardåk",
+        "url": "https://www.freeride.se/topptur/r/sonner-tvaraklumpen-standardak.101/"
+      },
+      {
+        "site": "Freeride.se",
+        "title": "Sönners baksida",
+        "url": "https://www.freeride.se/topptur/r/sonners-baksida.102/"
+      },
+      {
+        "site": "Freeride.se",
+        "title": "All Storulvån routes",
+        "url": "https://www.freeride.se/topptur/storulvan.9/"
+      }
+    ]
   },
   {
     "name": "Storsylen",
     "region": "s-jamtland",
-    "lat": 63.03,
-    "lon": 12.22,
+    "lat": 63.0204,
+    "lon": 12.1988,
     "summit_m": 1762,
     "vertical_m": 900,
     "aspect": "varied",
@@ -617,7 +663,34 @@
     "quality": 5,
     "access": "Sylarna fjällstation, ski-in",
     "season": "Mar–May",
-    "note": "The most alpine skyline in southern Sweden. Hut-based, weather-exposed, and worth the ski-in."
+    "note": "The most alpine skyline in southern Sweden. Hut-based, weather-exposed, and worth the ski-in.",
+    "links": [
+      {
+        "site": "Freeride.se",
+        "title": "Storsylens norgeåk",
+        "url": "https://www.freeride.se/topptur/r/storsylens-norgeak.69/"
+      },
+      {
+        "site": "Freeride.se",
+        "title": "Storsylens norgeränna 1",
+        "url": "https://www.freeride.se/topptur/r/storsylens-norgeranna-1.70/"
+      },
+      {
+        "site": "Freeride.se",
+        "title": "Storsylens norgeränna 2",
+        "url": "https://www.freeride.se/topptur/r/storsylens-norgeranna-2.71/"
+      },
+      {
+        "site": "Freeride.se",
+        "title": "Storsylsglaciären",
+        "url": "https://www.freeride.se/topptur/r/storsylsglaciaren.56/"
+      },
+      {
+        "site": "Freeride.se",
+        "title": "All Sylarna routes",
+        "url": "https://www.freeride.se/topptur/sylarna.1/"
+      }
+    ]
   },
   {
     "name": "Åreskutan off-piste laps",
@@ -637,8 +710,8 @@
   {
     "name": "Helags",
     "region": "v-harjedalen",
-    "lat": 62.92,
-    "lon": 12.45,
+    "lat": 62.9042,
+    "lon": 12.4522,
     "summit_m": 1797,
     "vertical_m": 900,
     "aspect": "N–NE",
@@ -646,7 +719,14 @@
     "quality": 5,
     "access": "Helags fjällstation, ski-in from Kläppen/Ljungdalen",
     "season": "Feb–May",
-    "note": "Sweden's southernmost glacier and the best big-mountain feel south of Lappland. North side holds quality snow into May."
+    "note": "Sweden's southernmost glacier and the best big-mountain feel south of Lappland. North side holds quality snow into May.",
+    "links": [
+      {
+        "site": "Freeride.se",
+        "title": "All Helags routes",
+        "url": "https://www.freeride.se/topptur/helags.8/"
+      }
+    ]
   },
   {
     "name": "Lill-Helags couloirs",
@@ -661,7 +741,14 @@
     "access": "From Helags fjällstation",
     "season": "Mar–May",
     "note": "Tight, steep and the reason people stay at Helags for a week rather than a night.",
-    "kind": "area"
+    "kind": "area",
+    "links": [
+      {
+        "site": "Freeride.se",
+        "title": "All Helags routes",
+        "url": "https://www.freeride.se/topptur/helags.8/"
+      }
+    ]
   },
   {
     "name": "Ramundberget–Bruksvallarna fjäll",
@@ -677,5 +764,367 @@
     "season": "Dec–Apr",
     "note": "Low-angle, high-frequency terrain. Where the southern season starts and where you go when the danger rating is ugly.",
     "kind": "area"
+  },
+  {
+    "name": "Lillsylen",
+    "region": "s-jamtland",
+    "lat": 63.0295,
+    "lon": 12.1955,
+    "summit_m": 1702,
+    "vertical_m": 770,
+    "aspect": "varied",
+    "difficulty": 3,
+    "quality": 4,
+    "access": "Sylarnas fjällstation (ski in from Storulvån, about 16 km)",
+    "season": "Feb–May",
+    "note": "The second summit of the Sylarna massif, just north of Storsylen. Aspect is set to 'varied' until checked, so the planner tests it against every avalanche problem. Summit position and height: PeakVisor (OpenStreetMap).",
+    "links": [
+      {
+        "site": "Freeride.se",
+        "title": "Lillsylens norgeåk",
+        "url": "https://www.freeride.se/topptur/r/lillsylens-norgeak.74/"
+      },
+      {
+        "site": "Freeride.se",
+        "title": "Lillsylsrännan",
+        "url": "https://www.freeride.se/topptur/r/lillsylsrannan.75/"
+      },
+      {
+        "site": "Freeride.se",
+        "title": "Lillkammen",
+        "url": "https://www.freeride.se/topptur/r/lillkammen.76/"
+      },
+      {
+        "site": "Freeride.se",
+        "title": "All Sylarna routes",
+        "url": "https://www.freeride.se/topptur/sylarna.1/"
+      }
+    ]
+  },
+  {
+    "name": "Storsola (Templet)",
+    "region": "s-jamtland",
+    "lat": 63.0018,
+    "lon": 12.2293,
+    "summit_m": 1727,
+    "vertical_m": 800,
+    "aspect": "varied",
+    "difficulty": 3,
+    "quality": 5,
+    "access": "Sylarnas fjällstation (ski in from Storulvån, about 16 km)",
+    "season": "Feb–May",
+    "note": "The big southern summit of Sylarna, also called Templet, with a small glacier. Aspect is set to 'varied' until checked, so the planner tests it against every avalanche problem. Summit position and height: PeakVisor (OpenStreetMap).",
+    "links": [
+      {
+        "site": "Freeride.se",
+        "title": "Storsola direkt",
+        "url": "https://www.freeride.se/topptur/r/storsola-direkt.43/"
+      },
+      {
+        "site": "Freeride.se",
+        "title": "Storsola uppförsåket",
+        "url": "https://www.freeride.se/topptur/r/storsola-uppforsaket.48/"
+      },
+      {
+        "site": "Freeride.se",
+        "title": "Storsola konvexen",
+        "url": "https://www.freeride.se/topptur/r/storsola-konvexen.46/"
+      },
+      {
+        "site": "Freeride.se",
+        "title": "S:et på Storsola",
+        "url": "https://www.freeride.se/topptur/r/s-et-pa-storsola.42/"
+      },
+      {
+        "site": "Freeride.se",
+        "title": "Storsolaglaciären",
+        "url": "https://www.freeride.se/topptur/r/storsolaglaciaren.44/"
+      },
+      {
+        "site": "Freeride.se",
+        "title": "Tempelrännan",
+        "url": "https://www.freeride.se/topptur/r/tempelrannan.45/"
+      },
+      {
+        "site": "Freeride.se",
+        "title": "All Sylarna routes",
+        "url": "https://www.freeride.se/topptur/sylarna.1/"
+      }
+    ]
+  },
+  {
+    "name": "Sylskalsstöten",
+    "region": "s-jamtland",
+    "lat": 63.0047,
+    "lon": 12.2721,
+    "summit_m": 1519,
+    "vertical_m": 590,
+    "aspect": "varied",
+    "difficulty": 2,
+    "quality": 4,
+    "access": "Sylarnas fjällstation (ski in from Storulvån, about 16 km)",
+    "season": "Feb–May",
+    "note": "East of Storsola; a less crowded summit on the Swedish side of Sylarna. Aspect is set to 'varied' until checked, so the planner tests it against every avalanche problem. Summit position and height: PeakVisor (OpenStreetMap).",
+    "links": [
+      {
+        "site": "Freeride.se",
+        "title": "Sylskalstöten alla åk",
+        "url": "https://www.freeride.se/topptur/r/sylskalstoten-alla-ak.78/"
+      },
+      {
+        "site": "Freeride.se",
+        "title": "All Sylarna routes",
+        "url": "https://www.freeride.se/topptur/sylarna.1/"
+      }
+    ]
+  },
+  {
+    "name": "Vaktklumpen",
+    "region": "s-jamtland",
+    "lat": 63.0421,
+    "lon": 12.2166,
+    "summit_m": 1444,
+    "vertical_m": 510,
+    "aspect": "varied",
+    "difficulty": 2,
+    "quality": 3,
+    "access": "Sylarnas fjällstation (ski in from Storulvån, about 16 km)",
+    "season": "Feb–May",
+    "note": "Northern outlier of Sylarna, close to the fjällstation; a shorter day. Aspect is set to 'varied' until checked, so the planner tests it against every avalanche problem. Summit position and height: PeakVisor (OpenStreetMap).",
+    "links": [
+      {
+        "site": "Freeride.se",
+        "title": "Vaktlumpen",
+        "url": "https://www.freeride.se/topptur/r/vaktlumpen.77/"
+      },
+      {
+        "site": "Freeride.se",
+        "title": "All Sylarna routes",
+        "url": "https://www.freeride.se/topptur/sylarna.1/"
+      }
+    ]
+  },
+  {
+    "name": "Herrklumpen",
+    "region": "s-jamtland",
+    "lat": 63.034,
+    "lon": 12.2764,
+    "summit_m": 1289,
+    "vertical_m": 360,
+    "aspect": "varied",
+    "difficulty": 1,
+    "quality": 3,
+    "access": "Sylarnas fjällstation (ski in from Storulvån, about 16 km)",
+    "season": "Feb–May",
+    "note": "Low summit about 1 km from Sylarnas fjällstation; a short lap or a bad-weather option. Aspect is set to 'varied' until checked, so the planner tests it against every avalanche problem. Summit position and height: PeakVisor (OpenStreetMap).",
+    "links": [
+      {
+        "site": "Freeride.se",
+        "title": "Herrklumpen",
+        "url": "https://www.freeride.se/topptur/r/herrklumpen.79/"
+      },
+      {
+        "site": "Freeride.se",
+        "title": "Fruntimmersrännan (nearby)",
+        "url": "https://www.freeride.se/topptur/r/fruntimmersrannan.80/"
+      },
+      {
+        "site": "Freeride.se",
+        "title": "All Sylarna routes",
+        "url": "https://www.freeride.se/topptur/sylarna.1/"
+      }
+    ]
+  },
+  {
+    "name": "Bandaklumpen",
+    "region": "s-jamtland",
+    "lat": 63.0036,
+    "lon": 12.1495,
+    "summit_m": 1426,
+    "vertical_m": 650,
+    "aspect": "varied",
+    "difficulty": 3,
+    "quality": 4,
+    "access": "Sylarnas fjällstation (ski in from Storulvån, about 16 km); the summit is on the Norwegian side",
+    "season": "Feb–May",
+    "note": "West of Storsylen, just across the border in Norway. Uses the Swedish Södra Jämtlandsfjällen bulletin, the nearest one. Aspect is set to 'varied' until checked, so the planner tests it against every avalanche problem. Summit position and height: PeakVisor (OpenStreetMap).",
+    "links": [
+      {
+        "site": "Freeride.se",
+        "title": "Bandaklumpen originalet",
+        "url": "https://www.freeride.se/topptur/r/bandaklumpen-originalet.68/"
+      },
+      {
+        "site": "Freeride.se",
+        "title": "Bandaklumpsrännorna",
+        "url": "https://www.freeride.se/topptur/r/bandaklumpsrannorna.67/"
+      },
+      {
+        "site": "Freeride.se",
+        "title": "Vägen till Bandaklumpen",
+        "url": "https://www.freeride.se/topptur/r/vagen-till-bandaklumpen.64/"
+      },
+      {
+        "site": "Freeride.se",
+        "title": "All Sylarna routes",
+        "url": "https://www.freeride.se/topptur/sylarna.1/"
+      }
+    ]
+  },
+  {
+    "name": "Lillsnasen",
+    "region": "s-jamtland",
+    "lat": 63.2208,
+    "lon": 12.3204,
+    "summit_m": 1350,
+    "vertical_m": 620,
+    "aspect": "varied",
+    "difficulty": 2,
+    "quality": 4,
+    "access": "Storulvåns fjällstation / E14",
+    "season": "Feb–May",
+    "note": "Western neighbour of Storsnasen in the Snasahögarna, 1.5 km from it. Aspect is set to 'varied' until checked, so the planner tests it against every avalanche problem. Summit position and height: PeakVisor (OpenStreetMap).",
+    "links": [
+      {
+        "site": "Freeride.se",
+        "title": "Lillsnasen",
+        "url": "https://www.freeride.se/topptur/r/lillsnasen.107/"
+      },
+      {
+        "site": "Freeride.se",
+        "title": "All Storulvån routes",
+        "url": "https://www.freeride.se/topptur/storulvan.9/"
+      }
+    ]
+  },
+  {
+    "name": "Miektjieburrientjahke",
+    "region": "s-jamtland",
+    "lat": 63.1668,
+    "lon": 12.418,
+    "summit_m": 1143,
+    "vertical_m": 410,
+    "aspect": "varied",
+    "difficulty": 2,
+    "quality": 3,
+    "access": "Storulvåns fjällstation",
+    "season": "Feb–May",
+    "note": "Rounded summit south-east of Storulvån, in the Vålådalen nature reserve. Aspect is set to 'varied' until checked, so the planner tests it against every avalanche problem. Summit position and height: PeakVisor (OpenStreetMap).",
+    "links": [
+      {
+        "site": "Freeride.se",
+        "title": "Miektjieburrientjahke",
+        "url": "https://www.freeride.se/topptur/r/miektjieburrientjahke.111/"
+      },
+      {
+        "site": "Freeride.se",
+        "title": "All Storulvån routes",
+        "url": "https://www.freeride.se/topptur/storulvan.9/"
+      }
+    ]
+  },
+  {
+    "name": "Laptentjahke",
+    "region": "s-jamtland",
+    "lat": 63.1417,
+    "lon": 12.4337,
+    "summit_m": 1250,
+    "vertical_m": 520,
+    "aspect": "varied",
+    "difficulty": 3,
+    "quality": 3,
+    "access": "Storulvåns fjällstation",
+    "season": "Feb–May",
+    "note": "South of Storulvån, in the Vålådalen nature reserve. Aspect is set to 'varied' until checked, so the planner tests it against every avalanche problem. Summit position and height: PeakVisor (OpenStreetMap).",
+    "links": [
+      {
+        "site": "Freeride.se",
+        "title": "Laptentjahke",
+        "url": "https://www.freeride.se/topptur/r/laptentjahke.112/"
+      },
+      {
+        "site": "Freeride.se",
+        "title": "All Storulvån routes",
+        "url": "https://www.freeride.se/topptur/storulvan.9/"
+      }
+    ]
+  },
+  {
+    "name": "Blåhammarkläppen",
+    "region": "s-jamtland",
+    "lat": 63.1837,
+    "lon": 12.16,
+    "summit_m": 1165,
+    "vertical_m": 420,
+    "aspect": "varied",
+    "difficulty": 3,
+    "quality": 3,
+    "access": "Blåhammarens fjällstation (ski in from Storulvån)",
+    "season": "Feb–May",
+    "note": "Summit right next to Blåhammarens fjällstation, about 740 m to its west. Aspect is set to 'varied' until checked, so the planner tests it against every avalanche problem. Summit position and height: PeakVisor (OpenStreetMap).",
+    "links": [
+      {
+        "site": "Freeride.se",
+        "title": "Blåhammarkläppen",
+        "url": "https://www.freeride.se/topptur/r/blahammarklappen.103/"
+      },
+      {
+        "site": "Freeride.se",
+        "title": "All Storulvån routes",
+        "url": "https://www.freeride.se/topptur/storulvan.9/"
+      }
+    ]
+  },
+  {
+    "name": "Norra Helagsstöten",
+    "region": "v-harjedalen",
+    "lat": 62.9222,
+    "lon": 12.4054,
+    "summit_m": 1704,
+    "vertical_m": 650,
+    "aspect": "varied",
+    "difficulty": 3,
+    "quality": 4,
+    "access": "Helags fjällstation (ski in from Ljungdalen)",
+    "season": "Feb–May",
+    "note": "Helagsfjället's northern neighbour, about 3 km west-north-west of the main summit. Aspect is set to 'varied' until checked, so the planner tests it against every avalanche problem. Summit position and height: PeakVisor (OpenStreetMap).",
+    "links": [
+      {
+        "site": "Freeride.se",
+        "title": "Norra Helagsstöten direkt",
+        "url": "https://www.freeride.se/topptur/r/norra-helagsstoten-direkt.30/"
+      },
+      {
+        "site": "Freeride.se",
+        "title": "All Helags routes",
+        "url": "https://www.freeride.se/topptur/helags.8/"
+      }
+    ]
+  },
+  {
+    "name": "Ottfjället",
+    "region": "s-jamtland",
+    "lat": 63.1834,
+    "lon": 12.9845,
+    "summit_m": 1159,
+    "vertical_m": 550,
+    "aspect": "varied",
+    "difficulty": 1,
+    "quality": 3,
+    "access": "Ottsjö, Vålådalen",
+    "season": "Feb–May",
+    "note": "Broad fjäll above Ottsjö, south of Åre; gentle and close to the road. Aspect is set to 'varied' until checked, so the planner tests it against every avalanche problem. Summit position and height: PeakVisor (OpenStreetMap).",
+    "links": [
+      {
+        "site": "Freeride.se",
+        "title": "Ottfjället sommarstigen",
+        "url": "https://www.freeride.se/topptur/r/ottfjallet-sommarstigen.11/"
+      },
+      {
+        "site": "Freeride.se",
+        "title": "Ottsjöfjällen routes",
+        "url": "https://www.freeride.se/topptur/ottsjofjallen.7/"
+      }
+    ]
   }
 ]

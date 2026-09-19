@@ -79,7 +79,8 @@ test('a full refresh populates every region and tour', async () => {
 
   assert.equal(snap.status, 'ok');
   assert.equal(snap.regions.length, 30);
-  assert.equal(snap.tours.length, 48);
+  const { loadTours } = await import('../src/config.js');
+  assert.equal(snap.tours.length, (await loadTours()).length);
 
   const no = snap.regions.filter((r) => r.country === 'NO');
   assert.equal(no.length, 24);

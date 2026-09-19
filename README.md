@@ -181,6 +181,9 @@ It works in three steps and never blends them into one number:
    | 5 | | | everything |
 
    Plus your own maximum danger. No bulletin → "not assessed", never ranked.
+   Exception: areas no forecast covers at all (Städjan, Sonfjället,
+   Elgåhogna). Gentle tours there (difficulty ≤ 2) are ranked, marked
+   caution and "no avalanche forecast · own judgement"; steeper ones are not.
 2. **Conditions score 0–100** for what passes: fresh snow and surface
    25 % (new snow over 72 h from seNorge, ageing day by day, plus forecast
    snow; best at 20–40 cm; marked down for warming or wind; spring corn

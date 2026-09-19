@@ -1062,7 +1062,7 @@ const WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const dayName = (iso, k) => (k === 0 ? 'Today' : k === 1 ? 'Tomorrow' : WD[new Date(`${iso}T12:00:00Z`).getUTCDay()]);
 const shortDate = (iso) => `${Number(iso.slice(8, 10))}.${iso.slice(5, 7)}`;
 const scoreBand = (v) => (v >= 75 ? 4 : v >= 60 ? 3 : v >= 40 ? 2 : 1);
-const CONF = { high: 'high confidence', medium: 'medium confidence', low: 'weather only', none: 'no bulletin' };
+const CONF = { high: 'high confidence', medium: 'medium confidence', low: 'weather only', none: 'no bulletin', noforecast: 'no avalanche forecast · own judgement' };
 
 function renderPlanner() {
   const tours = state.snapshot?.tours;

@@ -87,7 +87,13 @@ const describeProblem = (p) => {
  */
 export function gate(tour, day, prefs) {
   const D = day?.danger;
-  if (day?.noForecast) return { status: 'unassessed', why: 'no avalanche forecast is issued for this area' };
+  // No forecast exists for the area at all: gentle tours are still ranked,
+  // flagged as caution and "your own judgement"; steeper ones are not.
+  if (day?.noForecast) {
+    return (tour.difficulty ?? 3) <= 2
+      ? { status: 'caution', why: 'no avalanche forecast for this area: your own judgement (gentle terrain)', noForecast: true }
+      : { status: 'unassessed', why: 'no avalanche forecast for this area, and the terrain is too steep to rank without one' };
+  }
   if (!Number.isFinite(D)) return { status: 'unassessed', why: 'no avalanche bulletin for this day' };
   const hit = problemsHit(tour, day.problems);
   const inside = hit.length > 0;
@@ -289,12 +295,13 @@ export function plan({ tours, outlook, prefs = {} }) {
       const c = conditions(t, fc, k, p);
       let confidence = 'low';
       if (g.status === 'unassessed') confidence = 'none';
+      else if (b?.noForecast) confidence = 'noforecast';
       else if (!b.assumed && c.hasForecast && k <= 2) confidence = 'high';
       else if (c.hasForecast && k <= 3) confidence = 'medium';
       // A reused bulletin lowers the confidence and says so; it does not
       // turn every later day into "caution", which would drown that word.
       const status = g.status;
-      const avalanche = b?.assumed ? `${g.why} (as of the ${b.from} bulletin; this day's is not out yet)` : g.why;
+      const avalanche = b?.assumed && !b.noForecast ? `${g.why} (as of the ${b.from} bulletin; this day's is not out yet)` : g.why;
       return { tour: t.name, region: t.region, status, avalanche, danger: b?.danger ?? null, assumed: Boolean(b?.assumed), bulletinDate: b?.date ?? null, confidence, ...c };
     });
     const rank = { ok: 0, caution: 1, unassessed: 2, excluded: 3 };

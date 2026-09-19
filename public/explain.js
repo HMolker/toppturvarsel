@@ -34,6 +34,7 @@ const CONF = {
   medium: "Medium: this day's bulletin is not out yet, so the last one is reused.",
   low: 'Weather only: four or more days out, forecast only.',
   none: 'No bulletin: the avalanche filter could not be applied, so it is not ranked.',
+  noforecast: 'No avalanche forecast exists for this area. It is ranked because the terrain is gentle, but the avalanche judgement is yours alone.',
 };
 
 /** A tiny curve with a marker at x, e.g. the fresh-snow or base rule. */

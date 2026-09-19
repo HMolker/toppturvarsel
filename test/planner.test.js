@@ -210,8 +210,15 @@ test('"Refresh now" has a cooldown: a fresh snapshot is returned without asking 
   }
 });
 
-test('areas without any avalanche forecast are listed as not assessed, and say why', () => {
-  const g = P.gate(tour(), { date: '2027-02-10', danger: null, problems: [], noForecast: true }, { maxDanger: 3 });
-  assert.equal(g.status, 'unassessed');
-  assert.match(g.why, /no avalanche forecast is issued for this area/);
+test('no-forecast areas: gentle tours ranked with caution and "own judgement", steeper ones not', () => {
+  const day = { date: '2027-02-10', danger: null, problems: [], noForecast: true };
+  const gentle = P.gate(tour({ difficulty: 1 }), day, { maxDanger: 3 });
+  assert.equal(gentle.status, 'caution');
+  assert.match(gentle.why, /your own judgement/);
+  assert.equal(P.gate(tour({ difficulty: 3 }), day, { maxDanger: 3 }).status, 'unassessed');
+  const p = P.plan({ tours: [tour({ name: 'Städjan', difficulty: 1 })], outlook: { bulletins: { r: [day] }, forecasts: { Städjan: fc() } } });
+  assert.equal(p.days[0].rows[0].status, 'caution');
+  assert.equal(p.days[0].rows[0].confidence, 'noforecast');
+  assert.equal(p.days[2].rows[0].confidence, 'noforecast', 'reused for later days, still labelled');
+  assert.doesNotMatch(p.days[2].rows[0].avalanche, /bulletin/, 'no talk of a bulletin where none exists');
 });

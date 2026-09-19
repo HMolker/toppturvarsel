@@ -10,6 +10,7 @@ import { startScheduler } from './scheduler.js';
 import { findTour, getRoute, routeGpx, getForecast, warmRoutes, getPhotos, getPhotoThumb } from './tracks.js';
 import { getTerrain } from './terrain.js';
 import { getResorts } from './resorts.js';
+import { getOutlook } from './outlook.js';
 import { serveTile } from './tiles.js';
 import { slugify } from './util/gpx.js';
 import { log } from './util/log.js';
@@ -143,6 +144,14 @@ async function handleApi(req, res, url) {
     const snapshot = await store.getSnapshot();
     const result = await runAlerts(snapshot ?? { regions: [] }, { dryRun: true });
     return json(res, 200, { dryRun: true, ...result });
+  }
+
+  if (route === '/api/outlook') {
+    try {
+      return json(res, 200, await getOutlook(), { 'Cache-Control': 'public, max-age=300' });
+    } catch (err) {
+      return json(res, 502, { error: 'outlook unavailable', detail: err.message });
+    }
   }
 
   if (route === '/api/resorts') {

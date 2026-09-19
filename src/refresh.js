@@ -4,6 +4,7 @@ import { fetchSwedishBulletins } from './sources/lavinprognoser.js';
 import { fetchSnowForPoints, summariseByRegion } from './sources/senorge.js';
 import { fetchObservationCounts } from './sources/regobs.js';
 import { store } from './store.js';
+import { cachedRouteStart } from './tracks.js';
 import { log } from './util/log.js';
 
 /**
@@ -35,6 +36,13 @@ export async function refresh({
   // taken low down is visible as a low-altitude reading rather than passed
   // off as a summit depth.
   const tourPoints = tours.map((t) => ({ key: t.name, lat: t.lat, lon: t.lon }));
+  // Where a route is known, also sample its start: the trip planner uses it
+  // to say "skiable from the car" or "carry skis".
+  const startPoints = [];
+  for (const t of tours) {
+    const s = await cachedRouteStart(t).catch(() => null);
+    if (s) startPoints.push({ key: `start:${t.name}`, ...s });
+  }
   const regionsWithoutTours = regions.filter(
     (r) => !r.offMap && !tours.some((t) => t.region === r.id)
   );
@@ -53,7 +61,7 @@ export async function refresh({
       log.error(`lavinprognoser failed wholesale: ${e.message}`);
       return {};
     }),
-    fetchSnowForPoints([...tourPoints, ...fallbackPoints], { date }).catch((e) => {
+    fetchSnowForPoints([...tourPoints, ...startPoints, ...fallbackPoints], { date }).catch((e) => {
       log.error(`senorge failed wholesale: ${e.message}`);
       return {};
     }),
@@ -106,10 +114,14 @@ export async function refresh({
     };
   });
 
-  const tourRows = tours.map((t) => ({
-    ...t,
-    snow: snowByTour[t.name] ?? null,
-  }));
+  const tourRows = tours.map((t) => {
+    const start = snowByTour[`start:${t.name}`];
+    return {
+      ...t,
+      snow: snowByTour[t.name] ?? null,
+      snowStart: start && !start.error ? { depthCm: start.depthCm, gridAltitude: start.gridAltitude } : null,
+    };
+  });
 
   const fallbackCount = regionRows.filter((r) => r.snow?.fallback).length;
   if (fallbackCount) {

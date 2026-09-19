@@ -1,6 +1,7 @@
 import { COAST, BORDER } from './geo.js';
 import { renderRouteMap, renderProfile, routeSummary, renderForecast, renderPhotos } from './route.js';
 import { layoutResorts, resortSvg, OPEN_BANDS } from './resorts.js';
+import { plan } from './planner.js';
 
 /* ------------------------------------------------------------------ *
  * state
@@ -12,6 +13,8 @@ const state = {
   layer: 'depth',
   showTours: true,
   showResorts: false,
+  outlook: null,
+  planDay: 0,
   resorts: null,
   // Map zoom: scale k about the centre (cx, cy) in unzoomed map units.
   view: { k: 1, cx: 280, cy: 380 },
@@ -80,6 +83,7 @@ async function load() {
   state.alerts = alertRes.status === 'fulfilled' ? alertRes.value : null;
   // A refresh refreshes the resort status too, when that layer is on.
   if (state.showResorts) loadResorts();
+  loadOutlook();
 
   renderFreshness();
   fillRegionSelect();
@@ -977,3 +981,176 @@ load();
 // Pick up server-side refreshes without a reload; cheap, and the server
 // coalesces so this cannot stampede upstream.
 setInterval(load, 10 * 60 * 1000);
+
+/* ------------------------------------------------------------------ *
+ * trip planner
+ * ------------------------------------------------------------------ */
+
+const PLAN_KEY = 'fjallskred.plan.v1';
+const PLACES = [
+  ['', 'Anywhere (no distance)'],
+  ['69.65,18.96', 'Tromsø'], ['68.44,17.43', 'Narvik'], ['67.86,20.23', 'Kiruna'], ['67.28,14.40', 'Bodø'],
+  ['63.43,10.39', 'Trondheim'], ['62.47,6.15', 'Ålesund'], ['63.40,13.08', 'Åre'], ['63.18,14.64', 'Östersund'],
+  ['60.39,5.32', 'Bergen'], ['59.91,10.75', 'Oslo'], ['63.83,20.26', 'Umeå'], ['59.33,18.07', 'Stockholm'], ['57.71,11.97', 'Göteborg'],
+];
+const planPrefs = { maxDifficulty: 3, maxDanger: 3, from: '', ...readStore(PLAN_KEY, {}) };
+
+function initPlanner() {
+  $('#pFrom').innerHTML = PLACES.map(([v, l]) => `<option value="${v}">${esc(l)}</option>`).join('');
+  $('#pMaxDiff').value = String(planPrefs.maxDifficulty);
+  $('#pMaxDanger').value = String(planPrefs.maxDanger);
+  $('#pFrom').value = planPrefs.from;
+  const save = () => {
+    planPrefs.maxDifficulty = +$('#pMaxDiff').value;
+    planPrefs.maxDanger = +$('#pMaxDanger').value;
+    planPrefs.from = $('#pFrom').value;
+    writeStore(PLAN_KEY, planPrefs);
+    renderPlanner();
+  };
+  ['#pMaxDiff', '#pMaxDanger', '#pFrom'].forEach((id) => $(id).addEventListener('change', save));
+  $('#planDays').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-k]');
+    if (!b) return;
+    state.planDay = +b.dataset.k;
+    renderPlanner();
+  });
+  $('#planList').addEventListener('click', (e) => {
+    const r = e.target.closest('[data-tour]');
+    if (r) selectTour(r.dataset.tour);
+  });
+  $('#planMatrix').addEventListener('click', (e) => {
+    const c = e.target.closest('[data-k]');
+    if (c) state.planDay = +c.dataset.k;
+    const t = e.target.closest('[data-tour]');
+    if (t && !c) return selectTour(t.dataset.tour);
+    renderPlanner();
+  });
+}
+
+async function loadOutlook() {
+  try {
+    const r = await fetch('/api/outlook');
+    state.outlook = r.ok ? await r.json() : { error: `HTTP ${r.status}` };
+  } catch (err) {
+    state.outlook = { error: err.message };
+  }
+  renderPlanner();
+}
+
+const WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const dayName = (iso, k) => (k === 0 ? 'Today' : k === 1 ? 'Tomorrow' : WD[new Date(`${iso}T12:00:00Z`).getUTCDay()]);
+const shortDate = (iso) => `${Number(iso.slice(8, 10))}.${iso.slice(5, 7)}`;
+const scoreBand = (v) => (v >= 75 ? 4 : v >= 60 ? 3 : v >= 40 ? 2 : 1);
+const CONF = { high: 'high confidence', medium: 'medium confidence', low: 'weather only', none: 'no bulletin' };
+
+function renderPlanner() {
+  const tours = state.snapshot?.tours;
+  if (!tours) return;
+  const o = state.outlook;
+  if (!o) return;
+  if (o.error) {
+    $('#planList').innerHTML = `<p class="pempty">The planner needs the summit forecasts, which could not be loaded right now (${esc(o.error)}).</p>`;
+    $('#planMatrix').innerHTML = '';
+    return;
+  }
+  const [la, lo] = planPrefs.from ? planPrefs.from.split(',').map(Number) : [NaN, NaN];
+  const p = plan({
+    tours,
+    outlook: o,
+    prefs: { maxDifficulty: planPrefs.maxDifficulty, maxDanger: planPrefs.maxDanger, from: Number.isFinite(la) && Number.isFinite(lo) ? { lat: la, lon: lo } : null },
+  });
+  if (!p.dates.length) {
+    $('#planList').innerHTML = '<p class="pempty">No forecast days available yet.</p>';
+    return;
+  }
+  state.planDay = Math.min(state.planDay, p.dates.length - 1);
+  const k = state.planDay;
+  const day = p.days[k];
+
+  $('#planDays').innerHTML = p.dates
+    .map((d, i) => {
+      const good = p.days[i].rows.filter((r) => r.status === 'ok' || r.status === 'caution').length;
+      return `<button class="daychip" data-k="${i}" role="tab" aria-selected="${i === k}">${dayName(d, i)}<small>${shortDate(d)} · ${good} pass</small></button>`;
+    })
+    .join('');
+
+  const pass = day.rows.filter((r) => r.status === 'ok' || r.status === 'caution');
+  const excluded = day.rows.filter((r) => r.status === 'excluded');
+  const unassessed = day.rows.filter((r) => r.status === 'unassessed');
+  const regionName = (id) => regionById()[id]?.name ?? id;
+
+  const row = (r, i) => {
+    const why = [...r.why];
+    if (r.startNote) why.push(r.startNote);
+    if (r.km != null) why.push(`${r.km} km away`);
+    return (
+      `<div class="prow" data-tour="${esc(r.tour)}">` +
+      `<span class="prank">${i + 1}</span>` +
+      `<span class="pname">${esc(r.tour)}<span class="preg">${esc(regionName(r.region))}</span></span>` +
+      `<span class="pscore">${r.score}<small>/ 100</small></span>` +
+      `<span class="pbar"><i style="width:${r.score}%"></i></span>` +
+      `<span class="pwhy"><span class="av">${esc(r.avalanche)}.</span> ${esc(why.join(' · '))}</span>` +
+      `<span class="ptags">${r.status === 'caution' ? '<span class="ptag caution">caution</span>' : ''}` +
+      `<span class="ptag ${r.confidence === 'high' ? '' : 'low'}">${CONF[r.confidence]}</span></span>` +
+      `</div>`
+    );
+  };
+
+  $('#planMeta').textContent = `${dayName(day.date, k)} ${shortDate(day.date)}: ${pass.length} of ${day.rows.length} tours pass the avalanche filter` +
+    (p.hiddenByDifficulty ? ` · ${p.hiddenByDifficulty} hidden above difficulty ${planPrefs.maxDifficulty}` : '');
+
+  $('#planList').innerHTML =
+    (pass.length
+      ? pass.slice(0, 8).map(row).join('')
+      : `<p class="pempty"><strong>Nothing passes the avalanche filter on this day</strong> with your limits. Consider another day, or a resort day: tick “ski resorts” on the map to see what is open.</p>`) +
+    (excluded.length
+      ? `<details class="pexcl"><summary>${excluded.length} excluded by the avalanche filter</summary><ul>${excluded
+          .slice(0, 40)
+          .map((r) => `<li><strong>${esc(r.tour)}</strong>: ${esc(r.avalanche)}</li>`)
+          .join('')}</ul></details>`
+      : '') +
+    (unassessed.length
+      ? `<details class="pexcl"><summary>${unassessed.length} without a bulletin for this day (not ranked)</summary><ul>${unassessed
+          .map((r) => `<li><strong>${esc(r.tour)}</strong>: ${esc(r.avalanche)}</li>`)
+          .join('')}</ul></details>`
+      : '');
+
+  // Matrix: tours that pass on at least one day, best first.
+  const byTour = new Map();
+  p.days.forEach((d, i) => d.rows.forEach((r) => {
+    if (!byTour.has(r.tour)) byTour.set(r.tour, []);
+    byTour.get(r.tour)[i] = r;
+  }));
+  const ranked = [...byTour.entries()]
+    .map(([name, cells]) => ({ name, cells, best: Math.max(...cells.map((c) => (c.status === 'ok' || c.status === 'caution' ? c.score : -1))) }))
+    .filter((x) => x.best >= 0)
+    .sort((a, b) => b.best - a.best)
+    .slice(0, 14);
+  const selName = pass[0]?.tour;
+  $('#planMatrix').innerHTML =
+    `<table class="matrix"><thead><tr><th style="text-align:left">Best tours this week</th>${p.dates
+      .map((d, i) => `<th class="${i === k ? 'sel' : ''}">${dayName(d, i).slice(0, 3)}</th>`)
+      .join('')}</tr></thead><tbody>` +
+    ranked
+      .map(
+        (x) =>
+          `<tr class="${x.name === selName ? 'sel' : ''}"><td class="tn" data-tour="${esc(x.name)}" title="${esc(x.name)}">${esc(x.name)}</td>` +
+          x.cells
+            .map((c, i) => {
+              if (!c) return '<td></td>';
+              if (c.status === 'excluded') return `<td><span class="cell excluded" data-k="${i}" title="${esc(c.avalanche)}">✕</span></td>`;
+              if (c.status === 'unassessed') return `<td><span class="cell unassessed" data-k="${i}" title="${esc(c.avalanche)}">?</span></td>`;
+              const b = scoreBand(c.score);
+              return `<td><span class="cell ${c.status}${c.confidence === 'low' ? ' low' : ''}" data-k="${i}" style="background:var(--ro${b});color:var(--rg${b})" title="${esc(`${c.score}/100 · ${c.avalanche}`)}">${c.score}</span></td>`;
+            })
+            .join('') +
+          `</tr>`
+      )
+      .join('') +
+    `</tbody></table>` +
+    `<div class="mlegend"><span><span class="cell" style="background:var(--ro4);color:var(--rg4)">80</span>score (darker = better)</span>` +
+    `<span><span class="cell caution" style="background:var(--ro2)">55</span>caution</span>` +
+    `<span><span class="cell excluded">✕</span>excluded</span><span><span class="cell low" style="background:var(--ro3);color:var(--rg3)">70</span>weather only</span></div>`;
+}
+
+initPlanner();

@@ -76,20 +76,52 @@ export function shapeNorwegian(rows) {
     // These two are the forecaster's own summary of what observers saw.
     latestAvalancheActivity: today.LatestAvalancheActivity ?? null,
     latestObservations: today.LatestObservations ?? null,
-    problems: (today.AvalancheProblems ?? []).map((p) => ({
-      type: p.AvalancheExtName ?? null,
-      probability: p.AvalProbabilityName ?? null,
-      size: p.DestructiveSizeExtName ?? null,
-      danger: p.DangerLevelName ?? null,
-    })),
+    problems: shapeProblems(today.AvalancheProblems),
     advice: (today.AvalancheAdvices ?? []).map((a) => a.Text ?? a.Advice ?? null).filter(Boolean),
     mountainWeather: shapeWeather(today.MountainWeather),
     // Forward look: the API returns today + the next two days.
     outlook: rows.slice(1).map((r) => ({
       validFrom: r.ValidFrom ?? null,
       danger: parseDanger(r.DangerLevel),
+      problems: shapeProblems(r.AvalancheProblems),
     })),
   };
+}
+
+/**
+ * Avalanche problems, with where they apply. Verified in a live Detail
+ * response (April 2026):
+ *   AvalancheProblemTypeName "Persistent weak layer (slab avalanches)",
+ *   ValidExpositions "11100011", ExposedHeight1 300, ExposedHeight2 300,
+ *   ExposedHeightFill 1, AvalProbabilityName "Possible",
+ *   DestructiveSizeName "2 - Medium".
+ *
+ * ValidExpositions: one digit per aspect, N NE E SE S SW W NW (read from
+ * the published examples: a persistent weak layer on "11100011" = the
+ * shady N, NE, E, W, NW; wet snow on "00111110" = the sunny side).
+ * ExposedHeightFill, per the API docs, describes Varsom's mountain icon
+ * with the exposed band in black: 1 white at the bottom (exposed above
+ * height 1), 2 black at the bottom (below height 1), 3 white in the middle
+ * (above the upper and below the lower height), 4 black in the middle
+ * (between the two heights). 0 = not given, read as all elevations.
+ */
+export function shapeProblems(list) {
+  return (Array.isArray(list) ? list : []).map((p) => {
+    const aspects = typeof p.ValidExpositions === 'string' && /^[01]{8}$/.test(p.ValidExpositions) ? p.ValidExpositions : null;
+    const h1 = Number(p.ExposedHeight1), h2 = Number(p.ExposedHeight2);
+    const fill = Number(p.ExposedHeightFill);
+    return {
+      type: p.AvalancheExtName ?? p.AvalancheProblemTypeName ?? null,
+      problemType: p.AvalancheProblemTypeName ?? null,
+      probability: p.AvalProbabilityName ?? null,
+      size: p.DestructiveSizeExtName ?? p.DestructiveSizeName ?? null,
+      danger: p.DangerLevelName ?? null,
+      aspects,
+      heights: [1, 2, 3, 4].includes(fill) && Number.isFinite(h1)
+        ? { fill, h1, h2: Number.isFinite(h2) ? h2 : h1 }
+        : null,
+    };
+  });
 }
 
 function shapeWeather(mw) {

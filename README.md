@@ -82,7 +82,7 @@ Node 22 or newer, then:
 ```bash
 npm start            # serve on $PORT (default 8080)
 npm run refresh      # one-shot fetch, useful from host cron
-npm test             # 88 tests, no network needed
+npm test             # 99 tests, no network needed
 ```
 
 ## Routes, elevation and forecast
@@ -149,6 +149,56 @@ OpenTopoMap (CC-BY-SA) · other elevation Copernicus DEM via Open-Meteo ·
 forecast Open-Meteo (CC BY 4.0, free for non-commercial use) · photos
 Wikimedia Commons, each under its own licence, credited on the card ·
 Norwegian resort status Fnugg · Swedish resorts © OpenStreetMap contributors.
+
+## Trip planner
+
+"Where should I go in the coming days?" The planner ranks the tours for
+each of the next five days, with a table showing the whole week at once.
+You set your maximum difficulty, your maximum avalanche danger and,
+optionally, where you are starting from; the settings are remembered in
+the browser.
+
+It works in three steps and never blends them into one number:
+
+1. **Avalanche filter.** Danger level against the tour's steepness (its
+   difficulty rating stands in for slope angle), and whether the tour's
+   aspect and elevation fall inside a problem the bulletin names. Varsom
+   publishes, per problem, the aspects (`ValidExpositions`, e.g.
+   `11100011` = N, NE, E, W, NW) and the elevation band
+   (`ExposedHeight1/2`, `ExposedHeightFill`), so the planner can say
+   "inside wind slab (NE/E/SE above 600 m)" rather than just "danger 3".
+   Tours that fail are **excluded, not marked down**, and listed with the
+   reason, so powder can never outweigh danger.
+
+   | Danger | Passes | Caution | Excluded |
+   |---|---|---|---|
+   | 1 | everything | | |
+   | 2 | everything | difficulty ≥ 3 inside a problem area | |
+   | 3 | difficulty ≤ 2 outside problem areas | difficulty ≤ 2 inside, or 3 outside | difficulty 3 inside, and ≥ 4 |
+   | 4 | | difficulty 1 outside problem areas | everything else |
+   | 5 | | | everything |
+
+   Plus your own maximum danger. No bulletin → "not assessed", never ranked.
+2. **Conditions score 0–100** for what passes: fresh snow and surface
+   25 % (new snow over 72 h from seNorge, ageing day by day, plus forecast
+   snow; best at 20–40 cm; marked down for warming or wind; spring corn
+   counts), **base 20 % (nothing at 20 cm or less, full marks from 100 cm —
+   100 cm and 300 cm count the same)**, weather that day 25 % (wind, sky,
+   precipitation; capped by strong gusts or a freezing level above the
+   summit), tour quality 20 %, fit 10 % (difficulty, and distance if you
+   give a start).
+3. **Confidence.** High with that day's bulletin and a near forecast.
+   Varsom issues about two days ahead; later days reuse the last bulletin
+   and say so. Beyond three days it is labelled "weather only".
+
+Also shown: "thin cover" where the base is below what the tour's terrain
+needs, and "skiable from the car" / "carry skis" from the modelled snow at
+the start of the route (where a route is known).
+
+`GET /api/outlook` serves the inputs (bulletins per day, every tour's
+summit forecast); the scoring runs in the browser (`public/planner.js`),
+so changing your limits re-ranks instantly. It sorts what the bulletin
+says. Read the bulletin before you go.
 
 ## Ski resorts layer
 
@@ -276,6 +326,7 @@ curl -X POST localhost:8080/api/test-alert   # dry run, records nothing
 | `GET /api/terrain?tour=` | Elevation grid for contours. |
 | `GET /api/photos?tour=` · `/api/photo?tour=&i=` | Commons photos near the summit, and their thumbnails. |
 | `GET /api/forecast?tour=` | 5-day summit forecast. |
+| `GET /api/outlook` | Trip planner inputs: bulletins per day and every tour's 5-day summit forecast. |
 | `GET /api/resorts` | Ski resorts: Norway with live lift/slope status (Fnugg), Sweden location only (OSM). |
 
 The healthcheck deliberately fails on **stale data**, not just on a dead

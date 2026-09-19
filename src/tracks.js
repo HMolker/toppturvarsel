@@ -241,3 +241,10 @@ export async function getPhotoThumb(tour, i) {
   await writeFile(file, body);
   return { body, type: type.split(';')[0] };
 }
+
+/** Start of a tour's route, if one has been derived and cached (no network). */
+export async function cachedRouteStart(tour) {
+  const r = await readJson(cacheDir('tracks', `${slugify(tour.name)}.json`));
+  const p = r?.found ? r.points?.[0] : null;
+  return p && Number.isFinite(p.lat) && Number.isFinite(p.lon) ? { lat: p.lat, lon: p.lon } : null;
+}

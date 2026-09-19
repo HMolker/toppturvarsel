@@ -37,6 +37,34 @@
     <div class="bd" id="alerts"><div class="skeleton">loading…</div></div>
   </section>
 
+  <section class="card full" id="planCard">
+    <div class="hd">
+      <h2>Trip planner</h2>
+      <span class="note" id="planMeta">Where to go in the coming days</span>
+    </div>
+    <div class="bd">
+      <div class="plancontrols">
+        <label>Max difficulty
+          <select id="pMaxDiff">
+            <option value="1">1 — rolling fjäll</option><option value="2">2 — 25–30°</option>
+            <option value="3">3 — 30–35°</option><option value="4">4 — 35–45°</option><option value="5">5 — ski mountaineering</option>
+          </select></label>
+        <label>Max avalanche danger
+          <select id="pMaxDanger">
+            <option value="1">1 Low</option><option value="2">2 Moderate</option><option value="3">3 Considerable</option><option value="4">4 High</option>
+          </select></label>
+        <label>Starting from
+          <select id="pFrom"></select></label>
+        <div class="daychips" id="planDays" role="tablist" aria-label="Day"></div>
+      </div>
+      <div class="plangrid">
+        <div id="planList"><div class="skeleton">loading…</div></div>
+        <div id="planMatrix"></div>
+      </div>
+      <p class="note plannote">How it ranks: first an avalanche filter. Danger level is weighed against the tour's steepness (its difficulty rating), and against whether its aspect and elevation fall inside a problem the bulletin names. Tours that fail are excluded, not marked down. Then a score out of 100: fresh snow and surface 25 %, base 20 % (full marks from 100 cm), weather that day 25 %, tour quality 20 %, fit 10 %. Days after the last bulletin reuse it and say so. This sorts what the bulletin says; read the bulletin before you go.</p>
+    </div>
+  </section>
+
   <section class="card mapbox">
     <div class="hd">
       <h2>Map</h2>

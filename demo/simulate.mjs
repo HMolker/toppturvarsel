@@ -37,6 +37,7 @@ const { latLonToUTM } = await import('../src/util/utm.js');
 const { getRoute } = await import('../src/tracks.js');
 const { getTerrain } = await import('../src/terrain.js');
 const { shapeFnugg } = await import('../src/sources/fnugg.js');
+const { bulletinDays, snapshotDay } = await import('../src/outlook.js');
 const { shapeOsmResorts } = await import('../src/sources/osm-resorts.js');
 const { fetchForecast } = await import('../src/sources/forecast.js');
 const { haversineKm } = await import('../src/util/utm.js');
@@ -173,14 +174,20 @@ function bulletin(regionId, d) {
     1: 'Generally stable snowpack. Avalanches are unlikely outside extreme terrain.',
   }[lvl];
 
+  // Where each problem applies, in Varsom's own fields: a westerly storm
+  // loads the lee (NE, E, SE) above the tree line; the storm slab itself
+  // is on all aspects above 500 m; old wind slab lingers N-E near ridges.
+  const lee = { ValidExpositions: '01110000', ExposedHeightFill: 1, ExposedHeight1: 600, ExposedHeight2: 600 };
   const problems = fresh
     ? [
-        { AvalancheExtName: 'Dry slab avalanche', AvalProbabilityName: lvl >= 4 ? 'Very likely' : 'Likely', DestructiveSizeExtName: lvl >= 4 ? '3 - Large' : '2 - Medium' },
-        { AvalancheExtName: 'Wind slab', AvalProbabilityName: 'Likely', DestructiveSizeExtName: '2 - Medium' },
+        { AvalancheExtName: 'Dry slab avalanche', AvalProbabilityName: lvl >= 4 ? 'Very likely' : 'Likely', DestructiveSizeExtName: lvl >= 4 ? '3 - Large' : '2 - Medium',
+          ValidExpositions: '11111111', ExposedHeightFill: 1, ExposedHeight1: 500, ExposedHeight2: 500 },
+        { AvalancheExtName: 'Wind slab', AvalProbabilityName: 'Likely', DestructiveSizeExtName: '2 - Medium', ...lee },
       ]
     : lvl >= 3
-      ? [{ AvalancheExtName: 'Dry slab avalanche', AvalProbabilityName: 'Possible', DestructiveSizeExtName: '2 - Medium' }]
-      : [{ AvalancheExtName: 'Wind slab', AvalProbabilityName: 'Possible', DestructiveSizeExtName: '1 - Small' }];
+      ? [{ AvalancheExtName: 'Dry slab avalanche', AvalProbabilityName: 'Possible', DestructiveSizeExtName: '2 - Medium', ...lee }]
+      : [{ AvalancheExtName: 'Wind slab', AvalProbabilityName: 'Possible', DestructiveSizeExtName: '1 - Small',
+          ValidExpositions: '11100000', ExposedHeightFill: 1, ExposedHeight1: 900, ExposedHeight2: 900 }];
 
   return {
     DangerLevel: String(lvl),
@@ -298,9 +305,10 @@ function overpassFor(lat, lon) {
 
 /** Summit weather for the 5 days from `currentDay`, consistent with the storm track. */
 function forecastFor(lat, lon, elevation) {
-  const f = nearestFeatured(lat, lon, 3);
-  const region = f?.tour.region ?? 'lyngen';
-  const key = f?.tour.name ?? 'x';
+  // The weather belongs to the nearest listed tour's region.
+  const near = tours.reduce((a, t) => (haversineKm(lat, lon, t.lat, t.lon) < haversineKm(lat, lon, a.lat, a.lon) ? t : a), tours[0]);
+  const region = near.region;
+  const key = nearestFeatured(lat, lon, 3)?.tour.name ?? near.name;
   const days = [], wx = { weather_code: [], temperature_2m_max: [], temperature_2m_min: [], precipitation_sum: [], snowfall_sum: [],
     wind_speed_10m_max: [], wind_gusts_10m_max: [], wind_direction_10m_dominant: [] };
   const hourly = { time: [], freezing_level_height: [] };
@@ -488,6 +496,16 @@ for (let d = 0; d <= 6; d++) {
   const push = firing.length ? buildPush(firing) : null;
   const email = firing.length ? buildEmail(firing) : null;
 
+  // Planner inputs: every tour's summit forecast and each region's bulletins.
+  const outlook = { generatedAt: date.toISOString(), bulletins: {}, forecasts: {}, failed: 0 };
+  for (const r of snap.regions) outlook.bulletins[r.id] = bulletinDays(r, snapshotDay(snap));
+  for (const t of tours) {
+    const r = routes[t.name];
+    const s = r?.summit ?? t;
+    const fc = await fetchForecast({ lat: s.lat, lon: s.lon, elevation: s.ele ?? t.summit_m });
+    outlook.forecasts[t.name] = { elevation: fc.elevation, days: fc.days };
+  }
+
   const forecasts = {};
   for (const f of featured) {
     const r = routes[f.tour.name];
@@ -507,7 +525,7 @@ for (let d = 0; d <= 6; d++) {
 
   await writeFile(
     path.join(outDir, `day-${d + 1}.json`),
-    JSON.stringify({ day: d + 1, date: date.toISOString(), snapshot: snap, alerts, push, email, forecasts, resorts: resortsFor(snap, d, new Date(date.getTime() + 3.25 * 3600e3).toISOString()) }, null, 0)
+    JSON.stringify({ day: d + 1, date: date.toISOString(), snapshot: snap, alerts, push, email, forecasts, outlook, resorts: resortsFor(snap, d, new Date(date.getTime() + 3.25 * 3600e3).toISOString()) }, null, 0)
   );
 
   const max = [...snap.regions].filter((r) => r.snow?.new48 != null).sort((a, b) => b.snow.new48 - a.snow.new48)[0];

@@ -1126,5 +1126,83 @@
         "url": "https://www.freeride.se/topptur/ottsjofjallen.7/"
       }
     ]
+  },
+  {
+    "name": "Städjan",
+    "region": "se-no-forecast",
+    "lat": 61.9184,
+    "lon": 12.8794,
+    "summit_m": 1131,
+    "vertical_m": 400,
+    "aspect": "varied",
+    "difficulty": 1,
+    "quality": 3,
+    "access": "Idre, Städjan–Nipfjället nature reserve",
+    "season": "Dec–Apr",
+    "note": "Idre's landmark cone above the tree line; a gentle tour. No avalanche forecast covers this area, so the trip planner lists it as not assessed instead of ranking it. Aspect is set to 'varied' until checked. Summit position and height: PeakVisor (OpenStreetMap).",
+    "links": [
+      {
+        "site": "Freeride.se",
+        "title": "Städjan",
+        "url": "https://www.freeride.se/topptur/r/stadjan.125/"
+      },
+      {
+        "site": "Freeride.se",
+        "title": "Dalarna routes",
+        "url": "https://www.freeride.se/topptur/dalarna.30/"
+      }
+    ]
+  },
+  {
+    "name": "Sonfjället",
+    "region": "se-no-forecast",
+    "lat": 62.3,
+    "lon": 13.5499,
+    "summit_m": 1278,
+    "vertical_m": 500,
+    "aspect": "varied",
+    "difficulty": 1,
+    "quality": 3,
+    "access": "Sonfjället national park, east of Vemdalen",
+    "season": "Dec–Apr",
+    "note": "Isolated fjäll in its own national park; highest point Högfjället. No avalanche forecast covers this area, so the trip planner lists it as not assessed instead of ranking it. Aspect is set to 'varied' until checked. Position: PeakVisor (OpenStreetMap), approximate; height: Wikipedia.",
+    "links": [
+      {
+        "site": "Freeride.se",
+        "title": "Högfjället västra ravin",
+        "url": "https://www.freeride.se/topptur/r/hogfjallet-vastra-ravin.258/"
+      },
+      {
+        "site": "Freeride.se",
+        "title": "Sonfjället routes",
+        "url": "https://www.freeride.se/topptur/sonfjallet.51/"
+      }
+    ]
+  },
+  {
+    "name": "Elgåhogna",
+    "region": "se-no-forecast",
+    "lat": 62.1488,
+    "lon": 12.0649,
+    "summit_m": 1460,
+    "vertical_m": 650,
+    "aspect": "varied",
+    "difficulty": 2,
+    "quality": 3,
+    "access": "From Grövelsjön; the summit is just across the border in Norway (Femundsmarka)",
+    "season": "Feb–May",
+    "note": "High, isolated summit in Femundsmarka on the Dalarna border. No avalanche forecast covers this area, so the trip planner lists it as not assessed instead of ranking it. Aspect is set to 'varied' until checked. Summit position and height: PeakVisor (OpenStreetMap).",
+    "links": [
+      {
+        "site": "Freeride.se",
+        "title": "Elgåhogna östra sidan",
+        "url": "https://www.freeride.se/topptur/r/elgahogna-ostra-sidan.147/"
+      },
+      {
+        "site": "Freeride.se",
+        "title": "Dalarna routes",
+        "url": "https://www.freeride.se/topptur/dalarna.30/"
+      }
+    ]
   }
 ]

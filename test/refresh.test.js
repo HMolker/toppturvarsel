@@ -78,7 +78,8 @@ test('a full refresh populates every region and tour', async () => {
   const snap = await refresh({ force: true, date: new Date('2026-02-10T08:00:00Z') });
 
   assert.equal(snap.status, 'ok');
-  assert.equal(snap.regions.length, 30);
+  const { loadRegions } = await import('../src/config.js');
+  assert.equal(snap.regions.length, (await loadRegions()).length);
   const { loadTours } = await import('../src/config.js');
   assert.equal(snap.tours.length, (await loadTours()).length);
 
@@ -87,7 +88,8 @@ test('a full refresh populates every region and tour', async () => {
   assert.ok(no.every((r) => r.bulletin.danger === 3), 'every Norwegian region got its bulletin');
 
   const se = snap.regions.filter((r) => r.country === 'SE');
-  assert.ok(se.every((r) => r.bulletin.danger === 2), 'Swedish pages parsed to danger 2');
+  assert.ok(se.filter((r) => !r.bulletin.noForecast).every((r) => r.bulletin.danger === 2), 'Swedish pages parsed to danger 2');
+  assert.ok(se.some((r) => r.bulletin.noForecast && r.bulletin.danger === null && r.bulletinUrl === null), 'no-forecast area says so');
 
   assert.ok(snap.tours.every((t) => t.snow?.depthCm != null), 'every tour got a snow depth');
   assert.equal(snap.sources.senorge.ok, true);
@@ -161,7 +163,7 @@ test('out of season, no upstream calls are made at all', async () => {
   const snap = await refresh({ seasonOnly: true, date: new Date('2026-08-15T08:00:00Z') });
   assert.equal(called, 0, 'summer must not poll public agency APIs');
   assert.equal(snap.status, 'out-of-season');
-  assert.equal(snap.regions.length, 30);
+  assert.equal(snap.regions.length, (await (await import('../src/config.js')).loadRegions()).length);
   assert.ok(snap.regions.every((r) => r.bulletin.danger === null));
 });
 

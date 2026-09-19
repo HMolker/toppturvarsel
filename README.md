@@ -24,7 +24,7 @@ process, zero npm dependencies, one Docker container.
 - **Snow depth and new snow** from NVE's seNorge 1 km model grid, sampled at
   **each tour's own coordinates** rather than a region centroid — so
   Rørnestinden gets Rørnestinden's snow, not the fjord's.
-- **60 curated tours** with difficulty and quality ratings, filterable and
+- **63 curated tours** with difficulty and quality ratings, filterable and
   sortable by how much snow just fell on them.
 - **Powder alerts** by email and phone push when new snow over 48 h crosses
   your threshold, with the current danger level and problems in the message.
@@ -84,7 +84,7 @@ Node 22 or newer, then:
 ```bash
 npm start            # serve on $PORT (default 8080)
 npm run refresh      # one-shot fetch, useful from host cron
-npm test             # 103 tests, no network needed
+npm test             # 104 tests, no network needed
 ```
 
 ## Routes, elevation and forecast

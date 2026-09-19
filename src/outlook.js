@@ -35,6 +35,7 @@ export function bulletinDays(region, fallbackDate = null) {
     problems: b.problems ?? [],
     source: b.source ?? null,
     assessed: b.assessed !== false && b.danger != null,
+    ...(b.noForecast ? { noForecast: true } : {}),
   });
   for (const o of b.outlook ?? []) {
     out.push({ date: dayOf(o.validFrom), danger: o.danger ?? null, problems: o.problems ?? [], source: b.source, assessed: o.danger != null });

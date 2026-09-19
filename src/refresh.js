@@ -74,7 +74,9 @@ export async function refresh({
   const snowByRegion = summariseByRegion(snowByTour, tours);
 
   const regionRows = regions.map((region) => {
-    const bulletin = region.country === 'NO' ? norway[region.id] : sweden[region.id];
+    const bulletin = region.noForecast
+      ? { source: 'none', noForecast: true, assessed: false, danger: null, headline: 'No avalanche forecast is issued for this area.' }
+      : region.country === 'NO' ? norway[region.id] : sweden[region.id];
 
     let snow = snowByRegion[region.id] ?? null;
     if (!snow) {
@@ -166,6 +168,7 @@ export async function refresh({
 }
 
 function bulletinUrl(region) {
+  if (region.noForecast) return null;
   if (region.country === 'NO') {
     return `https://www.varsom.no/en/snow/forecast/warning/${encodeURIComponent(region.name.replace(/ \(Svalbard\)$/, ''))}/`;
   }

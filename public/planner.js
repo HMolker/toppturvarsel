@@ -87,6 +87,7 @@ const describeProblem = (p) => {
  */
 export function gate(tour, day, prefs) {
   const D = day?.danger;
+  if (day?.noForecast) return { status: 'unassessed', why: 'no avalanche forecast is issued for this area' };
   if (!Number.isFinite(D)) return { status: 'unassessed', why: 'no avalanche bulletin for this day' };
   const hit = problemsHit(tour, day.problems);
   const inside = hit.length > 0;

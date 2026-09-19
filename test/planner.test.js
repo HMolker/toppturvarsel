@@ -209,3 +209,9 @@ test('"Refresh now" has a cooldown: a fresh snapshot is returned without asking 
     globalThis.fetch = realFetch;
   }
 });
+
+test('areas without any avalanche forecast are listed as not assessed, and say why', () => {
+  const g = P.gate(tour(), { date: '2027-02-10', danger: null, problems: [], noForecast: true }, { maxDanger: 3 });
+  assert.equal(g.status, 'unassessed');
+  assert.match(g.why, /no avalanche forecast is issued for this area/);
+});

@@ -35,5 +35,7 @@
   { "id": "s-jamtland",    "name": "Södra Jämtlandsfjällen",   "country": "SE", "lat": 63.2,  "lon": 12.5,
     "slug": "sodra_jamtlandsfjallen" },
   { "id": "v-harjedalen",  "name": "Västra Härjedalsfjällen",  "country": "SE", "lat": 62.8,  "lon": 12.5,
-    "slug": "vastra_harjedalsfjallen" }
+    "slug": "vastra_harjedalsfjallen" },
+  { "id": "se-no-forecast", "name": "Outside the avalanche forecast areas", "country": "SE", "lat": 62.2, "lon": 13.0,
+    "offMap": true, "noForecast": true }
 ]

@@ -596,7 +596,9 @@ const pill = (d) =>
 function dangerPill(region) {
   const d = region.bulletin?.danger;
   if (!d) {
-    const why = region.bulletin?.seasonOver
+    const why = region.bulletin?.noForecast
+      ? 'no avalanche forecast here'
+      : region.bulletin?.seasonOver
       ? 'season over'
       : region.bulletin?.error
         ? 'could not be read'
@@ -717,11 +719,14 @@ function selectTour(name) {
     snowBlock(t.snow, 'At this tour') +
     `<h4>Next 5 days</h4><div id="forecast"></div>` +
     bulletinBlock(reg) +
-    `<div class="linkrow"><a class="btn primary" href="${esc(reg.bulletinUrl)}" target="_blank" rel="noopener">Bulletin — ${esc(reg.name)}</a>` +
+    `<div class="linkrow">` +
+    (reg.bulletinUrl
+      ? `<a class="btn primary" href="${esc(reg.bulletinUrl)}" target="_blank" rel="noopener">Bulletin — ${esc(reg.name)}</a>`
+      : `<span class="note">No avalanche forecast is issued here. Judge the terrain yourself, and see the nearest bulletin for the weather and snowpack story.</span>`) +
     (reg.country === 'NO'
       ? `<a class="btn" href="https://www.regobs.no/" target="_blank" rel="noopener">Regobs observations</a>`
       : '') +
-    `<button class="btn" data-region="${esc(reg.id)}">Region overview</button></div>` +
+    (reg.offMap ? '' : `<button class="btn" data-region="${esc(reg.id)}">Region overview</button>`) + `</div>` +
     `</div></div>`;
 
   state.tourView = { route: null, terrain: null, photos: null };
@@ -801,7 +806,7 @@ function selectRegion(id) {
     }${reg.bulletin?.publishTime ? ` · published ${esc(String(reg.bulletin.publishTime).slice(0, 16).replace('T', ' '))}` : ''}</span></p>` +
     snowBlock(reg.snow, `Across ${reg.snow?.sampleCount ?? 0} tour points`) +
     bulletinBlock(reg) +
-    `<div class="linkrow"><a class="btn primary" href="${esc(reg.bulletinUrl)}" target="_blank" rel="noopener">Open bulletin</a>` +
+    `<div class="linkrow">${reg.bulletinUrl ? `<a class="btn primary" href="${esc(reg.bulletinUrl)}" target="_blank" rel="noopener">Open bulletin</a>` : ''}` +
     (reg.country === 'NO'
       ? `<a class="btn" href="https://www.regobs.no/" target="_blank" rel="noopener">Regobs observations</a>`
       : '') +

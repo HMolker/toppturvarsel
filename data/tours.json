@@ -381,8 +381,8 @@
   {
     "name": "Skogshorn",
     "region": "hallingdal",
-    "lat": 60.85,
-    "lon": 8.52,
+    "lat": 60.8814,
+    "lon": 8.6953,
     "summit_m": 1728,
     "vertical_m": 900,
     "aspect": "N–NE",
@@ -390,7 +390,24 @@
     "quality": 4,
     "access": "Hemsedal, roadside",
     "season": "Jan–Apr",
-    "note": "Southern Norway's most-skied steep-ish objective. North face holds cold snow; the standard route is far more forgiving than the face."
+    "note": "Southern Norway's most-skied steep-ish objective. North face holds cold snow; the standard route is far more forgiving than the face.",
+    "links": [
+      {
+        "site": "ToppturNorge",
+        "title": "Skogshorn",
+        "url": "https://www.toppturnorge.no/turer/skogshorn/"
+      },
+      {
+        "site": "Friflyt",
+        "title": "Skogshorn",
+        "url": "https://www.friflyt.no/topptur/skiturer-hemsedal/turbeskrivelse-skogshorn"
+      },
+      {
+        "site": "Hemsedal.com",
+        "title": "Tips for ski touring in Hemsedal",
+        "url": "https://hemsedal.com/en/articles/tips-ski-touring"
+      }
+    ]
   },
   {
     "name": "Gaustatoppen",
@@ -1202,6 +1219,277 @@
         "site": "Freeride.se",
         "title": "Dalarna routes",
         "url": "https://www.freeride.se/topptur/dalarna.30/"
+      }
+    ]
+  },
+  {
+    "name": "Høgeloft",
+    "region": "hallingdal",
+    "lat": 61.0539,
+    "lon": 8.2143,
+    "summit_m": 1920,
+    "vertical_m": 900,
+    "aspect": "varied",
+    "difficulty": 2,
+    "quality": 4,
+    "access": "Filefjell, from the E16",
+    "season": "Feb–May",
+    "note": "The highest summit of Filefjell, on the Hemsedal–Lærdal–Vang border. Uses the Hallingdal bulletin. Aspect is set to 'varied' until checked, so the planner tests it against every avalanche problem. Summit position and height: PeakVisor (OpenStreetMap).",
+    "links": [
+      {
+        "site": "ToppturNorge",
+        "title": "Høgeloft",
+        "url": "https://www.toppturnorge.no/turer/hogeloft/"
+      }
+    ]
+  },
+  {
+    "name": "Nibbi",
+    "region": "hallingdal",
+    "lat": 60.8865,
+    "lon": 8.6501,
+    "summit_m": 1741,
+    "vertical_m": 800,
+    "aspect": "varied",
+    "difficulty": 2,
+    "quality": 4,
+    "access": "Hemsedal",
+    "season": "Jan–Apr",
+    "note": "Skogshorn's neighbour, 2.5 km to its west. Aspect is set to 'varied' until checked, so the planner tests it against every avalanche problem. Summit position and height: PeakVisor (OpenStreetMap).",
+    "links": [
+      {
+        "site": "ToppturNorge",
+        "title": "Nibbi",
+        "url": "https://www.toppturnorge.no/turer/nibbi/"
+      },
+      {
+        "site": "Hemsedal.com",
+        "title": "Tips for ski touring in Hemsedal",
+        "url": "https://hemsedal.com/en/articles/tips-ski-touring"
+      }
+    ]
+  },
+  {
+    "name": "Leinenøse",
+    "region": "hallingdal",
+    "lat": 60.9058,
+    "lon": 8.5386,
+    "summit_m": 1675,
+    "vertical_m": 700,
+    "aspect": "varied",
+    "difficulty": 2,
+    "quality": 3,
+    "access": "Hemsedal",
+    "season": "Jan–Apr",
+    "note": "North of the Hemsedal valley. Aspect is set to 'varied' until checked, so the planner tests it against every avalanche problem. Summit position and height: PeakVisor (OpenStreetMap).",
+    "links": [
+      {
+        "site": "ToppturNorge",
+        "title": "Leinenøse",
+        "url": "https://www.toppturnorge.no/turer/leinenose/"
+      }
+    ]
+  },
+  {
+    "name": "Harahorn",
+    "region": "hallingdal",
+    "lat": 60.9394,
+    "lon": 8.4945,
+    "summit_m": 1581,
+    "vertical_m": 600,
+    "aspect": "varied",
+    "difficulty": 1,
+    "quality": 3,
+    "access": "Hemsedal (Harahorn mountain lodge)",
+    "season": "Jan–Apr",
+    "note": "One of the easier summits in Hemsedal. Aspect is set to 'varied' until checked, so the planner tests it against every avalanche problem. Summit position and height: PeakVisor (OpenStreetMap).",
+    "links": [
+      {
+        "site": "ToppturNorge",
+        "title": "Harahorn",
+        "url": "https://www.toppturnorge.no/turer/harahorn/"
+      },
+      {
+        "site": "Hemsedal.com",
+        "title": "Tips for ski touring in Hemsedal",
+        "url": "https://hemsedal.com/en/articles/tips-ski-touring"
+      }
+    ]
+  },
+  {
+    "name": "Slettind",
+    "region": "hallingdal",
+    "lat": 60.969,
+    "lon": 8.1839,
+    "summit_m": 1592,
+    "vertical_m": 650,
+    "aspect": "varied",
+    "difficulty": 1,
+    "quality": 3,
+    "access": "Hemsedal, upper valley",
+    "season": "Jan–Apr",
+    "note": "One of the easier summits in Hemsedal. Aspect is set to 'varied' until checked, so the planner tests it against every avalanche problem. Summit position: OpenStreetMap (Mapcarta); height: Hemsedal tourist board.",
+    "links": [
+      {
+        "site": "ToppturNorge",
+        "title": "Slettind",
+        "url": "https://www.toppturnorge.no/turer/slettind/"
+      },
+      {
+        "site": "Hemsedal.com",
+        "title": "Tips for ski touring in Hemsedal",
+        "url": "https://hemsedal.com/en/articles/tips-ski-touring"
+      }
+    ]
+  },
+  {
+    "name": "Råskardfjellet",
+    "region": "hallingdal",
+    "lat": 60.8842,
+    "lon": 8.2089,
+    "summit_m": 1606,
+    "vertical_m": 650,
+    "aspect": "varied",
+    "difficulty": 2,
+    "quality": 3,
+    "access": "Hemsedal, west towards Hydalen",
+    "season": "Jan–Apr",
+    "note": "Broad fjäll west of the main Hemsedal valley. Aspect is set to 'varied' until checked, so the planner tests it against every avalanche problem. Summit position and height: PeakVisor (OpenStreetMap).",
+    "links": [
+      {
+        "site": "ToppturNorge",
+        "title": "Råskardfjellet",
+        "url": "https://www.toppturnorge.no/turer/raskardfjellet/"
+      },
+      {
+        "site": "Hemsedal.com",
+        "title": "Tips for ski touring in Hemsedal",
+        "url": "https://hemsedal.com/en/articles/tips-ski-touring"
+      }
+    ]
+  },
+  {
+    "name": "Svarthetta",
+    "region": "hallingdal",
+    "lat": 60.969,
+    "lon": 8.3183,
+    "summit_m": 1553,
+    "vertical_m": 600,
+    "aspect": "varied",
+    "difficulty": 2,
+    "quality": 3,
+    "access": "Hemsedal",
+    "season": "Jan–Apr",
+    "note": "North-west of Hemsedal, near Fosseberget. Aspect is set to 'varied' until checked, so the planner tests it against every avalanche problem. Summit position and height: PeakVisor (OpenStreetMap).",
+    "links": [
+      {
+        "site": "ToppturNorge",
+        "title": "Svarthetta",
+        "url": "https://www.toppturnorge.no/turer/svarthetta/"
+      }
+    ]
+  },
+  {
+    "name": "Totten",
+    "region": "hallingdal",
+    "lat": 60.8384,
+    "lon": 8.5356,
+    "summit_m": 1495,
+    "vertical_m": 600,
+    "aspect": "varied",
+    "difficulty": 2,
+    "quality": 3,
+    "access": "Hemsedal skisenter, lift-assisted",
+    "season": "Dec–Apr",
+    "note": "The top of the Hemsedal ski area; touring from the lifts. Aspect is set to 'varied' until checked, so the planner tests it against every avalanche problem. Summit position and height: PeakVisor (OpenStreetMap).",
+    "links": [
+      {
+        "site": "ToppturNorge",
+        "title": "Totten",
+        "url": "https://www.toppturnorge.no/turer/totten/"
+      }
+    ]
+  },
+  {
+    "name": "Storehorn",
+    "region": "hallingdal",
+    "lat": 60.8151,
+    "lon": 8.5957,
+    "summit_m": 1482,
+    "vertical_m": 650,
+    "aspect": "varied",
+    "difficulty": 3,
+    "quality": 4,
+    "access": "Hemsedal, south side of the valley",
+    "season": "Jan–Apr",
+    "note": "The pointed summit above Hemsedal village, next to Veslehorn. Aspect is set to 'varied' until checked, so the planner tests it against every avalanche problem. Summit position and height: PeakVisor (OpenStreetMap).",
+    "links": []
+  },
+  {
+    "name": "Prestholtskarvet (Hallingskarvet)",
+    "region": "hallingdal",
+    "lat": 60.5583,
+    "lon": 8.012,
+    "summit_m": 1859,
+    "vertical_m": 850,
+    "aspect": "varied",
+    "difficulty": 2,
+    "quality": 4,
+    "access": "Prestholt, near Geilo",
+    "season": "Feb–May",
+    "note": "The eastern end of the Hallingskarvet plateau, in the national park. Aspect is set to 'varied' until checked, so the planner tests it against every avalanche problem. Summit position and height: PeakVisor (OpenStreetMap).",
+    "links": [
+      {
+        "site": "UT.no",
+        "title": "Skitur til Hallingskarvet",
+        "url": "https://ut.no/turforslag/114555/topptur-pa-ski-til-hallingskarvet"
+      },
+      {
+        "site": "Geilo.com",
+        "title": "Ski touring at Geilo",
+        "url": "https://www.geilo.com/en/ski-snowboard-and-cross-country/ski-touring"
+      }
+    ]
+  },
+  {
+    "name": "Folarskardnuten",
+    "region": "hallingdal",
+    "lat": 60.6075,
+    "lon": 7.7824,
+    "summit_m": 1933,
+    "vertical_m": 900,
+    "aspect": "varied",
+    "difficulty": 2,
+    "quality": 4,
+    "access": "Haugastøl or Finse; long approach",
+    "season": "Feb–May",
+    "note": "The highest point of Hallingskarvet and of the old Buskerud county. Aspect is set to 'varied' until checked, so the planner tests it against every avalanche problem. Summit position and height: PeakVisor (OpenStreetMap).",
+    "links": [
+      {
+        "site": "Geilo.com",
+        "title": "Ski touring at Geilo",
+        "url": "https://www.geilo.com/en/ski-snowboard-and-cross-country/ski-touring"
+      }
+    ]
+  },
+  {
+    "name": "Einsetnuten",
+    "region": "hallingdal",
+    "lat": 60.6775,
+    "lon": 7.9397,
+    "summit_m": 1245,
+    "vertical_m": 450,
+    "aspect": "varied",
+    "difficulty": 1,
+    "quality": 3,
+    "access": "Geilo",
+    "season": "Dec–Apr",
+    "note": "A short tour close to Geilo. Aspect is set to 'varied' until checked, so the planner tests it against every avalanche problem. Summit position and height: PeakVisor (OpenStreetMap).",
+    "links": [
+      {
+        "site": "Geilo.com",
+        "title": "Ski touring to Einsetnuten",
+        "url": "https://www.geilo.com/en/ski-snowboard-and-cross-country/ski-touring/ski-touring-to-einsetnuten"
       }
     ]
   }

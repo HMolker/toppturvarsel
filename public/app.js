@@ -1,5 +1,6 @@
 import { COAST, BORDER } from './geo.js';
 import { renderRouteMap, renderProfile, routeSummary, renderForecast, renderPhotos } from './route.js';
+import { layoutResorts, resortSvg, OPEN_BANDS } from './resorts.js';
 
 /* ------------------------------------------------------------------ *
  * state
@@ -10,6 +11,10 @@ const state = {
   alerts: null,
   layer: 'depth',
   showTours: true,
+  showResorts: false,
+  resorts: null,
+  // Map zoom: scale k about the centre (cx, cy) in unzoomed map units.
+  view: { k: 1, cx: 280, cy: 380 },
   sel: null,
   selRegion: null,
   q: '',
@@ -105,10 +110,19 @@ function renderFreshness() {
  * ------------------------------------------------------------------ */
 
 const S = 44, CX = 250, LAT0 = 71.9, LON0 = 17;
-const proj = (lat, lon) => ({
+const MAP_W = 560, MAP_H = 760;
+const baseProj = (lat, lon) => ({
   x: CX + (lon - LON0) * Math.cos((lat * Math.PI) / 180) * S,
   y: (LAT0 - lat) * S,
 });
+// Zoom moves the geography, not the markers: positions scale, marker and
+// text sizes stay the same, so zooming in separates crowded resorts.
+const proj = (lat, lon) => {
+  const b = baseProj(lat, lon), v = state.view;
+  return { x: (b.x - v.cx) * v.k + MAP_W / 2, y: (b.y - v.cy) * v.k + MAP_H / 2 };
+};
+// Resorts get their icons and names from this zoom on.
+const DETAIL_K = 3;
 
 function pathFrom(pts, close) {
   const d = pts
@@ -297,6 +311,15 @@ function drawMap() {
     }
   }
 
+  // Ski resorts: under the tour pins, over the regions.
+  if (state.showResorts && state.resorts?.resorts) {
+    const pts = state.resorts.resorts.map((r) => ({ r, ...proj(r.lat, r.lon) }));
+    // Keep icons and names clear of the zoom buttons and the map note.
+    const blocked = [[0, 0, 46, 116], [MAP_W - 210, 0, MAP_W, 34]];
+    const layout = layoutResorts(pts, { detail: state.view.k >= DETAIL_K, width: MAP_W, height: MAP_H, blocked });
+    parts.push(`<g class="resorts">${resortSvg(layout)}</g>`);
+  }
+
   // The selected tour gets a name callout, drawn last so nothing covers it.
   const selTour = state.showTours && state.sel ? visibleTours().find((t) => t.name === state.sel) : null;
   if (selTour) {
@@ -309,6 +332,9 @@ function drawMap() {
   }
 
   map.innerHTML = parts.concat(labels).join('');
+  // Zoomed in, one-finger drags pan the map; zoomed out they scroll the page.
+  map.style.touchAction = state.view.k > 1 ? 'none' : 'pan-y';
+  map.dataset.view = `${state.view.k.toFixed(2)} ${state.view.cx.toFixed(1)} ${state.view.cy.toFixed(1)}`;
   drawLegend();
 }
 
@@ -326,17 +352,138 @@ function drawLegend() {
     bands
       .map(
         ([l, c]) =>
-          `<span><i class="sw" style="background:${c}${c === DANGER_COL[5] ? `;border-color:${RED}` : ''}"></i>${l}</span>`
+          `<span><i class="sw" style="background:${c}${state.layer === 'danger' && c === DANGER_COL[5] ? `;border-color:${RED}` : ''}"></i>${l}</span>`
       )
       .join('') +
     `<span><i class="sw sw-none"></i>${state.layer === 'danger' ? 'not assessed' : 'no data'}</span>` +
     (state.layer !== 'danger'
       ? `<span><i class="sw sw-alert"></i>over alert threshold</span>`
       : '') +
-    `<span class="legend-key">▲ tour · ● forecast region</span>`;
+    `<span class="legend-key">▲ tour · ● forecast region${state.showResorts ? ' · ■ resort' : ''}</span>` +
+    (state.showResorts ? resortLegend() : '');
+}
+
+function resortLegend() {
+  const src = state.resorts?.sources;
+  const when = (x) => (x?.fetchedAt ? new Date(x.fetchedAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'not loaded');
+  const status = !state.resorts
+    ? 'loading resorts…'
+    : `Norway: live, Fnugg, ${when(src?.no)}${src?.no?.stale ? ' (stale)' : ''} · Sweden: location only, OpenStreetMap — no live status is published`;
+  return (
+    `<div class="legend-row"><span class="eyebrow">Resorts — share open</span>` +
+    OPEN_BANDS.map(([, bg, , l], i) => `<span><i class="sw"${i === 0 ? ' style="border-color:var(--steel)"' : ` style="background:${bg}"`}></i>${l}</span>`).join('') +
+    `<span><i class="sw sw-none"></i>no status</span>` +
+    `<span class="legend-key">left icon slopes · right icon lifts · name links to the resort</span></div>` +
+    `<div class="legend-row note">${status}${state.view.k < DETAIL_K ? ' · zoom in for icons and names' : ''}</div>`
+  );
+}
+
+/* ------------------------------------------------------------------ *
+ * zoom and pan
+ * ------------------------------------------------------------------ */
+
+function svgPoint(e) {
+  const svg = $('#map');
+  const pt = svg.createSVGPoint();
+  pt.x = e.clientX;
+  pt.y = e.clientY;
+  return pt.matrixTransform(svg.getScreenCTM().inverse());
+}
+
+function zoomAt(factor, sx = MAP_W / 2, sy = MAP_H / 2) {
+  const v = state.view;
+  const k = Math.max(1, Math.min(40, v.k * factor));
+  // Keep the map point under (sx, sy) where it is.
+  const bx = (sx - MAP_W / 2) / v.k + v.cx;
+  const by = (sy - MAP_H / 2) / v.k + v.cy;
+  v.cx = bx - (sx - MAP_W / 2) / k;
+  v.cy = by - (sy - MAP_H / 2) / k;
+  v.k = k;
+  if (k === 1) Object.assign(v, { cx: 280, cy: 380 });
+  drawMap();
+}
+
+let drag = null;
+let dragged = false;
+const pointers = new Map();
+$('#map').addEventListener('pointerdown', (e) => {
+  if (e.target.closest('a')) return;
+  const pt = svgPoint(e);
+  pointers.set(e.pointerId, pt);
+  // DOMPoint's x/y are prototype getters, so copy them (spreading gives {}).
+  if (pointers.size === 1) drag = { x: pt.x, y: pt.y };
+  dragged = false;
+});
+$('#map').addEventListener('pointermove', (e) => {
+  if (!pointers.has(e.pointerId)) return;
+  const prev = pointers.get(e.pointerId);
+  const now = svgPoint(e);
+  if (pointers.size === 2) {
+    const [a, b] = [...pointers.values()];
+    const other = a === prev ? b : a;
+    const d0 = Math.hypot(prev.x - other.x, prev.y - other.y);
+    const d1 = Math.hypot(now.x - other.x, now.y - other.y);
+    pointers.set(e.pointerId, now);
+    if (d0 > 0) zoomAt(d1 / d0, (now.x + other.x) / 2, (now.y + other.y) / 2);
+    dragged = true;
+    return;
+  }
+  pointers.set(e.pointerId, now);
+  if (!drag || state.view.k === 1) return;
+  const dx = now.x - drag.x, dy = now.y - drag.y;
+  if (Math.hypot(dx, dy) > 4) dragged = true;
+  if (dragged) {
+    // svgPoint is in screen units of the current view; convert to map units.
+    state.view.cx -= dx / state.view.k;
+    state.view.cy -= dy / state.view.k;
+    drag.x = now.x;
+    drag.y = now.y;
+    drawMap();
+  }
+});
+const endPointer = (e) => {
+  pointers.delete(e.pointerId);
+  if (!pointers.size) drag = null;
+};
+$('#map').addEventListener('pointerup', endPointer);
+$('#map').addEventListener('pointercancel', endPointer);
+$('#map').addEventListener('pointerleave', endPointer);
+// Plain scrolling keeps scrolling the page; Ctrl/⌘ + scroll (and trackpad
+// pinch, which the browser reports the same way) zooms the map.
+$('#map').addEventListener(
+  'wheel',
+  (e) => {
+    if (!e.ctrlKey && !e.metaKey) return;
+    e.preventDefault();
+    const p = svgPoint(e);
+    zoomAt(Math.exp(-e.deltaY * 0.004), p.x, p.y);
+  },
+  { passive: false }
+);
+$('#map').addEventListener('dblclick', (e) => {
+  e.preventDefault();
+  const p = svgPoint(e);
+  zoomAt(2, p.x, p.y);
+});
+$$('.zoombtn').forEach((b) =>
+  b.addEventListener('click', () => (b.dataset.zoom === 'reset' ? zoomAt(1 / 1e9) : zoomAt(b.dataset.zoom === 'in' ? 2 : 0.5)))
+);
+
+async function loadResorts() {
+  try {
+    const r = await fetch('/api/resorts');
+    state.resorts = r.ok ? await r.json() : { resorts: [], sources: {}, error: `HTTP ${r.status}` };
+  } catch (err) {
+    state.resorts = { resorts: [], sources: {}, error: err.message };
+  }
+  drawMap();
 }
 
 $('#map').addEventListener('click', (e) => {
+  if (dragged) {
+    dragged = false;
+    return;
+  }
   const tour = e.target.closest('g.tourpin');
   if (tour) return selectTour(tour.dataset.tour);
   const reg = e.target.closest('g.reg');
@@ -775,6 +922,13 @@ $('#showTours').addEventListener('change', (e) => {
   state.showTours = e.target.checked;
   drawMap();
 });
+$('#showResorts').addEventListener('change', (e) => {
+  state.showResorts = e.target.checked;
+  if (state.showResorts && !state.resorts) loadResorts();
+  drawMap();
+});
+// Live resort status changes through the day; refresh it while shown.
+setInterval(() => state.showResorts && loadResorts(), 30 * 60 * 1000);
 $('#q').addEventListener('input', (e) => {
   state.q = e.target.value;
   renderList();

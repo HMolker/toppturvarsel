@@ -82,7 +82,7 @@ Node 22 or newer, then:
 ```bash
 npm start            # serve on $PORT (default 8080)
 npm run refresh      # one-shot fetch, useful from host cron
-npm test             # 82 tests, no network needed
+npm test             # 88 tests, no network needed
 ```
 
 ## Routes, elevation and forecast
@@ -147,7 +147,40 @@ Data: route © OpenStreetMap contributors (ODbL; exported GPX carries the
 licence) · map and Norwegian elevation © Kartverket (CC BY 4.0) /
 OpenTopoMap (CC-BY-SA) · other elevation Copernicus DEM via Open-Meteo ·
 forecast Open-Meteo (CC BY 4.0, free for non-commercial use) · photos
-Wikimedia Commons, each under its own licence, credited on the card.
+Wikimedia Commons, each under its own licence, credited on the card ·
+Norwegian resort status Fnugg · Swedish resorts © OpenStreetMap contributors.
+
+## Ski resorts layer
+
+For the days that don't end up as touring days, tick **ski resorts** above
+the map. Each resort gets two icons: slopes on the left, lifts on the
+right. Each icon is shaded by how much of that is open, from closed
+(outline) to all open (solid ink). The resort's name sits underneath and
+links to its home page (↗). Zoomed out, each resort is a small square
+shaded by its lifts. Zoom in with + / −, double-click, or Ctrl/⌘ + scroll
+(drag to pan) to get the icons and names. Where resorts crowd, the bigger
+one keeps its icons and the smaller one stays a square until you zoom
+further; hover for the numbers.
+
+- **Norway: live, from [Fnugg](https://fnugg.no).** One request returns
+  every resort Fnugg lists (126 in September 2026) with position,
+  homepage, and lifts and slopes open out of total. Refreshed hourly from
+  November to May and daily otherwise, cached on disk. If Fnugg is down,
+  the last good list is shown and marked stale. Summer venues (bike
+  parks, summer ski) are filtered out. Fnugg publishes no terms for this
+  endpoint; the service identifies itself, makes one request an hour at
+  most, and credits Fnugg on the map.
+- **Sweden: location and link only, from OpenStreetMap.** There is no
+  open live status feed in Sweden. Snörapporten (SLAO) has open lifts and
+  slopes for ~60 resorts but publishes no API. Swedish resorts are drawn
+  with dashed "no status" icons, never as closed, and link to the website
+  mapped in OSM where there is one. One Overpass query a month. If SLAO
+  grants data access, it slots in as another source in `src/resorts.js`.
+- Colours follow the profile: the grey scale, darker = more open (flipped
+  in the dark theme so more open is always more contrast). Red stays
+  reserved for alerts.
+
+Set `RESORTS_ENABLED=false` to turn the layer and its endpoint off.
 
 ## Demo out of season
 
@@ -237,6 +270,7 @@ curl -X POST localhost:8080/api/test-alert   # dry run, records nothing
 | `GET /api/terrain?tour=` | Elevation grid for contours. |
 | `GET /api/photos?tour=` · `/api/photo?tour=&i=` | Commons photos near the summit, and their thumbnails. |
 | `GET /api/forecast?tour=` | 5-day summit forecast. |
+| `GET /api/resorts` | Ski resorts: Norway with live lift/slope status (Fnugg), Sweden location only (OSM). |
 
 The healthcheck deliberately fails on **stale data**, not just on a dead
 process, so a container that is up but quietly not fetching shows as
@@ -308,8 +342,15 @@ first start.
 in the list, so their snow comes from a single grid cell at the region marker,
 which may sit well below skiable terrain. The UI labels these.
 
-**The map is schematic.** A low-resolution outline for picking a region. Not
-for navigation, ever.
+**The map is schematic.** A low-resolution outline for picking a region, and
+zoomable only so resorts can be told apart. The coastline stays coarse at any
+zoom. Not for navigation, ever.
+
+**Resort status is only as good as what resorts report.** Fnugg's counts come
+from the resorts themselves and can lag a morning wind hold. The Swedish
+resort positions and links come from OpenStreetMap and were not fetched
+live from the build environment (Overpass was unreachable there); the query
+is written against the documented output and tested against that shape.
 
 ## Attribution and being a good neighbour
 

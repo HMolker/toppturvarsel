@@ -37,6 +37,7 @@ export const config = {
   ntfyServer: str('NTFY_SERVER', 'https://ntfy.sh').replace(/\/+$/, ''),
   ntfyToken: str('NTFY_TOKEN'),
 
+  resortsEnabled: bool('RESORTS_ENABLED', true),
   dataDir: str('DATA_DIR', new URL('../data', import.meta.url).pathname),
 };
 

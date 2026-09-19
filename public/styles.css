@@ -57,7 +57,12 @@
   --r-ctl: 8px;
 }
 
-:root { color-scheme: light; }
+:root {
+  color-scheme: light;
+  /* resort open-share scale: paper -> steel -> ink, darker = more open */
+  --ro1: #E3E0D8; --ro2: #B5B1A8; --ro3: #6B675F; --ro4: #1A1A1A;
+  --rg1: #1A1A1A; --rg2: #1A1A1A; --rg3: #FFFFFF; --rg4: #FFFFFF;
+}
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -73,6 +78,8 @@
     --land: #24231F;
     --coast: #5E5B54;
     --marker-edge: #EDEBE5;
+    --ro1: #3A3833; --ro2: #6B675F; --ro3: #B5B1A8; --ro4: #EDEBE5;
+    --rg1: #EDEBE5; --rg2: #FFFFFF; --rg3: #1A1A1A; --rg4: #1A1A1A;
     color-scheme: dark;
   }
 }
@@ -80,6 +87,8 @@
   --page: #121211; --paper: #1A1A1A; --ink: #EDEBE5; --ink-2: #C7C4BC; --muted: #A8A49B;
   --steel: #8C8880; --line: #2E2C28; --line-2: #3A3833; --red-ink: #E46A5C;
   --land: #24231F; --coast: #5E5B54; --marker-edge: #EDEBE5;
+  --ro1: #3A3833; --ro2: #6B675F; --ro3: #B5B1A8; --ro4: #EDEBE5;
+  --rg1: #EDEBE5; --rg2: #FFFFFF; --rg3: #1A1A1A; --rg4: #1A1A1A;
   color-scheme: dark;
 }
 
@@ -197,6 +206,22 @@ svg.map .mono { font-family: var(--mono); }
 .seg button:hover { color: var(--ink); }
 .seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper); font-weight: 500; }
 
+.zoomctl {
+  position: absolute; left: 12px; top: 12px; display: flex; flex-direction: column; gap: 4px;
+}
+.zoombtn {
+  width: 30px; height: 30px; border-radius: 6px; border: 1px solid var(--line-2);
+  background: var(--paper); color: var(--ink); font: 600 16px/1 var(--mono); cursor: pointer;
+}
+.zoombtn:hover { border-color: var(--ink); }
+#map { touch-action: pan-y; cursor: default; }
+.resortname { font-family: var(--mono); font-size: 8.5px; fill: var(--ink); paint-order: stroke; stroke: var(--page); stroke-width: 3px; stroke-linejoin: round; }
+.resortlink, .resortlink .resortname { text-decoration: none; }
+.resortlink .resortname { cursor: pointer; font-weight: 600; }
+.resortlink:hover .resortname { fill: var(--steel); }
+.resortname.nolink { fill: var(--ink-2); }
+.legend-row { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+.legend-row.note { font-size: 11.5px; color: var(--muted); }
 .legend {
   display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center;
   padding: 12px 18px; border-top: 1px solid var(--line);

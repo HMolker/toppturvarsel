@@ -9,6 +9,7 @@ import { evaluateAlerts, runAlerts } from './alerts.js';
 import { startScheduler } from './scheduler.js';
 import { findTour, getRoute, routeGpx, getForecast, warmRoutes, getPhotos, getPhotoThumb } from './tracks.js';
 import { getTerrain } from './terrain.js';
+import { getResorts } from './resorts.js';
 import { serveTile } from './tiles.js';
 import { slugify } from './util/gpx.js';
 import { log } from './util/log.js';
@@ -142,6 +143,11 @@ async function handleApi(req, res, url) {
     const snapshot = await store.getSnapshot();
     const result = await runAlerts(snapshot ?? { regions: [] }, { dryRun: true });
     return json(res, 200, { dryRun: true, ...result });
+  }
+
+  if (route === '/api/resorts') {
+    if (!config.resortsEnabled) return json(res, 404, { error: 'resort layer disabled' });
+    return json(res, 200, await getResorts(), { 'Cache-Control': 'public, max-age=300' });
   }
 
   if (route === '/api/meta') {

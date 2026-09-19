@@ -82,7 +82,7 @@ Node 22 or newer, then:
 ```bash
 npm start            # serve on $PORT (default 8080)
 npm run refresh      # one-shot fetch, useful from host cron
-npm test             # 99 tests, no network needed
+npm test             # 100 tests, no network needed
 ```
 
 ## Routes, elevation and forecast
@@ -190,6 +190,14 @@ It works in three steps and never blends them into one number:
 3. **Confidence.** High with that day's bulletin and a near forecast.
    Varsom issues about two days ahead; later days reuse the last bulletin
    and say so. Beyond three days it is labelled "weather only".
+
+Hover over a result, or tap its score on a phone, to see how that day's
+number was made. The box shows the filter step, each of the five parts
+with its value, weight and points, small curves for the fresh-snow and
+base rules with the tour marked on them, the sum, the confidence, and the
+method in general. The same box opens on the week table's cells, including
+excluded ones: there it shows what the tour would have scored, and why
+that doesn't count.
 
 Also shown: "thin cover" where the base is below what the tour's terrain
 needs, and "skiable from the car" / "carry skis" from the modelled snow at

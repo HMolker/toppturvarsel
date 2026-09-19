@@ -172,3 +172,20 @@ test('/api/outlook serves bulletins and every tour forecast, one request per tou
     globalThis.fetch = realFetch;
   }
 });
+
+test('explanation box shows the working: filter, parts, points that add up, method', async () => {
+  const { explainHtml } = await import('../public/explain.js');
+  const tours = [tour({ name: 'Mellow', difficulty: 1, quality: 3, snow: { depthCm: 60, new72: 10 } }), tour({ name: 'Steep', difficulty: 4 })];
+  const outlook = { bulletins: { r: [{ date: '2027-02-10', danger: 3, problems: [windslabNE] }] }, forecasts: { Mellow: fc(), Steep: fc() } };
+  const p = P.plan({ tours, outlook, prefs: { maxDifficulty: 5, maxDanger: 3 } });
+  const ok = p.days[0].rows.find((r) => r.tour === 'Mellow');
+  const html = explainHtml(ok, { dayLabel: 'Today 10.02' });
+  assert.match(html, /Avalanche filter: Passes/);
+  assert.match(html, /60 cm<\/b> modelled/);
+  assert.match(html, /full marks from 100 cm/);
+  const nums = html.match(/xsum">([^<]+)=/)[1].split('+').map(Number);
+  assert.ok(Math.abs(nums.reduce((a, b) => a + b, 0) - ok.score) <= 1, 'the points add up to the score');
+  assert.match(html, /In general/);
+  const ex = p.days[0].rows.find((r) => r.tour === 'Steep');
+  assert.match(explainHtml(ex), /Excluded[\s\S]*never ranked/);
+});

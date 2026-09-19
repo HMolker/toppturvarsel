@@ -2,6 +2,7 @@ import { COAST, BORDER } from './geo.js';
 import { renderRouteMap, renderProfile, routeSummary, renderForecast, renderPhotos } from './route.js';
 import { layoutResorts, resortSvg, OPEN_BANDS } from './resorts.js';
 import { plan } from './planner.js';
+import { explainHtml } from './explain.js';
 
 /* ------------------------------------------------------------------ *
  * state
@@ -1064,6 +1065,7 @@ function renderPlanner() {
     return;
   }
   state.planDay = Math.min(state.planDay, p.dates.length - 1);
+  state.lastPlan = p;
   const k = state.planDay;
   const day = p.days[k];
 
@@ -1084,10 +1086,10 @@ function renderPlanner() {
     if (r.startNote) why.push(r.startNote);
     if (r.km != null) why.push(`${r.km} km away`);
     return (
-      `<div class="prow" data-tour="${esc(r.tour)}">` +
+      `<div class="prow" data-tour="${esc(r.tour)}" data-explain="${k}" tabindex="0">` +
       `<span class="prank">${i + 1}</span>` +
       `<span class="pname">${esc(r.tour)}<span class="preg">${esc(regionName(r.region))}</span></span>` +
-      `<span class="pscore">${r.score}<small>/ 100</small></span>` +
+      `<span class="pscore" title="How this score is calculated">${r.score}<small>/ 100 ⓘ</small></span>` +
       `<span class="pbar"><i style="width:${r.score}%"></i></span>` +
       `<span class="pwhy"><span class="av">${esc(r.avalanche)}.</span> ${esc(why.join(' · '))}</span>` +
       `<span class="ptags">${r.status === 'caution' ? '<span class="ptag caution">caution</span>' : ''}` +
@@ -1138,10 +1140,11 @@ function renderPlanner() {
           x.cells
             .map((c, i) => {
               if (!c) return '<td></td>';
-              if (c.status === 'excluded') return `<td><span class="cell excluded" data-k="${i}" title="${esc(c.avalanche)}">✕</span></td>`;
-              if (c.status === 'unassessed') return `<td><span class="cell unassessed" data-k="${i}" title="${esc(c.avalanche)}">?</span></td>`;
+              const ex = `data-k="${i}" data-explain="${i}" data-name="${esc(x.name)}"`;
+              if (c.status === 'excluded') return `<td><span class="cell excluded" ${ex}>✕</span></td>`;
+              if (c.status === 'unassessed') return `<td><span class="cell unassessed" ${ex}>?</span></td>`;
               const b = scoreBand(c.score);
-              return `<td><span class="cell ${c.status}${c.confidence === 'low' ? ' low' : ''}" data-k="${i}" style="background:var(--ro${b});color:var(--rg${b})" title="${esc(`${c.score}/100 · ${c.avalanche}`)}">${c.score}</span></td>`;
+              return `<td><span class="cell ${c.status}${c.confidence === 'low' ? ' low' : ''}" ${ex} style="background:var(--ro${b});color:var(--rg${b})">${c.score}</span></td>`;
             })
             .join('') +
           `</tr>`
@@ -1154,3 +1157,77 @@ function renderPlanner() {
 }
 
 initPlanner();
+
+/* ------------------------------------------------------------------ *
+ * "how was this scored?" box
+ * ------------------------------------------------------------------ */
+
+const tip = document.createElement('div');
+tip.id = 'planTip';
+tip.setAttribute('role', 'tooltip');
+tip.hidden = true;
+document.body.appendChild(tip);
+
+function explainTarget(el) {
+  const t = el?.closest?.('[data-explain]');
+  if (!t || !state.lastPlan) return null;
+  const k = +t.dataset.explain;
+  const name = t.dataset.name ?? t.dataset.tour;
+  const row = state.lastPlan.days[k]?.rows.find((r) => r.tour === name);
+  return row ? { t, k, row } : null;
+}
+
+function showTip(hit, at) {
+  const d = state.lastPlan.days[hit.k];
+  tip.innerHTML = explainHtml(hit.row, { dayLabel: `${dayName(d.date, hit.k)} ${shortDate(d.date)}` });
+  tip.hidden = false;
+  const W = tip.offsetWidth, H = tip.offsetHeight, vw = innerWidth, vh = innerHeight;
+  let x, y;
+  if (at) {
+    x = at.x + 18;
+    y = at.y + 14;
+    if (x + W > vw - 8) x = at.x - W - 18;
+  } else {
+    const r = hit.t.getBoundingClientRect();
+    x = r.right + 10;
+    y = r.top;
+    if (x + W > vw - 8) x = r.left - W - 10;
+  }
+  x = Math.max(8, Math.min(vw - W - 8, x));
+  y = Math.max(8, Math.min(vh - H - 8, y));
+  tip.style.left = `${x}px`;
+  tip.style.top = `${y}px`;
+  tip.dataset.for = `${hit.k}|${hit.row.tour}`;
+}
+const hideTip = () => {
+  tip.hidden = true;
+  delete tip.dataset.for;
+};
+
+const planCard = $('#planCard');
+planCard.addEventListener('pointermove', (e) => {
+  if (e.pointerType !== 'mouse') return;
+  const hit = explainTarget(e.target);
+  if (!hit) return hideTip();
+  showTip(hit, { x: e.clientX, y: e.clientY });
+});
+planCard.addEventListener('pointerleave', (e) => e.pointerType === 'mouse' && hideTip());
+planCard.addEventListener('focusin', (e) => {
+  const hit = explainTarget(e.target);
+  if (hit) showTip(hit);
+});
+planCard.addEventListener('focusout', hideTip);
+// Touch: tap the score to open the explanation; tap anywhere else to close.
+planCard.addEventListener('click', (e) => {
+  if (!e.target.closest('.pscore')) return;
+  const hit = explainTarget(e.target);
+  if (!hit) return;
+  e.stopPropagation();
+  const key = `${hit.k}|${hit.row.tour}`;
+  if (tip.dataset.for === key && !tip.hidden) hideTip();
+  else showTip(hit);
+}, true);
+document.addEventListener('click', (e) => {
+  if (!tip.hidden && !e.target.closest('#planTip, .pscore')) hideTip();
+});
+addEventListener('scroll', () => tip.dataset.for && !tip.matches(':hover') && hideTip(), { passive: true });

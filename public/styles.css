@@ -471,3 +471,34 @@ table.fc .eyebrow { display: block; color: var(--ink); font-weight: 600; }
 .mlegend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; font-size: 11.5px; color: var(--muted); }
 .mlegend .cell { display: inline-block; width: 26px; line-height: 16px; margin-right: 5px; vertical-align: middle; }
 .plannote { margin-top: 14px; }
+
+/* ---------- planner: how a score is made ---------- */
+#planTip { position: fixed; z-index: 40; width: 400px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow: auto;
+  background: var(--paper); color: var(--ink); border: 1px solid var(--line-2); border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(26, 26, 26, .18); padding: 14px 16px 12px; font-size: 12.5px; line-height: 1.45; pointer-events: none; }
+#planTip[hidden] { display: none; }
+.xtop { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
+.xeb { font: 10.5px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.xtitle { font-weight: 700; font-size: 15px; }
+.xscore { font: 700 26px/1 var(--mono); }
+.xscore small { font-size: 11px; color: var(--muted); font-weight: 400; }
+.xscore.off { color: var(--steel); text-decoration: line-through; text-decoration-thickness: 1.5px; }
+.xstep { display: grid; grid-template-columns: 20px 1fr; gap: 8px; margin: 10px 0 6px; }
+.xn { width: 18px; height: 18px; border-radius: 50%; background: var(--ink); color: var(--paper); font: 600 10.5px/18px var(--mono); text-align: center; }
+.xbar { display: flex; height: 10px; border-radius: 3px; overflow: hidden; background: var(--line); margin-top: 7px; border: 1px solid var(--line-2); }
+.xbar i { display: block; height: 100%; }
+.xpart { margin: 0 0 7px 28px; }
+.xhead { display: grid; grid-template-columns: 12px 1fr 38px 36px 56px; gap: 6px; align-items: center; }
+.xsw { width: 10px; height: 10px; border-radius: 2px; border: 1px solid var(--line-2); }
+.xname { font-weight: 600; }
+.xw, .xval, .xpts { font: 11.5px var(--mono); text-align: right; color: var(--ink-2); }
+.xpts { color: var(--ink); font-weight: 600; }
+.xdet { color: var(--ink-2); font-size: 12px; margin: 2px 0 0 18px; }
+.xrow2 { display: flex; gap: 10px; align-items: center; }
+.xcurve { flex: none; }
+.xcl { font: 8.5px var(--mono); fill: var(--muted); }
+.xmuted { color: var(--muted); }
+.xsum { margin: 4px 0 0 28px; font: 11.5px var(--mono); color: var(--ink-2); border-top: 1px solid var(--line); padding-top: 5px; }
+.xgeneral { margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--line); color: var(--ink-2); font-size: 11.5px; }
+.prow:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.pscore { cursor: help; }

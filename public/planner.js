@@ -20,6 +20,9 @@
  * This sorts what the bulletin says. It is not a substitute for reading it.
  */
 
+/** Curves, exported so the explanation box can draw them. */
+export const FRESH_CURVE = [[0, 0.15], [5, 0.45], [15, 0.85], [20, 1], [40, 1], [60, 0.85], [90, 0.7]];
+
 export const WEIGHTS = { fresh: 0.25, base: 0.2, weather: 0.25, quality: 0.2, fit: 0.1 };
 
 const OCT = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
@@ -125,7 +128,7 @@ export const baseScore = (cm) => (Number.isFinite(cm) ? clamp01((cm - 20) / 80) 
 export const MIN_BASE = { 1: 40, 2: 50, 3: 70, 4: 80, 5: 80 };
 
 /** Fresh snow: most points for a good settled amount, not the biggest dump. */
-const freshCurve = (cm) => lerp([[0, 0.15], [5, 0.45], [15, 0.85], [20, 1], [40, 1], [60, 0.85], [90, 0.7]], cm);
+const freshCurve = (cm) => lerp(FRESH_CURVE, cm);
 const AGE = [1, 0.8, 0.6, 0.45, 0.35, 0.3];
 
 const skyScore = (code) => {
@@ -165,23 +168,30 @@ export function conditions(tour, fc, k, prefs) {
   forecastCm += 0.5 * (today?.snowCm ?? 0);
   const freshCm = Math.max(0, observed + forecastCm);
   let fresh = freshCurve(freshCm);
+  const freshCurveValue = fresh;
+  const freshMods = [];
   if (freshCm >= 5) why.push(`~${Math.round(freshCm)} cm fresh`);
 
   const upTo = days.slice(0, k + 1);
   const warm = upTo.some((d) => Number.isFinite(d?.tMax) && d.tMax > 0.5);
   if (warm && freshCm >= 3) {
     fresh *= 0.6;
+    freshMods.push(['warming above 0° after the snow', '× 0.6']);
     why.push('warming: crust or wet snow likely');
   }
   const windy = upTo.some((d) => Number.isFinite(d?.windMax) && d.windMax >= 12);
   if (windy && freshCm >= 5) {
     fresh *= 0.7;
+    freshMods.push(['wind ≥ 12 m/s on the new snow', '× 0.7']);
     why.push('wind-affected snow');
   }
   const month = today?.date ? Number(today.date.slice(5, 7)) : 0;
   const asp = parseAspect(tour.aspect);
   if (month >= 3 && month <= 6 && freshCm < 5 && today && today.tMin <= -2 && today.tMax >= 1 && asp.some((a) => SUNNY.includes(a))) {
-    if (0.8 > fresh) why.push('corn cycle: frozen night, sunny slopes soften');
+    if (0.8 > fresh) {
+      why.push('corn cycle: frozen night, sunny slopes soften');
+      freshMods.push(['spring corn cycle on sunny aspects', 'at least 0.80']);
+    }
     fresh = Math.max(fresh, 0.8);
   }
 
@@ -198,18 +208,22 @@ export function conditions(tour, fc, k, prefs) {
 
   // Weather on the day.
   let weather = null;
+  let wx = null;
   if (today) {
     const wind = Number.isFinite(today.windMax) ? clamp01((15 - today.windMax) / 9) : 0.6;
     const sky = skyScore(today.code);
     const precip = Number.isFinite(today.precipMm) ? Math.max(0.2, 1 - today.precipMm / 10) : 0.7;
     weather = 0.4 * wind + 0.35 * sky + 0.25 * precip;
+    wx = { wind, sky, precip, caps: [] };
     if (Number.isFinite(today.gustMax) && today.gustMax >= 20) {
       weather = Math.min(weather, 0.3);
+      wx.caps.push(`gusts ${Math.round(today.gustMax)} m/s: capped at 0.30`);
       why.push(`gusts ${Math.round(today.gustMax)} m/s`);
     }
     const summit = fc.elevation ?? tour.summit_m;
     if (Number.isFinite(today.freezingLevel) && Number.isFinite(summit) && today.freezingLevel > summit) {
       weather = Math.min(weather, 0.35);
+      wx.caps.push(`0° level ${today.freezingLevel} m above the ${Math.round(summit)} m summit: capped at 0.35`);
       why.push('0° level above the summit');
     }
     if (weather >= 0.8) why.push(`${(today.label ?? 'good weather').toLowerCase()}, ${Math.round(today.windMax ?? 0)} m/s`);
@@ -220,17 +234,28 @@ export function conditions(tour, fc, k, prefs) {
 
   // Fit: the closer to your chosen level, the better; distance if a start is set.
   const maxD = prefs.maxDifficulty ?? 5;
-  let fit = Math.max(0.5, 1 - 0.15 * Math.max(0, maxD - (tour.difficulty ?? 3)));
+  const fitLevel = Math.max(0.5, 1 - 0.15 * Math.max(0, maxD - (tour.difficulty ?? 3)));
+  let fit = fitLevel;
   let km = null;
+  let fitDist = null;
   if (prefs.from && Number.isFinite(prefs.from.lat) && Number.isFinite(prefs.from.lon)) {
     km = haversineKm(prefs.from, tour);
     const dist = Math.max(0.1, Math.min(1, 1 - (km - 80) / 520));
+    fitDist = dist;
     fit = 0.5 * fit + 0.5 * dist;
   }
 
   const parts = { fresh, base: base ?? 0.4, weather: weather ?? 0.5, quality, fit };
   const score = Math.round(100 * Object.entries(WEIGHTS).reduce((s, [k2, w]) => s + w * parts[k2], 0));
-  return { score, parts, why, freshCm: Math.round(freshCm), depth, startNote, km: km == null ? null : Math.round(km), hasForecast: Boolean(today), hasBase: base != null };
+  // Everything the explanation box needs to show its working.
+  const explain = {
+    fresh: { observedCm: Math.round(observed), observedNew72: tour.snow?.new72 ?? null, age: AGE[k] ?? 0.3, forecastCm: Math.round(forecastCm), cm: Math.round(freshCm), curve: freshCurveValue, mods: freshMods },
+    base: { depth, minBase, estimated: base == null },
+    weather: today ? { label: today.label, windMax: today.windMax, gustMax: today.gustMax, precipMm: today.precipMm, freezingLevel: today.freezingLevel, ...wx } : null,
+    quality: { stars: tour.quality ?? 3 },
+    fit: { difficulty: tour.difficulty ?? 3, maxDifficulty: maxD, level: fitLevel, dist: fitDist, km: km == null ? null : Math.round(km) },
+  };
+  return { score, parts, why, explain, freshCm: Math.round(freshCm), depth, startNote, km: km == null ? null : Math.round(km), hasForecast: Boolean(today), hasBase: base != null };
 }
 
 /** Bulletin for a date: that day's, else the latest earlier one (marked assumed). */
@@ -269,7 +294,7 @@ export function plan({ tours, outlook, prefs = {} }) {
       // turn every later day into "caution", which would drown that word.
       const status = g.status;
       const avalanche = b?.assumed ? `${g.why} (as of the ${b.from} bulletin; this day's is not out yet)` : g.why;
-      return { tour: t.name, region: t.region, status, avalanche, danger: b?.danger ?? null, assumed: Boolean(b?.assumed), confidence, ...c };
+      return { tour: t.name, region: t.region, status, avalanche, danger: b?.danger ?? null, assumed: Boolean(b?.assumed), bulletinDate: b?.date ?? null, confidence, ...c };
     });
     const rank = { ok: 0, caution: 1, unassessed: 2, excluded: 3 };
     rows.sort((a, b) => rank[a.status] - rank[b.status] || b.score - a.score);

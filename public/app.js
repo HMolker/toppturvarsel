@@ -78,6 +78,8 @@ async function load() {
 
   state.snapshot = condRes.value;
   state.alerts = alertRes.status === 'fulfilled' ? alertRes.value : null;
+  // A refresh refreshes the resort status too, when that layer is on.
+  if (state.showResorts) loadResorts();
 
   renderFreshness();
   fillRegionSelect();

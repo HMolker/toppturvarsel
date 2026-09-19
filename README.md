@@ -195,7 +195,7 @@ cards are overlays, and every frame is labelled as simulated.
 ```bash
 npm run demo:simulate      # 7 daily snapshots into demo/out/
 npm run demo:record        # 30 s teaser; needs Playwright + Chromium and ffmpeg
-npm run demo:record-full   # ~95 s walkthrough of every feature
+npm run demo:record-full   # ~2 min walkthrough of every feature
 ```
 
 For the walkthrough, the simulation also stands in for OpenStreetMap and
@@ -203,7 +203,12 @@ Open-Meteo on four featured tours. It gives them synthetic path networks,
 terrain and summit weather, and the real route finder, profile code and
 forecast shaping run over them. Hamperokken's path deliberately stops 1.9 km
 below the summit, to show that the tool draws no line rather than a guessed
-one. Map tiles are not simulated, so route maps appear on plain paper.
+one. Map tiles are not simulated, so route maps appear on plain paper with
+contour lines drawn from the simulated terrain. Ski resorts in the demo
+are Fnugg's real resort list (`demo/fixtures/fnugg-resorts.txt`) with
+simulated open counts: on a stormy day the exposed lifts go on wind hold.
+Swedish resorts are at approximate positions. Commons photos are live-only,
+so the photo panel shows its fallback in the video.
 
 ## Configuration
 

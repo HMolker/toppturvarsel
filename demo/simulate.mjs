@@ -36,6 +36,8 @@ const { loadRegions, loadTours } = await import('../src/config.js');
 const { latLonToUTM } = await import('../src/util/utm.js');
 const { getRoute } = await import('../src/tracks.js');
 const { getTerrain } = await import('../src/terrain.js');
+const { shapeFnugg } = await import('../src/sources/fnugg.js');
+const { shapeOsmResorts } = await import('../src/sources/osm-resorts.js');
 const { fetchForecast } = await import('../src/sources/forecast.js');
 const { haversineKm } = await import('../src/util/utm.js');
 
@@ -416,6 +418,68 @@ for (const [name, r] of Object.entries(routes)) {
   );
 }
 
+/* ------------------------------------------------------------------ *
+ * ski resorts: real Fnugg list (fixture), simulated open counts
+ *
+ * Wind, not snow, shuts lifts: on a stormy day (lots of new snow in 24 h in
+ * the nearest forecast region) exposed lifts go on wind hold, and a few
+ * small hills stay shut. Calm areas run everything.
+ * ------------------------------------------------------------------ */
+
+const { readFile: readFixture } = await import('node:fs/promises');
+const fnuggList = (await readFixture(new URL('./fixtures/fnugg-resorts.txt', import.meta.url), 'utf8'))
+  .split('\n').filter((l) => l && !l.startsWith('#')).map((l) => l.split('|'));
+
+// Swedish resorts at APPROXIMATE positions, written for the demo: the live
+// service reads them from OpenStreetMap, which the build environment could
+// not reach. Links only where the address was confirmed.
+const SE_RESORTS = [
+  ['Åre', 63.399, 13.08, 'https://www.skistar.com/sv/vara-skidorter/are/', 40], ['Duved', 63.392, 12.93, null, 8],
+  ['Edsåsdalen', 63.47, 13.17, 'https://edsasdalen.se/', 6], ['Storlien', 63.31, 12.1, null, 7],
+  ['Vemdalsskalet', 62.47, 13.97, 'https://www.skistar.com/sv/vara-skidorter/vemdalen/', 16], ['Björnrike', 62.4, 13.95, null, 9],
+  ['Klövsjö', 62.53, 14.17, null, 12], ['Funäsdalsberget', 62.54, 12.55, null, 8], ['Ramundberget', 62.7, 12.39, null, 9],
+  ['Idre Fjäll', 61.89, 12.72, 'https://www.idrefjall.se/', 30], ['Lindvallen', 61.155, 13.2, 'https://www.skistar.com/sv/vara-skidorter/salen/', 22],
+  ['Högfjället', 61.18, 13.13, null, 12], ['Tandådalen', 61.17, 12.98, null, 20], ['Hundfjället', 61.16, 13.03, null, 15],
+  ['Kläppen', 61.03, 13.35, null, 12], ['Stöten', 61.27, 12.88, null, 10], ['Branäs', 60.66, 13.03, null, 20],
+  ['Romme Alpin', 60.39, 15.39, null, 18], ['Orsa Grönklitt', 61.21, 14.53, null, 8], ['Kungsberget', 60.78, 16.47, null, 12],
+  ['Hassela', 62.1, 16.7, null, 8], ['Isaberg', 57.43, 13.62, null, 8], ['Hammarbybacken', 59.3, 18.1, null, 4],
+  ['Hemavan', 65.82, 15.1, null, 12], ['Tärnaby', 65.72, 15.28, null, 7], ['Kittelfjäll', 65.25, 15.5, null, 5],
+  ['Borgafjäll', 64.83, 15.02, null, 5], ['Dundret', 67.12, 20.6, null, 7], ['Björkliden', 68.41, 18.68, null, 6],
+  ['Riksgränsen', 68.43, 18.12, 'https://www.riksgransen.se/', 6],
+];
+const seElements = [];
+let seId = 1;
+for (const [name, lat, lon, url, lifts] of SE_RESORTS) {
+  const d = 0.012;
+  seElements.push({ type: 'way', id: seId++, center: { lat, lon }, bounds: { minlat: lat - d, maxlat: lat + d, minlon: lon - 2 * d, maxlon: lon + 2 * d }, tags: { landuse: 'winter_sports', name, ...(url ? { website: url } : {}) } });
+  for (let k = 0; k < lifts; k++) seElements.push({ type: 'way', id: seId++, center: { lat: lat + ((k % 3) - 1) * 0.003, lon: lon + ((k % 5) - 2) * 0.006 }, tags: { aerialway: 'chair_lift' } });
+}
+const seResorts = shapeOsmResorts({ elements: seElements }, 'SE');
+
+function resortsFor(snap, d, at) {
+  const regs = snap.regions.filter((r) => r.country === 'NO' && r.snow);
+  const hits = fnuggList.map(([id, name, lat, lon, url, lc, sc]) => {
+    const near = regs.reduce((a, r) => (haversineKm(+lat, +lon, r.lat, r.lon) < haversineKm(+lat, +lon, a.lat, a.lon) ? r : a), regs[0]);
+    const storm = near?.snow?.new24 ?? 0;
+    const u = noise(name, d, 'lift') * 0.5 + 0.5;
+    // storm: 12+ cm in 24 h puts upper lifts on wind hold; 25+ shuts small hills
+    const frac = storm >= 25 ? (u < 0.35 ? 0 : 0.2 + 0.3 * u) : storm >= 12 ? 0.45 + 0.35 * u : u < 0.06 ? 0.7 : 1;
+    const L = +lc, S = +sc;
+    const lo = Math.round(L * frac);
+    const so = Math.min(S, Math.round(S * Math.min(1, frac + 0.1)));
+    return { _id: id, _source: { id: +id, name, location: { lat: +lat, lon: +lon }, urls: { homepage: url || null }, resort_open: lo > 0, lifts: { open: lo, count: L }, slopes: { open: so, count: S } } };
+  });
+  const no = shapeFnugg({ hits: { hits } });
+  return {
+    sources: {
+      no: { name: 'Fnugg', fetchedAt: at, count: no.length, stale: false },
+      se: { name: 'OpenStreetMap', fetchedAt: at, count: seResorts.length, stale: false },
+    },
+    inSeason: true,
+    resorts: [...no, ...seResorts],
+  };
+}
+
 for (let d = 0; d <= 6; d++) {
   currentDay = d;
   const date = new Date(DAY0 + d * 86400000 + 6 * 3600000); // 06:00, when seNorge updates
@@ -443,7 +507,7 @@ for (let d = 0; d <= 6; d++) {
 
   await writeFile(
     path.join(outDir, `day-${d + 1}.json`),
-    JSON.stringify({ day: d + 1, date: date.toISOString(), snapshot: snap, alerts, push, email, forecasts }, null, 0)
+    JSON.stringify({ day: d + 1, date: date.toISOString(), snapshot: snap, alerts, push, email, forecasts, resorts: resortsFor(snap, d, new Date(date.getTime() + 3.25 * 3600e3).toISOString()) }, null, 0)
   );
 
   const max = [...snap.regions].filter((r) => r.snow?.new48 != null).sort((a, b) => b.snow.new48 - a.snow.new48)[0];

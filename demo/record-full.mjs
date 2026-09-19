@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 /**
- * ~95-second walkthrough of the complete tool through the simulated storm week.
+ * ~2-minute walkthrough of the complete tool through the simulated storm week:
+ * map layers, tours, alerts, routes on contour lines, elevation profile,
+ * forecast, photos panel, GPX, the ski resort layer with zoom, dark theme.
  *
  *   node demo/simulate.mjs <daysDir>
  *   node demo/record-full.mjs <daysDir> <out.mp4> [path/to/playwright]
@@ -38,6 +40,7 @@ const W = 1280, H = 720, SCALE = 1.5;
 const days = [];
 for (let d = 1; d <= 7; d++) days.push(JSON.parse(await readFile(path.join(daysDir, `day-${d}.json`), 'utf8')));
 const routes = JSON.parse(await readFile(path.join(daysDir, 'routes.json'), 'utf8'));
+const terrains = JSON.parse(await readFile(path.join(daysDir, 'terrain.json'), 'utf8'));
 
 const WEEKDAY = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const dayLabel = (d) => {
@@ -81,6 +84,7 @@ const OVERLAY_CSS = `
 #demo-toast .ml b { font-family: var(--mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: #706C64; font-weight: 400; margin-right: 6px; }
 #demo-card { position: fixed; inset: 0; z-index: 60; background: #F4F3EF; color: #1A1A1A;
   display: flex; flex-direction: column; justify-content: center; padding: 0 96px; font-family: var(--sans); }
+#demo-card .logo { height: 150px; width: auto; align-self: flex-start; margin-bottom: 10px; }
 #demo-card .eb { font-family: var(--mono); font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: #706C64; }
 #demo-card h1 { font-size: 48px; line-height: 1.08; margin: 14px 0 18px; font-weight: 700; letter-spacing: -.015em; max-width: 1040px; }
 #demo-card .rule { height: 2px; background: #1A1A1A; width: 100%; margin: 6px 0 22px; }
@@ -97,24 +101,26 @@ const OVERLAY_CSS = `
 `;
 
 const TITLE_HTML = `
-  <div class="eb">Fjällskred · Walkthrough</div>
+  <img class="logo" src="/brand/logo.png" alt="">
+  <div class="eb">Fjällskred · Molker Digital · Walkthrough</div>
   <h1>The complete tool, through one simulated storm week</h1>
   <div class="rule"></div>
-  <p>Monday 8 – Sunday 14 February 2027. Snow, avalanche bulletins, routes and forecasts are simulated
-  and run through the real service; what you see is what the live tool would show.
-  Topographic map tiles are not simulated, so route maps appear on plain paper.</p>
+  <p>Monday 8 – Sunday 14 February 2027. Snow, avalanche bulletins, routes, terrain, forecasts and
+  lift status are simulated and run through the real service; what you see is what the live tool
+  would show. Map tiles and Commons photos are live-only, so they do not appear here.</p>
   <div class="ft"><span class="demo-sim">Simulated data · not a forecast</span></div>`;
 
 const END_HTML = `
-  <div class="eb">Fjällskred</div>
+  <img class="logo" src="/brand/logo.png" alt="" style="height:120px">
   <h1>Where the snow fell, what it means, and how to get up there</h1>
   <div class="rule"></div>
   <ul>
     <li><b>01</b>Avalanche bulletins for 30 regions in Norway and Sweden</li>
     <li><b>02</b>Modelled snow depth and new snow at 48 touring objectives</li>
     <li><b>03</b>Email and phone push when 30 cm falls in 48 hours, bulletin first</li>
-    <li><b>04</b>Routes from OpenStreetMap with an elevation sketch, and GPX export</li>
-    <li><b>05</b>Five-day summit forecast; your own GPX tracks when you have them</li>
+    <li><b>04</b>Routes on contour lines, elevation profile, GPX export, your own tracks</li>
+    <li><b>05</b>Five-day summit forecast and openly licensed photos from near the summit</li>
+    <li><b>06</b>Ski resorts: lifts and slopes open, for the days that aren't touring days</li>
   </ul>
   <div class="ft"><i></i>Self-hosted in one Docker container · this walkthrough uses simulated data</div>`;
 
@@ -144,6 +150,13 @@ await page.route('**/api/forecast?*', (r) => {
   const f = current.forecasts?.[name];
   r.fulfill(f ? { json: f } : { status: 502, json: { error: 'not part of the simulation' } });
 });
+await page.route('**/api/terrain?*', (r) => {
+  const t = terrains[new URL(r.request().url()).searchParams.get('tour')];
+  r.fulfill(t ? { json: t } : { status: 502, json: { error: 'not part of the simulation' } });
+});
+// Commons photos are live-only; the panel shows its real fallback.
+await page.route('**/api/photos?*', (r) => r.fulfill({ status: 502, json: { error: 'photos unavailable', detail: 'offline demo' } }));
+await page.route('**/api/resorts', (r) => r.fulfill({ json: current.resorts }));
 await page.route('**/tiles/**', (r) => r.fulfill({ status: 404, body: '' }));
 
 await page.goto(base + '/', { waitUntil: 'networkidle' });
@@ -201,6 +214,8 @@ async function targets() {
       mapSouth: c(y('.mapbox') + 330),
       detail: c(y('#detailCard') - 12),
       detailLower: c(y('#forecast') - 150),
+      photos: c(y('#photos') - 330),
+      legend: c(y('#legend') - window.innerHeight + 170),
       sources: c(y('#sources') - 260),
     };
   });
@@ -268,7 +283,7 @@ function captionHtml(day, text) {
 
 function toastHtml(d) {
   const push = days[d - 1].push, email = days[d - 1].email;
-  return `<div class="eb"><span>ntfy · toppturvarsel</span><span>06:00</span></div>
+  return `<div class="eb"><span>ntfy · fjällskred</span><span>06:00</span></div>
     <div class="ti">${push.title}</div><div class="bo">${push.body.split('\n').slice(0, 3).join('\n')}</div>
     <div class="ml"><b>Email</b>${email.subject}</div>`;
 }
@@ -292,7 +307,9 @@ let glideFrom = null;
 const glideTo = (sel, t0, t1, dx = 0, dy = 0) => {
   let start = null;
   return async (t) => {
-    if (t < t0) return;
+    // Stop once arrived: a glide that kept pinning the pointer would fight
+    // later drags and clicks.
+    if (t < t0 || t > t1 + 0.04) return;
     if (!start) start = { x: pointer.x, y: pointer.y };
     const c = await center(sel);
     if (!c) return;
@@ -336,6 +353,69 @@ const pulse = (t0) => async (t) => {
   if (t >= t0 && t < t0 + 0.2) await clickPulseStep((t - t0) / 0.2);
 };
 
+/** Screen position of a map coordinate under the current zoom. */
+const geoPoint = (lat, lon) =>
+  page.evaluate(([la, lo]) => {
+    const svg = document.getElementById('map');
+    const r = svg.getBoundingClientRect();
+    const [k, cx, cy] = (svg.dataset.view ?? '1 280 380').split(' ').map(Number);
+    const bx = 250 + (lo - 17) * Math.cos((la * Math.PI) / 180) * 44;
+    const by = (71.9 - la) * 44;
+    const s = r.width / 560;
+    let x = r.left + ((bx - cx) * k + 280) * s, y = r.top + ((by - cy) * k + 380) * s;
+    // Never double-click onto a marker: that selects it instead.
+    for (let i = 0; i < 8; i++) {
+      const el = document.elementFromPoint(x, y);
+      if (!el?.closest('g.reg, g.tourpin, g.resort, .resortdot, a')) break;
+      x += 14;
+    }
+    return { x, y };
+  }, [lat, lon]);
+
+const mapMiddle = () =>
+  page.evaluate((vh) => {
+    const r = document.getElementById('map').getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: (Math.max(r.top, 0) + Math.min(r.bottom, vh)) / 2 };
+  }, H);
+
+let zoomPt = null;
+const dblAt = (lat, lon) => async () => {
+  zoomPt ??= await geoPoint(lat, lon);
+  await placePointer(zoomPt.x, zoomPt.y, { move: false });
+  await clickPulse(zoomPt.x, zoomPt.y);
+  await page.mouse.dblclick(zoomPt.x, zoomPt.y);
+};
+const glideGeo = (lat, lon, t0, t1) => {
+  let a = null, b = null;
+  return async (t) => {
+    if (t < t0 || t > t1 + 0.03) return;
+    a ??= { x: pointer.x, y: pointer.y };
+    b ??= zoomPt = await geoPoint(lat, lon);
+    const k = ease(Math.min(1, (t - t0) / (t1 - t0)));
+    await placePointer(lerp(a.x, b.x, k), lerp(a.y, b.y, k), { move: false });
+  };
+};
+/** Drag the map from wherever the pointer is to the middle of the map. */
+const dragToMiddle = (t0, t1) => {
+  let a = null, b = null, done = false;
+  return async (t) => {
+    if (t < t0 || done) return;
+    if (!a) {
+      a = { x: pointer.x, y: pointer.y };
+      b = await mapMiddle();
+      await page.mouse.move(a.x, a.y);
+      await page.mouse.down();
+    }
+    const k = ease(Math.min(1, (t - t0) / (t1 - t0)));
+    await placePointer(lerp(a.x, b.x, k), lerp(a.y, b.y, k));
+    if (k >= 1) {
+      await page.mouse.up();
+      done = true;
+      zoomPt = null;
+    }
+  };
+};
+
 const waitRoute = async () => {
   await page.waitForSelector('#routeMeta', { timeout: 10000 });
   await page.waitForFunction(() => !document.querySelector('#routeMeta')?.textContent.includes('Looking up'), null, { timeout: 10000 });
@@ -350,7 +430,7 @@ const STEPS = [
   { card: 'title', dur: 4 },
 
   { day: 1, dur: 4, layer: 'depth', cam: ['top'],
-    cap: 'Monday. Snow, avalanche danger and powder alerts for 30 regions in Norway and Sweden, on one page.' },
+    cap: 'Monday. Fjällskred: snow, avalanche danger and powder alerts for 30 regions in Norway and Sweden, on one page.' },
   { day: 1, dur: 7, cam: ['map'],
     cap: 'Three map layers: modelled snow depth, new snow in 48 hours, and EAWS avalanche danger.',
     each: [glideTo('[data-layer="new48"]', 0.15, 0.3), glideTo('[data-layer="danger"]', 0.55, 0.68), pulse(0.32), pulse(0.7)],
@@ -373,7 +453,7 @@ const STEPS = [
     on: { 0.4: async () => { await clickPulse(pointer.x, pointer.y); await page.selectOption('#fSort', 'new'); } } },
   { day: 3, dur: 9, cam: ['map', 'detail', 'detail', 'detail'],
     cap: rr?.found
-      ? `Rørnestinden: a ${(rr.lengthM / 1000).toFixed(1)} km route from OpenStreetMap and an elevation sketch. Hover the climb to follow it on the map.`
+      ? `Rørnestinden: a ${(rr.lengthM / 1000).toFixed(1)} km route from OpenStreetMap over contour lines from the terrain model, and an elevation profile. Hover the climb to follow it on the map.`
       : 'Rørnestinden: route and elevation sketch.',
     pre: async () => revealRow('Rørnestinden'),
     each: [glideTo('.trow[data-tour="Rørnestinden"]', 0.02, 0.14, -120), pulse(0.16), sweepProfile(0.5, 0.97)],
@@ -382,19 +462,41 @@ const STEPS = [
     cap: () => `Five-day summit forecast beside the bulletin: ${fcToday(3, 'Rørnestinden')} cm today, then clearing and cold. Danger 4 — read it first.`,
     on: { 0.01: async () => page.evaluate(() => document.getElementById('demo-cursor').style.opacity = '0') } },
 
+  { day: 3, dur: 5, cam: ['photos'],
+    cap: 'Openly licensed photos from near the summit, from Wikimedia Commons, credited and linked. Live-only, so the offline demo shows the fallback.' },
+
   { day: 4, dur: 5, layer: 'danger', cam: ['map'], cap: 'Thursday. Danger 4 (High) across Troms while the front moves south.' },
   { day: 5, dur: 5, layer: 'new48', cam: ['mapSouth'], cap: 'Friday. The front reaches Møre og Romsdal.' },
   { day: 6, dur: 5, layer: 'new48', cam: ['top'], toast: 6,
     cap: () => `Saturday. ${topAlert(6)}. Three regions over the threshold.` },
   { day: 6, dur: 7, cam: ['map', 'detail', 'detail'],
     cap: sk?.found
-      ? `Skårasalen: ${(sk.lengthM / 1000).toFixed(1)} km and ${sk.profile?.stats?.ascentM} m of climbing on a danger-4 day. The data is there; the decision stays yours.`
+      ? `Skårasalen: ${(sk.lengthM / 1000).toFixed(1)} km and ${sk.profile?.stats?.ascentM} m of climbing on a danger-4 day. Take the GPX with you; the decision stays yours.`
       : 'Skårasalen on a danger-4 day.',
     pre: async () => { await page.selectOption('#fSort', 'new'); await revealRow('Skårasalen'); },
-    each: [glideTo('.trow[data-tour="Skårasalen"]', 0.02, 0.16, -120), pulse(0.18)],
+    each: [glideTo('.trow[data-tour="Skårasalen"]', 0.02, 0.16, -120), pulse(0.18), glideTo('a[href*="track.gpx"]', 0.62, 0.85)],
     on: { 0.18: async () => { await clickAt('.trow[data-tour="Skårasalen"]')(); await waitRoute(); } } },
 
+  // Three camera legs so the scroll up to the map is finished (by ~0.2)
+  // before anything is clicked: a click aimed during a scroll lands elsewhere.
+  { day: 6, dur: 10, cam: ['map', 'map', 'map'],
+    cap: 'Not every day is a touring day. Ski resorts: slopes left, lifts right, darker = more open. The storm has Sunnmøre\'s lifts on wind hold.',
+    pre: async () => { await page.evaluate(() => (document.getElementById('demo-cursor').style.opacity = '1')); },
+    each: [glideTo('#showResorts', 0.12, 0.2), pulse(0.22), glideGeo(62.35, 7.9, 0.27, 0.35),
+      pulse(0.38), pulse(0.47), pulse(0.56), dragToMiddle(0.63, 0.86)],
+    on: { 0.22: clickAt('#showResorts'), 0.38: dblAt(62.35, 7.9), 0.47: dblAt(62.35, 7.9), 0.56: dblAt(62.35, 7.9) } },
+  { day: 6, dur: 10, cam: ['map', 'map', 'legend'],
+    cap: 'Trysil and Hemsedal run everything today; each name links to the resort. Sweden publishes no open lift status, so its resorts show dashed \'no status\' icons, never \'closed\'.',
+    each: [glideTo('.zoombtn[data-zoom="reset"]', 0.02, 0.1), pulse(0.12), glideGeo(61.25, 12.7, 0.18, 0.26),
+      pulse(0.28), pulse(0.36), pulse(0.44), dragToMiddle(0.5, 0.66)],
+    on: { 0.12: clickAt('.zoombtn[data-zoom="reset"]'), 0.28: dblAt(61.25, 12.7), 0.36: dblAt(61.25, 12.7), 0.44: dblAt(61.25, 12.7) } },
+
   { day: 7, dur: 7, cam: ['map', 'detail', 'detail'],
+    pre: async () => page.evaluate(() => {
+      const cb = document.getElementById('showResorts');
+      if (cb.checked) cb.click();
+      document.querySelector('.zoombtn[data-zoom="reset"]').click();
+    }),
     cap: 'No mapped path reaches Hamperokken\'s summit, so no line is drawn. A guessed route has no place on a ski map.',
     each: [glideTo('#q', 0.02, 0.1), typeInto('#q', 'hamp', 0.12, 0.2), glideTo('.trow[data-tour="Hamperokken"]', 0.22, 0.3, -100), pulse(0.32)],
     on: { 0.11: clickAt('#q'), 0.32: async () => { await clickAt('.trow[data-tour="Hamperokken"]')(); await waitRoute(); } } },
@@ -402,7 +504,7 @@ const STEPS = [
     cap: 'Sunday. Clearing, and a deeper base everywhere. A dark theme for pre-dawn checks.',
     pre: async () => page.evaluate(() => { const q = document.getElementById('q'); q.value = ''; q.dispatchEvent(new Event('input', { bubbles: true })); document.getElementById('demo-cursor').style.opacity = '0'; }),
     on: { 0.45: async () => page.emulateMedia({ colorScheme: 'dark' }) } },
-  { day: 7, dur: 4, cam: ['sources'], cap: 'Every source on the page with its freshness: Varsom, Naturvårdsverket, seNorge, Regobs.',
+  { day: 7, dur: 4, cam: ['sources'], cap: 'Every source on the page with its freshness: Varsom, Naturvårdsverket, seNorge, Regobs, Fnugg.',
     pre: async () => page.emulateMedia({ colorScheme: 'light' }) },
 
   { card: 'end', dur: 5 },

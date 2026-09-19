@@ -1,0 +1,72 @@
+# Real resort list from Fnugg (api.fnugg.no/search), fetched 19 Sep 2026:
+# id|name|lat|lon|homepage|lift count|slope count. 69 of 126 (the rest could not be paged from the build environment).
+# Open counts in the demo are SIMULATED from the storm; everything else here is as Fnugg listed it.
+2|SkiStar Trysil|61.306682|12.242749|http://www.skistar.com/trysil|41|70
+4|SkiGeilo - Geilo|60.5214304|8.1983675|https://www.skigeilo.no|20|46
+5|SkiStar Hemsedal|60.86012746|8.51783752|https://www.skistar.com/no/vare-skisteder/hemsedal/|22|47
+6|Norefjell Skisenter|60.22064439|9.59936807|https://www.norefjell.com/|15|30
+184|Storeskar Skisenter|59.57665828|9.25292969||1|1
+182|Nerskogen Skisenter|62.772427|9.6118742|https://www.nerskogenskisenter.no|3|4
+183|Knyken skisenter|63.262622|9.7465465|https://knyken.no|3|4
+50|Gilja Alpin AS|58.82188531|6.28735542|https://www.facebook.com/GiljaAlpin/|1|2
+181|Åslia Skisenter|60.2633938|11.0234072|http://www.aaslia.no|1|1
+179|Skarmoen Alpinpark Bodø|67.3229729|14.554921|https://skarmoenalpinpark.no/|2|4
+178|Prestlia|63.87907826|11.28441811|https://www.prestlia.com/|2|3
+171|Turufjell Skisenter|60.47022834|9.49635766|https://www.turufjell.no/skisenter|3|9
+177|Bjorli Skisenter|62.2654627|8.2128862|https://www.bjorli.no/|6|11
+176|Vassfjellet - Hele byens fristed|63.26517613|10.40206975|https://vassfjellet.no/|8|12
+175|Kjemsåsen Alpinsenter|65.8385737|13.35795879|https://www.facebook.com/Kjemsasen|3|8
+174|Tekna Park Koppang|61.57560696|11.06297206||3|2
+165|Fagerfjell skisenter|59.83118725|9.31159973|http://www.fagerfjell.no/|2|6
+162|Ringkollen|60.16348476|10.3829758|http://www.ringkollenparken.no|3|6
+155|Steilia Alpinsenter|68.8529968|18.4000682||2|5
+154|Ørskogfjell Skisenter|62.53850009|6.9636519|https://www.orskogfjellet.no/|3|7
+152|Stokkanbakken|63.40051596|10.5046463|https://stokkanbakken.no/|3|4
+151|Vegglifjell skisenter|60.052094|9.0072763|http://vegglifjellskisenter.no/|1|7
+148|Ankenes Alpinanlegg|68.41358394|17.38942623|http://www.ankenesalpin.no|2|4
+141|Ålen Skisenter|62.83689152|11.30046844|http://aalenskisenter.no/|2|8
+137|Torsbustaden Skisenter A/S|63.68575222|11.30515695|https://www.torsbustaden.no/|2|4
+138|Surnadal Alpinsenter AS|62.965244|8.67950821|http://surnadal-alpinsenter.no/|1|5
+134|Birkenåsen Rena Alpin og Skisenter|61.17186484|11.29452132|http://renaalpin.no|2|6
+133|Høgevarde Fjellpark|60.33899983|9.50572193|http://www.hogevarde.no|4|5
+127|Glomfjord Alpinsenter|66.82033008|13.95890236|https://glomfjord-alpinsenter.webnode.com/|3|6
+126|Dombås Skiheiser|62.07673388|9.14398012|http://www.dombasskiheiser.no/|2|4
+124|Ånstadblåheia Alpinsenter|68.7088927|15.3238933|http://www.sortland-alpinklubb.no|1|6
+123|Fefor Skisenter|61.5387153|9.641166|http://www.facebook.com/FeforSkisenter|1|7
+122|Stavedalen park|60.8326949|9.4304554|https://www.stavedalen.no/|3|9
+121|Rauma Skisenter|62.59708197|7.64786791|http://www.raumaskisenter.com|1|3
+120|Arena Overøye Stordal Alpinsenter|62.40880476|7.21224975|http://www.arenaoveroye.no|4|7
+119|Tromsø Alpinpark|69.67659882|19.06941175|http://tromsoalpinpark.no|4|11
+118|Sunnmørsalpane Skiarena Fjellsætra|62.3365891|6.7660387|http://www.sunnmorsalpane.no|5|14
+116|Tusten Skiheiser|62.76478331|7.27312088|http://www.tusten.no|4|10
+115|Knaben Alpinsenter|58.66576121|7.03588983|http://www.knaben.no/aktiviteter-natur/knaben-alpinanlegg/|2|3
+114|Vrådal Panorama Skisenter|59.31050247|8.43915844|http://www.alpin.no|8|18
+105|Vestvatn Alpinanlegg|67.074694|14.9803221|http://www.vestvatn.no/|2|5
+110|Stavtjørn Alpin|58.700226|6.36467|https://www.stavtjornalpin.no|4|10
+108|Jerikobakken|59.93249246|10.88583112|https://www.facebook.com/Jerikobakken/|1|2
+107|Brokke Alpinsenter|59.0938804|7.44827101|http://www.brokke.com|4|6
+106|Fjellhaugen Skisenter|59.85164274|6.06498957|http://www.fjellhaugen.no|2|2
+104|Volda Skisenter|62.154038|6.15200043|http://voldaskisenter.no|2|7
+103|Skarslia Ski og Akesenter|60.68218943|8.28571916|http://www.skarslia.no|2|6
+102|Lemonsjøen Skisenter|61.74745622|9.05960083|http://lemonsjoen.no|3|6
+99|Hornindal Skisenter|62.00783447|6.56175613|https://hornindalski.no/|2|7
+98|Målselv Fjellandsby AS|69.081571|18.770915|http://www.malselvfjellandsby.no|4|8
+97|Middagsåsen Skisenter|59.490608|10.834215|http://middagsasen.no/|2|4
+96|Kolsås Skisenter|59.9369706|10.5266855|http://kolsasbakken.no/|4|4
+95|Eikerapen Alpinsenter AS|58.5389588|7.3552246|http://www.eikerapen.info/|2|7
+94|Sogn Skisenter|61.32585076|7.21496887|http://www.sognskisenter.no|4|10
+93|Sollifjellet Alpinsenter|68.80184932|16.40411524|http://www.sollifjellet.no|3|5
+90|Kjerringåsen Alpinsenter|59.391953|11.096543|http://kjerringaasen.no|3|7
+92|Jølster Skisenter|61.47166795|5.84807396|http://www.jolsterskisenter.no/|3|6
+89|Sauda Skisenter|59.6246273|6.2453198|http://www.saudaskisenter.no|6|12
+88|Breimsbygda Skisenter|61.76578447|6.50451779|http://www.breimsbygdaskisenter.no/|3|3
+87|Hummelfjell|62.52488303|11.23443615|http://rorosalpinsenter.no|3|7
+85|Bualie Golsfjellet Alpinsenter|60.82675789|8.98758888|http://www.bualie.no/|2|10
+84|Stordalen Skisenter|60.950438|5.681758|http://www.stordalenskisenter.no|2|4
+83|Vegårshei Ski- og Aktivitetssenter AS|58.753422|8.862662|https://www.vsa.no|2|1
+82|Ljosland Skisenter|58.78321|7.332962|http://www.ljoslandinfo.no|3|9
+81|Bjørnestad Skisenter|58.6619822|6.5933389|https://www.bski.no|2|4
+80|Dagali Akebakke med Heis, Geilo|60.395651|8.424148|http://www.dagalifjellpark.no|2|6
+75|Rauland Skisenter|59.6944498|8.06455|http://www.raulandskisenter.no|12|28
+78|Oppdal skisenter|62.604458|9.643258|https://www.alpinco.com/no/oppdal|15|30
+74|Ørsta Skisenter|62.151873|6.28761292|http://www.orstaskisenter.no/|4|11

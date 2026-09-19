@@ -70,7 +70,7 @@ Set at least:
 | `MAIL_FROM` | an address on a domain you have **verified in Resend**, e.g. `fjallskred@yourdomain` |
 | `MAIL_TO` | where alerts go |
 
-Leave `PORT=8080`: that is the port *inside* the container.
+Leave `PORT=8080`: that is the port *inside* the container. The port on the Pi is `HOST_PORT` (step 4).
 
 Phone push: install the ntfy app (iOS/Android) and subscribe to exactly
 the topic you put in `NTFY_TOPIC`. Anyone who knows the topic can read
@@ -85,11 +85,10 @@ that e.g. 8095 is free (no output = free):
 sudo ss -tlnp | grep ':8095 '
 ```
 
-Then edit `docker-compose.yml` and change the ports line to:
+Then set it in `.env` (it stays there across updates):
 
-```yaml
-    ports:
-      - "8095:8080"
+```
+HOST_PORT=8095
 ```
 
 ## 5. Build and start

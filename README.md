@@ -58,6 +58,8 @@ page falls back to Helvetica/Arial.
 
 ## Quick start
 
+On a Raspberry Pi: follow **[INSTALL.md](INSTALL.md)**, step by step.
+
 ```bash
 git clone <your-repo> toppturvarsel && cd toppturvarsel
 cp .env.example .env
@@ -82,7 +84,7 @@ Node 22 or newer, then:
 ```bash
 npm start            # serve on $PORT (default 8080)
 npm run refresh      # one-shot fetch, useful from host cron
-npm test             # 100 tests, no network needed
+npm test             # 101 tests, no network needed
 ```
 
 ## Routes, elevation and forecast
@@ -276,6 +278,8 @@ The ones that matter:
 
 | Variable | Default | Notes |
 |---|---|---|
+| `TZ` | `Europe/Stockholm` | Local time for quiet hours. |
+| `REFRESH_COOLDOWN_MINUTES` | `10` | Minimum gap between refreshes forced from the page's button. |
 | `REFRESH_MINUTES` | `180` | Bulletins update about once a day. Under 60 is pure load on a public agency's API; the service clamps to 30 minimum. |
 | `SEASON_ONLY` | `true` | Stop hitting upstream outside 1 Nov – 30 Jun. |
 | `ALERT_THRESHOLD_CM` | `30` | New snow over 48 h that triggers an alert. |

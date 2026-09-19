@@ -125,7 +125,14 @@ async function handleApi(req, res, url) {
   }
 
   if (route === '/api/refresh' && req.method === 'POST') {
-    // Coalesce concurrent refreshes so a reload storm cannot stampede NVE.
+    // The box is reachable from the internet, so "Refresh now" has a
+    // cooldown: within it, the last snapshot is returned instead of asking
+    // NVE again. Concurrent refreshes are coalesced as well.
+    const last = await store.getSnapshot();
+    const age = last?.fetchedAt ? Date.now() - new Date(last.fetchedAt).getTime() : Infinity;
+    if (!refreshing && age < config.refreshCooldownMinutes * 60e3) {
+      return json(res, 200, { ok: true, fetchedAt: last.fetchedAt, status: last.status, cooldown: true });
+    }
     if (!refreshing) {
       refreshing = refresh({ force: true })
         .then(async (snap) => {

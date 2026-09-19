@@ -189,3 +189,23 @@ test('explanation box shows the working: filter, parts, points that add up, meth
   const ex = p.days[0].rows.find((r) => r.tour === 'Steep');
   assert.match(explainHtml(ex), /Excluded[\s\S]*never ranked/);
 });
+
+test('"Refresh now" has a cooldown: a fresh snapshot is returned without asking upstream', async () => {
+  await writeFile(path.join(tmp, 'cache', 'current.json'), JSON.stringify({ fetchedAt: new Date().toISOString(), status: 'ok', regions: [], tours: [] }));
+  let upstream = 0;
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url, opts) => {
+    if (!String(url).startsWith('http://127.0.0.1')) upstream++;
+    return realFetch(url, opts);
+  };
+  try {
+    const server = createServer();
+    await new Promise((r) => server.listen(0, '127.0.0.1', r));
+    const r = await (await realFetch(`http://127.0.0.1:${server.address().port}/api/refresh`, { method: 'POST' })).json();
+    await new Promise((res) => server.close(res));
+    assert.equal(r.cooldown, true);
+    assert.equal(upstream, 0);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});

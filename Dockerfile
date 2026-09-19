@@ -2,6 +2,9 @@
 # Alpine because this image has zero npm dependencies to compile.
 FROM node:22-alpine
 
+# Time zone data, so quiet hours follow local time (TZ in .env).
+RUN apk add --no-cache tzdata
+
 # Run as the unprivileged user the base image already provides.
 WORKDIR /app
 

@@ -1492,5 +1492,68 @@
         "url": "https://www.geilo.com/en/ski-snowboard-and-cross-country/ski-touring/ski-touring-to-einsetnuten"
       }
     ]
+  },
+  {
+    "name": "Blåbergi",
+    "region": "hallingdal",
+    "lat": 60.7381,
+    "lon": 7.825,
+    "summit_m": 1802,
+    "vertical_m": 740,
+    "aspect": "varied",
+    "difficulty": 2,
+    "quality": 4,
+    "access": "Storestølen fjellhotell on Fv50 (parking 60.7095, 7.8521, about 1060 m)",
+    "season": "Feb–May",
+    "note": "North of Storestølen, across the Fv50 corridor north-west of Geilo. Aspect is set to 'varied' until checked, so the planner tests it against every avalanche problem. Summit checked against Kartverket's terrain model (1802 m) and PeakVisor.",
+    "links": [
+      {
+        "site": "Geilo.com",
+        "title": "Ski touring at Geilo",
+        "url": "https://www.geilo.com/en/ski-snowboard-and-cross-country/ski-touring"
+      }
+    ]
+  },
+  {
+    "name": "Såteggi",
+    "region": "hallingdal",
+    "lat": 60.692,
+    "lon": 7.6887,
+    "summit_m": 1417,
+    "vertical_m": 400,
+    "aspect": "varied",
+    "difficulty": 2,
+    "quality": 3,
+    "access": "Fv50 north-west of Geilo, roadside parking",
+    "season": "Feb–May",
+    "note": "Low summit in Hallingskarvet national park, west along Fv50. Aspect is set to 'varied' until checked, so the planner tests it against every avalanche problem. Summit position and height: PeakVisor, checked against Kartverket's terrain model (1415 m).",
+    "links": [
+      {
+        "site": "Geilo.com",
+        "title": "Ski touring at Geilo",
+        "url": "https://www.geilo.com/en/ski-snowboard-and-cross-country/ski-touring"
+      }
+    ]
+  },
+  {
+    "name": "Urevassnutane (Urvassnuten)",
+    "region": "hallingdal",
+    "lat": 60.7391,
+    "lon": 7.7043,
+    "summit_m": 1770,
+    "vertical_m": 600,
+    "aspect": "varied",
+    "difficulty": 2,
+    "quality": 4,
+    "access": "Fv50 north-west of Geilo",
+    "season": "Feb–May",
+    "note": "Twin summits on the old Buskerud–Sogn og Fjordane border. Aspect is set to 'varied' until checked, so the planner tests it against every avalanche problem. Summit position and height: PeakVisor, checked against Kartverket's terrain model (1769 m).",
+    "links": [
+      {
+        "site": "Geilo.com",
+        "title": "Ski touring at Geilo",
+        "url": "https://www.geilo.com/en/ski-snowboard-and-cross-country/ski-touring"
+      }
+    ]
   }
 ]

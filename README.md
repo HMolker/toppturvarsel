@@ -24,7 +24,7 @@ process, zero npm dependencies, one Docker container.
 - **Snow depth and new snow** from NVE's seNorge 1 km model grid, sampled at
   **each tour's own coordinates** rather than a region centroid — so
   Rørnestinden gets Rørnestinden's snow, not the fjord's.
-- **75 curated tours** with difficulty and quality ratings, filterable and
+- **78 curated tours** with difficulty and quality ratings, filterable and
   sortable by how much snow just fell on them.
 - **Powder alerts** by email and phone push when new snow over 48 h crosses
   your threshold, with the current danger level and problems in the message.

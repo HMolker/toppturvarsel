@@ -136,19 +136,31 @@ ntfy are configured (`channels`).
 
 ## 8. Reach it from outside (TP-Link DDNS)
 
-In the TP-Link router admin:
+If another app (e.g. Immich) is already reachable at
+`http://<name>.tplinkdns.com:<port>/`, you don't need a new DDNS name. The
+name points to your home connection. Each app on the Pi is told apart by
+its **port**, so Fjällskred just needs its own port forward:
 
-1. **Advanced → NAT Forwarding → Virtual Servers → Add**
+1. Check DDNS is still on: **Advanced → Network → Dynamic DNS**. The status
+   should say *Connected*, with your `…tplinkdns.com` name.
+2. Open **Advanced → NAT Forwarding → Virtual Servers**. You'll see the
+   existing rule for the other app (e.g. port 2283 → the Pi). Add one more
+   rule next to it:
    - Service type: `fjallskred`
-   - External port: `8095`
-   - Internal IP: the Pi's IP
+   - External port: `8095` (your `HOST_PORT`)
+   - Internal IP: the Pi's IP (the same as in the existing rule)
    - Internal port: `8095`
-   - Protocol: TCP
-2. Make sure the Pi has a fixed IP (Advanced → Network → DHCP Server →
-   Address Reservation), otherwise the forwarding breaks when it changes.
+   - Protocol: TCP. Enable and save.
 
-Then open `http://<your-ddns-name>:8095` from your phone on mobile data
-(not Wi-Fi) to test it from outside.
+   On a **Deco** system this is in the Deco app: *More → Advanced → Port
+   Forwarding → +*, with the same values.
+3. The Pi's IP must not change. If the existing rule already works, it
+   has a reservation. Otherwise add one under **Advanced → Network → DHCP
+   Server → Address Reservation**.
+4. Test from outside: turn Wi-Fi off on your phone and open
+   `http://<name>.tplinkdns.com:8095/`. From inside your own Wi-Fi some
+   routers don't loop back to their own DDNS name; use `http://<pi-ip>:8095`
+   at home if so.
 
 What the public can do: read the page, and press "Refresh now" (limited to
 once per 10 minutes, `REFRESH_COOLDOWN_MINUTES`). Routes, forecasts,

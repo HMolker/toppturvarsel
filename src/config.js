@@ -24,6 +24,7 @@ export const config = {
 
   alertThresholdCm: num('ALERT_THRESHOLD_CM', 30),
   alertRegions: str('ALERT_REGIONS', 'all'),
+  alertCountries: str('ALERT_COUNTRIES', 'all'),
   quietFrom: num('ALERT_QUIET_FROM', 22),
   quietTo: num('ALERT_QUIET_TO', 6),
 

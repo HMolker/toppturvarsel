@@ -3,6 +3,7 @@ import { renderRouteMap, renderProfile, routeSummary, renderForecast, renderPhot
 import { layoutResorts, resortSvg, OPEN_BANDS } from './resorts.js';
 import { plan } from './planner.js';
 import { explainHtml } from './explain.js';
+import { COUNTRIES, GROUPS, countryName, joinNames, normaliseSelection, fitFrame } from './countries.js';
 
 /* ------------------------------------------------------------------ *
  * state
@@ -22,7 +23,9 @@ const state = {
   sel: null,
   selRegion: null,
   q: '',
-  country: '',
+  // Selected countries: the first filter for the whole page.
+  countries: [],
+  track: '',
   region: '',
   grade: '',
   sort: 'quality',
@@ -82,11 +85,14 @@ async function load() {
 
   state.snapshot = condRes.value;
   state.alerts = alertRes.status === 'fulfilled' ? alertRes.value : null;
+  initCountries();
+  loadTracks();
   // A refresh refreshes the resort status too, when that layer is on.
   if (state.showResorts) loadResorts();
   loadOutlook();
 
   renderFreshness();
+  renderCountryBar();
   fillRegionSelect();
   renderAlerts();
   renderList();
@@ -116,12 +122,25 @@ function renderFreshness() {
  * map
  * ------------------------------------------------------------------ */
 
-const S = 44, CX = 250, LAT0 = 71.9, LON0 = 17;
-const MAP_W = 560, MAP_H = 760;
+// The frame follows the country selection (see countries.js); the width is
+// fixed and the height follows the shape of what is selected.
+const MAP_W = 560;
+let MAP_H = 760;
+let frame = fitFrame([COUNTRIES.NO.frame, COUNTRIES.SE.frame], { width: MAP_W });
 const baseProj = (lat, lon) => ({
-  x: CX + (lon - LON0) * Math.cos((lat * Math.PI) / 180) * S,
-  y: (LAT0 - lat) * S,
+  x: frame.ox + (lon - frame.lon0) * Math.cos((lat * Math.PI) / 180) * frame.s,
+  y: frame.oy - lat * frame.s,
 });
+
+/** Re-frame the map to the selected countries and reset the zoom. */
+function reframe() {
+  const boxes = state.countries.map((c) => COUNTRIES[c]?.frame).filter(Boolean);
+  frame = fitFrame(boxes, { width: MAP_W });
+  MAP_H = frame.height;
+  state.view = { k: 1, cx: MAP_W / 2, cy: MAP_H / 2 };
+  $('#map').setAttribute('viewBox', `0 0 ${MAP_W} ${MAP_H}`);
+}
+const inSel = (country) => state.countries.includes(country);
 // Zoom moves the geography, not the markers: positions scale, marker and
 // text sizes stay the same, so zooming in separates crowded resorts.
 const proj = (lat, lon) => {
@@ -238,17 +257,18 @@ function drawMap() {
     `<path d="${pathFrom(BORDER, false)}" fill="none" stroke="var(--coast)" stroke-width=".8" stroke-dasharray="3 3"/>`
   );
 
-  for (const la of [60, 65, 70]) {
-    const p = proj(la, 30.5);
-    parts.push(
-      `<text x="${p.x + 6}" y="${p.y + 4}" class="mono" font-size="9" fill="var(--muted)">${la}°N</text>`
-    );
+  // Latitude ticks on the right edge, every 5° (every 2° in a small frame).
+  const latStep = frame.s > 70 ? 2 : 5;
+  for (let la = -90; la <= 90; la += latStep) {
+    const y = proj(la, frame.lon0).y;
+    if (y < 40 || y > MAP_H - 12) continue;
+    parts.push(`<text x="${MAP_W - 34}" y="${(y + 4).toFixed(1)}" class="mono" font-size="9" fill="var(--muted)">${la}°N</text>`);
   }
 
   // Biggest first, so a small marker inside a crowded cluster stays clickable
   // and its label is not buried under a neighbour.
   const ordered = state.snapshot.regions
-    .filter((r) => !r.offMap)
+    .filter((r) => !r.offMap && inSel(r.country))
     .map((r) => ({ r, rad: radiusFor(r) }))
     .sort((a, b) => b.rad - a.rad);
 
@@ -320,7 +340,7 @@ function drawMap() {
 
   // Ski resorts: under the tour pins, over the regions.
   if (state.showResorts && state.resorts?.resorts) {
-    const pts = state.resorts.resorts.map((r) => ({ r, ...proj(r.lat, r.lon) }));
+    const pts = state.resorts.resorts.filter((r) => inSel(r.country)).map((r) => ({ r, ...proj(r.lat, r.lon) }));
     // Keep icons and names clear of the zoom buttons and the map note.
     const blocked = [[0, 0, 46, 116], [MAP_W - 210, 0, MAP_W, 34]];
     const layout = layoutResorts(pts, { detail: state.view.k >= DETAIL_K, width: MAP_W, height: MAP_H, blocked });
@@ -331,7 +351,7 @@ function drawMap() {
   const selTour = state.showTours && state.sel ? visibleTours().find((t) => t.name === state.sel) : null;
   if (selTour) {
     const p = proj(selTour.lat, selTour.lon);
-    const left = p.x > 330;
+    const left = p.x > MAP_W * 0.59;
     labels.push(
       `<text x="${(p.x + (left ? -20 : 20)).toFixed(1)}" y="${(p.y + 3).toFixed(1)}" text-anchor="${left ? 'end' : 'start'}" ` +
         `class="callout" pointer-events="none">${esc(selTour.name)}</text>`
@@ -375,7 +395,10 @@ function resortLegend() {
   const when = (x) => (x?.fetchedAt ? new Date(x.fetchedAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'not loaded');
   const status = !state.resorts
     ? 'loading resorts…'
-    : `Norway: live, Fnugg, ${when(src?.no)}${src?.no?.stale ? ' (stale)' : ''} · Sweden: location only, OpenStreetMap — no live status is published`;
+    : [
+        inSel('NO') && `Norway: live, Fnugg, ${when(src?.no)}${src?.no?.stale ? ' (stale)' : ''}`,
+        inSel('SE') && 'Sweden: location only, OpenStreetMap — no live status is published',
+      ].filter(Boolean).join(' · ');
   return (
     `<div class="legend-row"><span class="eyebrow">Resorts — share open</span>` +
     OPEN_BANDS.map(([, bg, , l], i) => `<span><i class="sw"${i === 0 ? ' style="border-color:var(--steel)"' : ` style="background:${bg}"`}></i>${l}</span>`).join('') +
@@ -406,7 +429,7 @@ function zoomAt(factor, sx = MAP_W / 2, sy = MAP_H / 2) {
   v.cx = bx - (sx - MAP_W / 2) / k;
   v.cy = by - (sy - MAP_H / 2) / k;
   v.k = k;
-  if (k === 1) Object.assign(v, { cx: 280, cy: 380 });
+  if (k === 1) Object.assign(v, { cx: MAP_W / 2, cy: MAP_H / 2 });
   drawMap();
 }
 
@@ -498,6 +521,128 @@ $('#map').addEventListener('click', (e) => {
 });
 
 /* ------------------------------------------------------------------ *
+ * countries: the first filter
+ * ------------------------------------------------------------------ */
+
+const COUNTRY_KEY = 'fjallskred.countries.v1';
+
+/** Countries with regions in the data, in the order COUNTRIES lists them. */
+function availableCountries() {
+  const have = new Set((state.snapshot?.regions ?? []).map((r) => r.country));
+  return [...Object.keys(COUNTRIES).filter((c) => have.has(c)), ...[...have].filter((c) => !COUNTRIES[c]).sort()];
+}
+
+function initCountries() {
+  const avail = availableCountries();
+  const saved = state.countries.length ? state.countries : readStore(COUNTRY_KEY, []);
+  const next = normaliseSelection(saved, avail);
+  const changed = next.join() !== state.countries.join();
+  state.countries = next;
+  if (changed) reframe();
+}
+
+function renderCountryBar() {
+  const avail = availableCountries();
+  const all = avail.length === state.countries.length;
+  const groups = GROUPS.filter((g) => g.countries.some((c) => avail.includes(c)));
+  const chip = (attr, label, on, title = '') =>
+    `<button class="cchip" ${attr} aria-pressed="${on}"${title ? ` title="${esc(title)}"` : ''}>${esc(label)}</button>`;
+  $('#countryBar').innerHTML =
+    `<span class="eyebrow">Countries</span>` +
+    avail.map((c) => chip(`data-country="${esc(c)}"`, countryName(c), inSel(c), `Show or hide ${countryName(c)}`)).join('') +
+    groups.map((g) => {
+      const on = g.countries.filter((c) => avail.includes(c));
+      return chip(`data-group="${esc(g.id)}"`, g.name, on.length === state.countries.length && on.every(inSel), `Only ${joinNames(on)}`);
+    }).join('') +
+    (avail.length > 1 ? chip('data-all', 'All', all) : '') +
+    `<span class="note cnote">${all ? 'everything' : `only ${esc(joinNames(state.countries))}`} on the map, in the tours, planner and alerts</span>`;
+  const names = joinNames(state.countries);
+  $('#eyebrowCountries').textContent = names;
+  $('#map').setAttribute('aria-label', `Map of ${names} showing avalanche forecast regions and ski touring objectives`);
+}
+
+function setCountries(next) {
+  const avail = availableCountries();
+  next = normaliseSelection(next, avail);
+  if (next.join() === state.countries.join()) return;
+  state.countries = next;
+  writeStore(COUNTRY_KEY, next);
+  reframe();
+  // A selection in a country that is now hidden is dropped, not left dangling.
+  const regions = regionById();
+  const selTour = (state.snapshot?.tours ?? []).find((t) => t.name === state.sel);
+  const selCountry = selTour ? regions[selTour.region]?.country : regions[state.selRegion]?.country;
+  if (selCountry && !inSel(selCountry)) {
+    state.sel = null;
+    state.selRegion = null;
+    $('#detailTitle').textContent = 'Select a tour or region';
+    $('#detail').innerHTML = '<p class="note">Pick a pin on the map or a tour from the list.</p>';
+  }
+  renderCountryBar();
+  fillRegionSelect();
+  renderList();
+  renderAlerts();
+  renderSources();
+  renderPlanner();
+  drawMap();
+}
+
+$('#countryBar').addEventListener('click', (e) => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  if (b.hasAttribute('data-all')) return setCountries(availableCountries());
+  if (b.dataset.group) return setCountries(GROUPS.find((g) => g.id === b.dataset.group)?.countries ?? []);
+  const c = b.dataset.country;
+  // Toggle, but never down to nothing: the last country stays on.
+  const next = inSel(c) ? state.countries.filter((x) => x !== c) : [...state.countries, c];
+  if (next.length) setCountries(availableCountries().filter((x) => next.includes(x)));
+});
+
+/* ------------------------------------------------------------------ *
+ * track availability
+ * ------------------------------------------------------------------ */
+
+// status: gpx (your own file), osm (derived from OpenStreetMap), none,
+// area (a touring area, no single line) or pending (not looked up yet).
+state.tracks = {};
+async function loadTracks() {
+  try {
+    const r = await fetch('/api/tracks');
+    if (!r.ok) return;
+    state.tracks = (await r.json()).tours ?? {};
+    renderList();
+  } catch {
+    /* the marker is a convenience; the list works without it */
+  }
+}
+
+const hasTrack = (name) => ['gpx', 'osm'].includes(state.tracks[name]?.status);
+function trackMatches(name, want) {
+  if (want === 'gpx') return state.tracks[name]?.status === 'gpx';
+  if (want === 'any') return hasTrack(name);
+  if (want === 'none') return !hasTrack(name);
+  return true;
+}
+
+function trackTag(name) {
+  const t = state.tracks[name];
+  switch (t?.status) {
+    case 'gpx':
+      return '<span class="trk own" title="GPX track: your own file">GPX</span>';
+    case 'osm':
+      return t.kind === 'ski-route'
+        ? '<span class="trk osm" title="GPX track: ski route from OpenStreetMap">GPX</span>'
+        : '<span class="trk osm path" title="GPX track: summer path from OpenStreetMap, the ski line may differ">GPX</span>';
+    case 'area':
+      return '<span class="trk none" title="Touring area: many lines, no single track">area</span>';
+    case 'pending':
+      return '<span class="trk none" title="Route not looked up yet">…</span>';
+    default:
+      return t ? '<span class="trk none" title="No track found yet">no track</span>' : '';
+  }
+}
+
+/* ------------------------------------------------------------------ *
  * tours
  * ------------------------------------------------------------------ */
 
@@ -509,7 +654,8 @@ function visibleTours() {
   const out = tours.filter((t) => {
     const reg = regions[t.region];
     if (!reg) return false;
-    if (state.country && reg.country !== state.country) return false;
+    if (!inSel(reg.country)) return false;
+    if (state.track && !trackMatches(t.name, state.track)) return false;
     if (state.region && t.region !== state.region) return false;
     if (state.grade && t.difficulty > +state.grade) return false;
     if (q) {
@@ -552,14 +698,16 @@ function renderList() {
             : '';
         return (
           `<div class="trow${state.sel === t.name ? ' sel' : ''}" tabindex="0" data-tour="${esc(t.name)}">` +
-          `<div><div class="tname"><button class="fav${FAVS[t.name] ? ' on' : ''}" data-fav="${esc(t.name)}" aria-label="Favourite">${FAVS[t.name] ? '★' : '☆'}</button>${esc(t.name)} ${badge}</div>` +
+          `<div><div class="tname"><button class="fav${FAVS[t.name] ? ' on' : ''}" data-fav="${esc(t.name)}" aria-label="Favourite">${FAVS[t.name] ? '★' : '☆'}</button>${esc(t.name)} ${trackTag(t.name)} ${badge}</div>` +
           `<div class="tmeta">${esc(reg.name)} · ${t.summit_m} m · ${t.vertical_m} m vert · ${esc(t.aspect)}</div></div>` +
           `<div style="text-align:right"><div class="stars">${stars(t.quality)}</div><div class="grade">diff ${t.difficulty}/5</div></div></div>`
         );
       })
       .join('') || '<div class="skeleton">Nothing matches those filters.</div>';
 
-  $('#tourCount').textContent = `${list.length} of ${state.snapshot?.tours?.length ?? 0}`;
+  const inCountries = (state.snapshot?.tours ?? []).filter((t) => inSel(regions[t.region]?.country)).length;
+  const withTrack = list.filter((t) => hasTrack(t.name)).length;
+  $('#tourCount').textContent = `${list.length} of ${inCountries}${Object.keys(state.tracks).length ? ` · ${withTrack} with GPX` : ''}`;
 }
 
 $('#tourlist').addEventListener('click', (e) => {
@@ -707,7 +855,7 @@ function selectTour(name) {
     `</div>` +
     `<div class="tourcol">` +
     `<dl>` +
-    `<dt>Region</dt><dd>${esc(reg.name)} (${reg.country === 'NO' ? 'Norway' : 'Sweden'}) — ${dangerPill(reg)}</dd>` +
+    `<dt>Region</dt><dd>${esc(reg.name)} (${esc(countryName(reg.country))}) — ${dangerPill(reg)}</dd>` +
     `<dt>Summit / vertical</dt><dd>${t.summit_m} m · ≈${t.vertical_m} m of descent</dd>` +
     `<dt>Main aspect</dt><dd>${esc(t.aspect)}</dd>` +
     `<dt>Difficulty</dt><dd>${t.difficulty}/5 &nbsp; <span class="stars">${stars(t.quality)}</span></dd>` +
@@ -838,7 +986,7 @@ $('#detail').addEventListener('click', (e) => {
  * ------------------------------------------------------------------ */
 
 function renderAlerts() {
-  const a = state.alerts;
+  let a = state.alerts;
   const el = $('#alerts');
   if (!a) {
     el.innerHTML = '<p class="quiet">Alert status unavailable.</p>';
@@ -851,11 +999,16 @@ function renderAlerts() {
     (channels.length ? `notifying by ${channels.join(' + ')}` : 'no notification channel configured') +
     ` · quiet ${a.quietHours.from}:00–${a.quietHours.to}:00`;
 
+  // Alerts in hidden countries are still sent by the server; the page just
+  // says how many it is not showing.
+  const hidden = (a.firing ?? []).filter((f) => f.country && !inSel(f.country)).length;
+  a = { ...a, firing: (a.firing ?? []).filter((f) => !f.country || inSel(f.country)) };
+  const hiddenNote = hidden ? `<p class="note">${hidden} more in countries you have hidden.</p>` : '';
   if (!a.firing?.length) {
     el.innerHTML =
       `<p class="quiet">Nothing over ${a.threshold} cm in the last 48 hours. ` +
       `The server checks on every refresh and will notify you without the page being open.</p>` +
-      (a.pending?.length ? `<p class="note">${a.pending.length} alert(s) held until quiet hours end.</p>` : '');
+      (a.pending?.length ? `<p class="note">${a.pending.length} alert(s) held until quiet hours end.</p>` : '') + hiddenNote;
     return;
   }
 
@@ -881,7 +1034,7 @@ function renderAlerts() {
       })
       .join('') +
     `</div>` +
-    `<p class="quiet">A big load is exactly when the bulletin matters most — these are “go and read”, not “go and ski”.</p>`;
+    `<p class="quiet">A big load is exactly when the bulletin matters most — these are “go and read”, not “go and ski”.</p>` + hiddenNote;
 }
 
 $('#alerts').addEventListener('click', (e) => {
@@ -913,7 +1066,10 @@ function renderSources() {
     ],
   ];
 
+  // Which countries each source serves (seNorge's grid covers both).
+  const COUNTRY_OF = [['NO'], ['SE'], ['NO', 'SE'], ['NO']];
   $('#sources').innerHTML = cards
+    .filter((c, i) => COUNTRY_OF[i].some(inSel))
     .map(
       ([name, ok, detail]) =>
         `<div class="src${ok === false ? ' bad' : ''}"><h4>${esc(name)}</h4><div class="note">${esc(detail)}</div></div>`
@@ -929,7 +1085,7 @@ function fillRegionSelect() {
   const sel = $('#fRegion');
   const cur = state.region;
   const regions = (state.snapshot?.regions ?? []).filter(
-    (r) => !r.offMap && (!state.country || r.country === state.country)
+    (r) => !r.offMap && inSel(r.country)
   );
   sel.innerHTML =
     '<option value="">All regions</option>' +
@@ -961,9 +1117,8 @@ $('#q').addEventListener('input', (e) => {
   renderList();
   drawMap();
 });
-$('#fCountry').addEventListener('change', (e) => {
-  state.country = e.target.value;
-  fillRegionSelect();
+$('#fTrack').addEventListener('change', (e) => {
+  state.track = e.target.value;
   renderList();
   drawMap();
 });
@@ -1075,8 +1230,9 @@ function renderPlanner() {
     return;
   }
   const [la, lo] = planPrefs.from ? planPrefs.from.split(',').map(Number) : [NaN, NaN];
+  const regs = regionById();
   const p = plan({
-    tours,
+    tours: tours.filter((t) => inSel(regs[t.region]?.country)),
     outlook: o,
     prefs: { maxDifficulty: planPrefs.maxDifficulty, maxDanger: planPrefs.maxDanger, from: Number.isFinite(la) && Number.isFinite(lo) ? { lat: la, lon: lo } : null },
   });

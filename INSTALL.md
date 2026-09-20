@@ -188,22 +188,88 @@ Backup: `data/cache` holds the snapshot history and the alert ledger;
 
 ## 10. Updating, and going back
 
-With a new `toppturvarsel.tar.gz`, unpack it over the folder (your `.env`
-and `data/cache` are not in the archive, so they are kept) and rebuild:
+**From a tarball** (as before): unpack it over the folder (your `.env` and
+`data/cache` are not in the archive, so they are kept) and rebuild:
 
 ```bash
 tar xzf ~/toppturvarsel.tar.gz -C ~/apps
 cd ~/apps/toppturvarsel && docker compose up -d --build
 ```
 
-To go back to an earlier version:
+**From GitHub** (once step 11 is done):
 
 ```bash
-git tag -l                       # before-resorts, v1-resorts-music, v2-planner, ...
-git checkout v2-planner
+cd ~/apps/toppturvarsel
+git pull --tags
 docker compose up -d --build
-git checkout master              # back to the latest
 ```
+
+To go back to an earlier version (`CHANGELOG.md` says what each one is):
+
+```bash
+git tag -l                       # before-resorts, v2-planner, v3.8-haukeli, v4.0, ...
+git checkout v3.8-haukeli
+docker compose up -d --build
+git checkout main                # back to the latest
+```
+
+## 11. Keeping it on GitHub
+
+From version 4 the project lives in a GitHub repository: every version is a
+commit on `main` with a tag, and GitHub runs the tests (and a Docker build)
+on every push. The first push is done once, from your computer.
+
+**On github.com:** New repository → name `fjallskred` → **Private** → do
+*not* add a README, .gitignore or licence (the repo must be empty) → Create.
+
+**On your computer**, in the folder where you unpacked
+`toppturvarsel.tar.gz` (it contains the full history, `.git` included):
+
+```bash
+cd toppturvarsel
+git remote add origin https://github.com/<your-user>/fjallskred.git
+git push -u origin main
+git push origin --tags
+```
+
+The first push asks you to sign in (a browser window, or GitHub Desktop /
+the Git Credential Manager). Then open the repo's **Actions** tab: the "CI"
+run should turn green within a few minutes.
+
+**Let the Pi pull from GitHub** (optional, replaces copying tarballs). A
+private repo needs a key; a *deploy key* can only read this one repo:
+
+```bash
+ssh-keygen -t ed25519 -f ~/.ssh/fjallskred_deploy -N "" -C "pi fjallskred"
+cat ~/.ssh/fjallskred_deploy.pub      # copy this line
+```
+
+On GitHub: repo → Settings → Deploy keys → Add deploy key → paste, leave
+"Allow write access" **off**. Then on the Pi:
+
+```bash
+cat >> ~/.ssh/config <<'CFG'
+Host github-fjallskred
+  HostName github.com
+  User git
+  IdentityFile ~/.ssh/fjallskred_deploy
+CFG
+cd ~/apps/toppturvarsel
+git remote add origin git@github-fjallskred:<your-user>/fjallskred.git   # or: git remote set-url origin ...
+git fetch origin && git branch -u origin/main main
+git pull --tags
+```
+
+**New versions from Claude** arrive as a small `fjallskred-vX.Y.bundle`
+file (only the new commits and tags). On your computer, in the same folder:
+
+```bash
+git pull ~/Downloads/fjallskred-vX.Y.bundle main
+git fetch ~/Downloads/fjallskred-vX.Y.bundle 'refs/tags/*:refs/tags/*'
+git push && git push --tags
+```
+
+and then `git pull --tags` + `docker compose up -d --build` on the Pi.
 
 ## Troubleshooting
 

@@ -28,13 +28,20 @@ import { log } from './util/log.js';
 /** Whole centimetres in messages; see the note on precision in public/app.js. */
 const cm = (v) => Math.round(v);
 
-export function evaluateAlerts(snapshot, { threshold = config.alertThresholdCm, watch = config.alertRegions } = {}) {
+export function evaluateAlerts(
+  snapshot,
+  { threshold = config.alertThresholdCm, watch = config.alertRegions, countries = config.alertCountries } = {}
+) {
   if (!snapshot?.regions) return [];
   const watched = parseWatch(watch);
+  const inCountries = parseWatch(String(countries ?? 'all').toUpperCase().replace('ALL', 'all'));
 
   return snapshot.regions
     .filter((r) => !r.offMap)
     .filter((r) => watched === 'all' || watched.has(r.id))
+    // Which countries you get notified about: the server-side counterpart
+    // of the page's country selection (ALERT_COUNTRIES, e.g. "NO,SE").
+    .filter((r) => inCountries === 'all' || inCountries.has(r.country))
     .map((r) => {
       const new48 = r.snow?.new48 ?? null;
       if (new48 === null || new48 < threshold) return null;

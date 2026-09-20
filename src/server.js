@@ -7,7 +7,7 @@ import { store } from './store.js';
 import { refresh } from './refresh.js';
 import { evaluateAlerts, runAlerts } from './alerts.js';
 import { startScheduler } from './scheduler.js';
-import { findTour, getRoute, routeGpx, getForecast, warmRoutes, getPhotos, getPhotoThumb } from './tracks.js';
+import { findTour, getRoute, routeGpx, getForecast, warmRoutes, getPhotos, getPhotoThumb, trackStatuses } from './tracks.js';
 import { getTerrain } from './terrain.js';
 import { getResorts } from './resorts.js';
 import { getOutlook } from './outlook.js';
@@ -164,6 +164,10 @@ async function handleApi(req, res, url) {
   if (route === '/api/resorts') {
     if (!config.resortsEnabled) return json(res, 404, { error: 'resort layer disabled' });
     return json(res, 200, await getResorts(), { 'Cache-Control': 'public, max-age=300' });
+  }
+
+  if (route === '/api/tracks') {
+    return json(res, 200, { tours: await trackStatuses() }, { 'Cache-Control': 'public, max-age=60' });
   }
 
   if (route === '/api/meta') {

@@ -17,7 +17,7 @@
   <img class="brandmark" src="/brand/logo-header.png" width="107" height="120"
        alt="Fjällskred — Molker Digital free-touring monitor">
   <div>
-    <div class="eyebrow">Fjällskred · Molker Digital — Norway &amp; Sweden</div>
+    <div class="eyebrow">Fjällskred · Molker Digital — <span id="eyebrowCountries">Norway &amp; Sweden</span></div>
     <h1>Ski touring conditions</h1>
     <p class="sub">Snow depth, new snow, avalanche danger and field observations, refreshed from NVE, Varsom and Naturvårdsverket.</p>
   </div>
@@ -26,6 +26,8 @@
     <button class="btn primary" id="refreshBtn">Refresh now</button>
   </div>
 </header>
+
+<nav class="countrybar" id="countryBar" aria-label="Countries shown"></nav>
 
 <div class="wrap">
 
@@ -97,14 +99,17 @@
     <div class="hd"><h2>Tours</h2><span class="note" id="tourCount"></span></div>
     <div class="controls">
       <input type="search" id="q" placeholder="Search tour, massif or area…" aria-label="Search tours">
-      <select id="fCountry" aria-label="Country">
-        <option value="">All countries</option><option value="NO">Norway</option><option value="SE">Sweden</option>
-      </select>
       <select id="fRegion" aria-label="Region"><option value="">All regions</option></select>
       <select id="fGrade" aria-label="Max difficulty">
         <option value="">Any difficulty</option>
         <option value="1">≤ 1 — easy</option><option value="2">≤ 2 — moderate</option>
         <option value="3">≤ 3 — demanding</option><option value="4">≤ 4 — steep</option>
+      </select>
+      <select id="fTrack" aria-label="GPX track">
+        <option value="">Any track status</option>
+        <option value="any">Has a GPX track</option>
+        <option value="gpx">Own GPX only</option>
+        <option value="none">No track yet</option>
       </select>
       <select id="fSort" aria-label="Sort">
         <option value="quality">Best first</option>
@@ -117,6 +122,7 @@
       </select>
     </div>
     <div class="tourlist" id="tourlist"><div class="skeleton">loading…</div></div>
+    <p class="note trklegend"><span class="trk own">GPX</span> your own track &nbsp; <span class="trk osm">GPX</span> ski route from OpenStreetMap &nbsp; <span class="trk osm path">GPX</span> summer path, ski line may differ &nbsp; <span class="trk none">no track</span> none found yet</p>
   </section>
 
   <section class="card detail full" id="detailCard">

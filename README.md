@@ -25,7 +25,10 @@ process, zero npm dependencies, one Docker container.
   **each tour's own coordinates** rather than a region centroid — so
   Rørnestinden gets Rørnestinden's snow, not the fjord's.
 - **91 curated tours** with difficulty and quality ratings, filterable and
-  sortable by how much snow just fell on them.
+  sortable by how much snow just fell on them, each marked with whether a
+  GPX track is available (your own, or a route from OpenStreetMap).
+- **Country selection** as the first filter: pick Norway, Sweden or both, and
+  the map re-frames while the tours, planner, resorts and alerts follow.
 - **Powder alerts** by email and phone push when new snow over 48 h crosses
   your threshold, with the current danger level and problems in the message.
 
@@ -84,7 +87,7 @@ Node 22 or newer, then:
 ```bash
 npm start            # serve on $PORT (default 8080)
 npm run refresh      # one-shot fetch, useful from host cron
-npm test             # 104 tests, no network needed
+npm test             # 111 tests, no network needed
 ```
 
 ## Routes, elevation and forecast
@@ -287,6 +290,7 @@ The ones that matter:
 | `SEASON_ONLY` | `true` | Stop hitting upstream outside 1 Nov – 30 Jun. |
 | `ALERT_THRESHOLD_CM` | `30` | New snow over 48 h that triggers an alert. |
 | `ALERT_REGIONS` | `all` | Or a comma-separated list of region ids (see `data/regions.json`). |
+| `ALERT_COUNTRIES` | `all` | Or e.g. `NO` or `NO,SE`: which countries you are notified about. The country buttons on the page only change what you see. |
 | `ALERT_QUIET_FROM` / `_TO` | `22` / `6` | Alerts found overnight are **held, not dropped**, and sent when the window ends. |
 
 ### Alerts by email
@@ -337,6 +341,7 @@ curl -X POST localhost:8080/api/test-alert   # dry run, records nothing
 | `POST /api/refresh` | Force a refresh now. Concurrent calls are coalesced. |
 | `POST /api/test-alert` | Dry-run the alert path. |
 | `GET /api/meta` | The static region and tour definitions. |
+| `GET /api/tracks` | Per tour: own GPX, OSM route, none, area or not looked up yet. Reads disk only. |
 | `GET /api/track?tour=` · `/api/track.gpx?tour=` | Route, profile and GPX for a listed tour. |
 | `GET /api/terrain?tour=` | Elevation grid for contours. |
 | `GET /api/photos?tour=` · `/api/photo?tour=&i=` | Commons photos near the summit, and their thumbnails. |
@@ -449,6 +454,13 @@ A regional bulletin describes a region, not your slope. A model is not a pit.
 An alert saying 40 cm fell is a reason to read the bulletin carefully, not a
 reason to go. Nothing here replaces terrain assessment, a partner,
 transceiver/shovel/probe, and the willingness to turn around.
+
+## Versions and GitHub
+
+From v4 the project is kept on GitHub: `main` is the current version, every
+release is a tag (`v4.0`, `v4.1`, …), and `CHANGELOG.md` says what changed.
+GitHub Actions runs the tests and a Docker build on every push
+(`.github/workflows/ci.yml`). INSTALL.md step 11 has the setup.
 
 ## Licence
 

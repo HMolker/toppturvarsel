@@ -1,7 +1,7 @@
 {
   "name": "toppturvarsel",
-  "version": "1.0.0",
-  "description": "Live ski touring conditions service for Norway and Sweden: snow depth, new snow, avalanche danger, field observations and powder alerts.",
+  "version": "4.0.0",
+  "description": "Self-hosted ski touring conditions service: snow depth, new snow, avalanche danger, trip planner, routes and powder alerts, country by country.",
   "type": "module",
   "engines": {
     "node": ">=22"

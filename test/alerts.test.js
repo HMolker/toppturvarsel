@@ -163,3 +163,13 @@ test('notifications print whole centimetres, not model tenths', () => {
   assert.match(mail.text, /\+45 cm new snow over 48 h \(21 cm in 24 h\)/);
   assert.match(mail.text, /235 cm base/);
 });
+
+test('ALERT_COUNTRIES limits which countries are notified', () => {
+  const s = snapshot([
+    { id: 'n', name: 'N', country: 'NO', snow: { new48: 40 } },
+    { id: 's', name: 'S', country: 'SE', snow: { new48: 45 } },
+  ]);
+  assert.deepEqual(evaluateAlerts(s, { threshold: 30, countries: 'all' }).map((a) => a.regionId), ['s', 'n']);
+  assert.deepEqual(evaluateAlerts(s, { threshold: 30, countries: 'no' }).map((a) => a.regionId), ['n']);
+  assert.deepEqual(evaluateAlerts(s, { threshold: 30, countries: 'NO, SE' }).length, 2);
+});

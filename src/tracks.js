@@ -242,6 +242,41 @@ export async function getPhotoThumb(tour, i) {
   return { body, type: type.split(';')[0] };
 }
 
+/**
+ * Whether each tour has a track, for the marker in the tour list. Reads only
+ * what is on disk (your GPX files and the route cache); never looks anything
+ * up, so it is cheap and cannot trigger Overpass. Memoised for a minute.
+ *
+ *   gpx     your own data/tracks/<slug>.gpx
+ *   osm     derived from OpenStreetMap (kind: ski-route or summer path)
+ *   none    looked up, nothing found
+ *   area    a touring area, no single line by design
+ *   pending not looked up yet (the background warm-up gets to it)
+ */
+let statusMemo = null;
+export async function trackStatuses() {
+  if (statusMemo && Date.now() - statusMemo.at < 60e3) return statusMemo.value;
+  const tours = await loadTours();
+  const value = {};
+  await Promise.all(
+    tours.map(async (t) => {
+      const slug = slugify(t.name);
+      try {
+        const own = await stat(path.join(userTrackDir(), `${slug}.gpx`));
+        if (own.size > 0) return (value[t.name] = { status: 'gpx' });
+      } catch {
+        /* no own file */
+      }
+      if (t.kind === 'area') return (value[t.name] = { status: 'area' });
+      const cached = await readJson(cacheDir('tracks', `${slug}.json`));
+      if (!cached || cached.source === 'gpx') return (value[t.name] = { status: 'pending' });
+      value[t.name] = cached.found ? { status: 'osm', kind: cached.kind ?? null } : { status: 'none' };
+    })
+  );
+  statusMemo = { at: Date.now(), value };
+  return value;
+}
+
 /** Start of a tour's route, if one has been derived and cached (no network). */
 export async function cachedRouteStart(tour) {
   const r = await readJson(cacheDir('tracks', `${slugify(tour.name)}.json`));

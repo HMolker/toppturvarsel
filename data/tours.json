@@ -412,16 +412,23 @@
   {
     "name": "Gaustatoppen",
     "region": "vest-telemark",
-    "lat": 59.85,
-    "lon": 8.65,
+    "lat": 59.8542,
+    "lon": 8.6492,
     "summit_m": 1883,
-    "vertical_m": 1100,
+    "vertical_m": 700,
     "aspect": "varied",
     "difficulty": 2,
     "quality": 3,
-    "access": "Rjukan area",
-    "season": "Jan–Apr",
-    "note": "Southern anchor of the list: reliable snow, big views, mostly moderate angles. Good early-season shakedown from the south."
+    "access": "Stavsro parking on Fv651 between Rjukan and Tuddal (about 1175 m)",
+    "season": "Feb–Jun",
+    "note": "Telemark's highest summit and the southern anchor of the list: reliable snow, big views and broad, open flanks on the normal route from Stavsro (about 4.5 km). Position and height checked against Kartverket's terrain model (1882 m).",
+    "links": [
+      {
+        "site": "ToppturNorge",
+        "title": "Gaustatoppen",
+        "url": "https://www.toppturnorge.no/turer/gaustatoppen/"
+      }
+    ]
   },
   {
     "name": "Njulla (Nuolja)",
@@ -1553,6 +1560,157 @@
         "site": "Geilo.com",
         "title": "Ski touring at Geilo",
         "url": "https://www.geilo.com/en/ski-snowboard-and-cross-country/ski-touring"
+      }
+    ]
+  },
+  {
+    "name": "Gaustatoppen east couloirs",
+    "region": "vest-telemark",
+    "lat": 59.8542,
+    "lon": 8.6492,
+    "summit_m": 1883,
+    "vertical_m": 600,
+    "aspect": "E",
+    "difficulty": 5,
+    "quality": 4,
+    "access": "Gaustabanen (the railway inside the mountain) to the top, or skin up from Stavsro",
+    "season": "Feb–May",
+    "note": "The steep runs off the east side of Gaustatoppen, 40–52° per Visit Norway: expert terrain, rock bands and consequences. The normal route is listed separately as Gaustatoppen. Same summit point, checked against Kartverket's terrain model.",
+    "links": [
+      {
+        "site": "Visit Norway",
+        "title": "Off-piste from Gaustatoppen",
+        "url": "https://www.visitnorway.no/listings/off-piste-fra-gaustatoppen/208488/"
+      }
+    ]
+  },
+  {
+    "name": "Røldalsåta",
+    "region": "hardanger",
+    "lat": 59.7746,
+    "lon": 6.7225,
+    "summit_m": 1422,
+    "vertical_m": 450,
+    "aspect": "varied",
+    "difficulty": 2,
+    "quality": 4,
+    "access": "Røldal Skisenter parking",
+    "season": "Feb–Jun",
+    "note": "Popular high-mountain tour on even, open terrain with a long descent, often good spring snow; about 7 km. Aspect is set to 'varied' until checked, so the planner tests it against every avalanche problem. Position and height: Kartverket place names (Såta), checked against the terrain model (1401 m) and PeakVisor.",
+    "links": [
+      {
+        "site": "ToppturNorge",
+        "title": "Røldalsåta",
+        "url": "https://www.toppturnorge.no/turer/roldalsata/"
+      },
+      {
+        "site": "UT.no",
+        "title": "Røldalsåta from Røldal Skisenter",
+        "url": "https://ut.no/turforslag/112990/topptur-til-rldalsata-fra-rldal-skisenter"
+      }
+    ]
+  },
+  {
+    "name": "Stordalsnibba (Røldal)",
+    "region": "hardanger",
+    "lat": 59.7983,
+    "lon": 6.7464,
+    "summit_m": 1122,
+    "vertical_m": 450,
+    "aspect": "varied",
+    "difficulty": 1,
+    "quality": 3,
+    "access": "Røldal Skisenter parking",
+    "season": "Dec–May",
+    "note": "Short tour straight from the ski centre, about 2.5 km; the south- and west-facing slopes get good spring snow. Aspect is set to 'varied' until checked, so the planner tests it against every avalanche problem. Position: Kartverket place names, height checked against the terrain model (1111 m).",
+    "links": [
+      {
+        "site": "ToppturNorge",
+        "title": "Stordalsnibba",
+        "url": "https://www.toppturnorge.no/turer/stordalsnibba/"
+      },
+      {
+        "site": "ToppturNorge",
+        "title": "Ski tours in Røldal",
+        "url": "https://www.toppturnorge.no/roldal/"
+      }
+    ]
+  },
+  {
+    "name": "Fjetlandsnuten",
+    "region": "hardanger",
+    "lat": 59.8227,
+    "lon": 6.8539,
+    "summit_m": 1287,
+    "vertical_m": 860,
+    "aspect": "varied",
+    "difficulty": 2,
+    "quality": 4,
+    "access": "Tveita cabin area, east Røldal",
+    "season": "Dec–May",
+    "note": "Quieter summit east of Røldal with steady climbing and open terrain for wide turns, about 4 km. Aspect is set to 'varied' until checked, so the planner tests it against every avalanche problem. Position: Kartverket place names and Peakbook, height checked against the terrain model (1282 m).",
+    "links": [
+      {
+        "site": "ToppturNorge",
+        "title": "Fjetlandsnuten",
+        "url": "https://www.toppturnorge.no/turer/fjetlandsnuten/"
+      },
+      {
+        "site": "UT.no",
+        "title": "Fjetlandsnuten",
+        "url": "https://ut.no/turforslag/119727/topptur-pa-ski-til-fjetlandsnuten"
+      }
+    ]
+  },
+  {
+    "name": "Midnuten (Røldal)",
+    "region": "hardanger",
+    "lat": 59.851,
+    "lon": 6.8451,
+    "summit_m": 1055,
+    "vertical_m": 600,
+    "aspect": "varied",
+    "difficulty": 1,
+    "quality": 3,
+    "access": "Einerhaug cabin area, Røldal",
+    "season": "Dec–May",
+    "note": "Local favourite following a ridge the whole way, so a fallback when bigger terrain is loaded; about 3 km. Not the 1463 m Midnuten by Breifonn. Aspect is set to 'varied' until checked, so the planner tests it against every avalanche problem. Position: Kartverket place names, height checked against the terrain model (1044 m).",
+    "links": [
+      {
+        "site": "ToppturNorge",
+        "title": "Midnuten",
+        "url": "https://www.toppturnorge.no/turer/midnuten/"
+      },
+      {
+        "site": "ToppturNorge",
+        "title": "Ski tours in Røldal",
+        "url": "https://www.toppturnorge.no/roldal/"
+      }
+    ]
+  },
+  {
+    "name": "Havrenos",
+    "region": "hardanger",
+    "lat": 59.8427,
+    "lon": 6.8286,
+    "summit_m": 896,
+    "vertical_m": 408,
+    "aspect": "varied",
+    "difficulty": 1,
+    "quality": 2,
+    "access": "Einerhaug cabin area, just west of Røldal centre",
+    "season": "Jan–May",
+    "note": "Short, gentle top above Røldalsvatnet for unsettled weather, families or a half day. Low, so it needs a good snow year. Aspect is set to 'varied' until checked, so the planner tests it against every avalanche problem. Position: Kartverket place names, height checked against the terrain model (883 m).",
+    "links": [
+      {
+        "site": "ToppturNorge",
+        "title": "Havrenos",
+        "url": "https://www.toppturnorge.no/turer/havrenos/"
+      },
+      {
+        "site": "ToppturNorge",
+        "title": "Ski tours in Røldal",
+        "url": "https://www.toppturnorge.no/roldal/"
       }
     ]
   }

@@ -459,8 +459,10 @@ transceiver/shovel/probe, and the willingness to turn around.
 
 From v4 the project is kept on GitHub: `main` is the current version, every
 release is a tag (`v4.0`, `v4.1`, …), and `CHANGELOG.md` says what changed.
-GitHub Actions runs the tests and a Docker build on every push
-(`.github/workflows/ci.yml`). INSTALL.md step 11 has the setup.
+GitHub Actions runs the tests on every push (`.github/workflows/ci.yml`)
+and builds the Docker image for the Pi (`image.yml`), published as
+`ghcr.io/hmolker/toppturvarsel:latest` and `:vX.Y` per version. The Pi picks
+one with `FJALLSKRED_VERSION` in `.env`. INSTALL.md steps 11–12 have the setup.
 
 ## Licence
 

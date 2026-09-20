@@ -1,8 +1,11 @@
 services:
   toppturvarsel:
+    # Ready-made image from GitHub (built by .github/workflows/image.yml).
+    # FJALLSKRED_VERSION in .env picks it: "latest", or a tag such as "v4.0".
+    #   update / switch:  docker compose pull && docker compose up -d
+    #   build here instead: docker compose up -d --build
+    image: ghcr.io/hmolker/toppturvarsel:${FJALLSKRED_VERSION:-latest}
     build: .
-    # Or, once you have pushed an image somewhere:
-    # image: ghcr.io/you/toppturvarsel:latest
     container_name: toppturvarsel
     restart: unless-stopped
     ports:

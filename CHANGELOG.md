@@ -3,6 +3,15 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v4.0.1 — ready-made images for the Pi (2026-09-20)
+
+- GitHub builds the Docker image (arm64 for the Pi, and amd64) on every push:
+  `ghcr.io/hmolker/toppturvarsel:latest` from `main`, `:vX.Y` for each version
+  tag, and any older version on request from the Actions tab.
+- `FJALLSKRED_VERSION` in `.env` picks the version the Pi runs; update or
+  switch with `docker compose pull && docker compose up -d`.
+- INSTALL.md steps 11–12: first upload to GitHub, and running images on the Pi.
+
 ## v4.0 — countries and GPX markers (2026-09-20)
 
 First version kept on GitHub (branch `main`, CI on every push).

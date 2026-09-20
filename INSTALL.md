@@ -188,88 +188,119 @@ Backup: `data/cache` holds the snapshot history and the alert ledger;
 
 ## 10. Updating, and going back
 
-**From a tarball** (as before): unpack it over the folder (your `.env` and
-`data/cache` are not in the archive, so they are kept) and rebuild:
+Once step 12 is done, updating and switching versions is two commands (see
+there). The older ways still work:
+
+**From a tarball:** unpack it over the folder (your `.env` and `data/cache`
+are not in the archive, so they are kept) and build on the Pi:
 
 ```bash
 tar xzf ~/toppturvarsel.tar.gz -C ~/apps
 cd ~/apps/toppturvarsel && docker compose up -d --build
 ```
 
-**From GitHub** (once step 11 is done):
+**From the source on GitHub**, building on the Pi (needs the deploy key in
+step 11):
 
 ```bash
 cd ~/apps/toppturvarsel
 git pull --tags
+git checkout v3.8-haukeli          # or main for the latest
 docker compose up -d --build
 ```
 
-To go back to an earlier version (`CHANGELOG.md` says what each one is):
+`CHANGELOG.md` says what each version is; `git tag -l` lists them all.
 
-```bash
-git tag -l                       # before-resorts, v2-planner, v3.8-haukeli, v4.0, ...
-git checkout v3.8-haukeli
-docker compose up -d --build
-git checkout main                # back to the latest
+## 11. Upload everything to GitHub (once, from your computer)
+
+The repository is `github.com/HMolker/toppturvarsel` (private). The first
+upload is done from your own computer, where you are signed in to GitHub.
+
+1. Unpack `toppturvarsel.tar.gz` somewhere on your computer. It contains the
+   full history (all versions, from `before-resorts` to the newest).
+2. Open a terminal in that folder (`cd toppturvarsel`) and run:
+
+   ```bash
+   git remote add origin https://github.com/HMolker/toppturvarsel.git
+   git push -u origin main
+   git push origin --tags
+   ```
+
+   The first push opens a GitHub sign-in in the browser (Git Credential
+   Manager, which comes with Git for Windows and GitHub Desktop; on a Mac,
+   `brew install --cask git-credential-manager` if it asks for a password
+   instead). A classic "password" does not work on GitHub; the sign-in does.
+
+   If `git push -u origin main` is rejected with *"Updates were rejected …
+   fetch first"*, the repo was created with a README. It holds nothing
+   else, so replace it: `git push --force -u origin main`, then push the tags.
+
+3. On github.com, open the repo's **Actions** tab. Two runs start:
+   **CI** (the tests, a minute) and **Image** (builds the Pi's image, about
+   5–10 minutes the first time). Both should turn green.
+
+Pushing many tags at once does not start builds for them (GitHub skips
+that), so only `latest` exists at first. To get an image for any other
+version: **Actions → Image → Run workflow**, type e.g. `v4.0` or
+`v3.8-haukeli`, **Run**.
+
+## 12. Let the Pi run the latest or a chosen version
+
+GitHub now stores ready-made images at `ghcr.io/hmolker/toppturvarsel`, one
+per version plus `latest`. The Pi downloads instead of building, which takes
+seconds instead of minutes.
+
+**Access, once.** The repo is private, so its images are too. Pick one:
+
+- *Simplest:* make only the **image** public. It contains the code and the
+  tour list, never your `.env` or keys. On GitHub: your profile → **Packages**
+  → `toppturvarsel` → **Package settings** → **Change visibility** → Public.
+  The repository itself stays private.
+- *Keep it private:* create a token that can only read packages (profile →
+  Settings → Developer settings → Personal access tokens → **Tokens
+  (classic)** → Generate, tick only `read:packages`, expiry as you like), then
+  on the Pi:
+
+  ```bash
+  docker login ghcr.io -u HMolker      # paste the token as the password
+  ```
+
+**Choose the version** in `.env` on the Pi:
+
+```
+FJALLSKRED_VERSION=latest     # follow the newest
+# FJALLSKRED_VERSION=v4.0.1   # or stay on one version
 ```
 
-## 11. Keeping it on GitHub
-
-From version 4 the project lives in a GitHub repository: every version is a
-commit on `main` with a tag, and GitHub runs the tests (and a Docker build)
-on every push. The first push is done once, from your computer.
-
-**On github.com:** New repository → name `fjallskred` → **Private** → do
-*not* add a README, .gitignore or licence (the repo must be empty) → Create.
-
-**On your computer**, in the folder where you unpacked
-`toppturvarsel.tar.gz` (it contains the full history, `.git` included):
+**Update, or switch version:**
 
 ```bash
-cd toppturvarsel
-git remote add origin https://github.com/<your-user>/fjallskred.git
-git push -u origin main
-git push origin --tags
-```
-
-The first push asks you to sign in (a browser window, or GitHub Desktop /
-the Git Credential Manager). Then open the repo's **Actions** tab: the "CI"
-run should turn green within a few minutes.
-
-**Let the Pi pull from GitHub** (optional, replaces copying tarballs). A
-private repo needs a key; a *deploy key* can only read this one repo:
-
-```bash
-ssh-keygen -t ed25519 -f ~/.ssh/fjallskred_deploy -N "" -C "pi fjallskred"
-cat ~/.ssh/fjallskred_deploy.pub      # copy this line
-```
-
-On GitHub: repo → Settings → Deploy keys → Add deploy key → paste, leave
-"Allow write access" **off**. Then on the Pi:
-
-```bash
-cat >> ~/.ssh/config <<'CFG'
-Host github-fjallskred
-  HostName github.com
-  User git
-  IdentityFile ~/.ssh/fjallskred_deploy
-CFG
 cd ~/apps/toppturvarsel
-git remote add origin git@github-fjallskred:<your-user>/fjallskred.git   # or: git remote set-url origin ...
-git fetch origin && git branch -u origin/main main
-git pull --tags
+docker compose pull
+docker compose up -d
 ```
 
-**New versions from Claude** arrive as a small `fjallskred-vX.Y.bundle`
-file (only the new commits and tags). On your computer, in the same folder:
+To go back, set an older version in `.env` and run the same two commands (if
+that version has no image yet, build it first under Actions → Image → Run
+workflow). `docker compose up -d --build` still builds on the Pi instead,
+e.g. to test a change before it is on GitHub.
+
+The Pi only needs `docker-compose.yml` and `.env` for this; the source
+folder can stay as it is. After a new `docker-compose.yml` arrives in a
+release, copy it over once.
+
+**New versions from Claude** arrive as a small `toppturvarsel-vX.Y.bundle`
+(only the new commits and tags). In the folder from step 11, on your
+computer:
 
 ```bash
-git pull ~/Downloads/fjallskred-vX.Y.bundle main
-git fetch ~/Downloads/fjallskred-vX.Y.bundle 'refs/tags/*:refs/tags/*'
-git push && git push --tags
+git pull ~/Downloads/toppturvarsel-vX.Y.bundle main
+git fetch ~/Downloads/toppturvarsel-vX.Y.bundle 'refs/tags/*:refs/tags/*'
+git push && git push origin vX.Y
 ```
 
-and then `git pull --tags` + `docker compose up -d --build` on the Pi.
+Pushing the new tag on its own builds its image; pushing `main` updates
+`latest`. Then `docker compose pull && docker compose up -d` on the Pi.
 
 ## Troubleshooting
 

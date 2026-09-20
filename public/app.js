@@ -4,6 +4,7 @@ import { layoutResorts, resortSvg, OPEN_BANDS } from './resorts.js';
 import { plan } from './planner.js';
 import { explainHtml } from './explain.js';
 import { aspectRose } from './aspect.js';
+import { simulate, simulateResorts } from './simulate.js';
 import { COUNTRIES, GROUPS, countryName, joinNames, normaliseSelection, fitFrame } from './countries.js';
 
 /* ------------------------------------------------------------------ *
@@ -24,7 +25,9 @@ const state = {
   sel: null,
   selRegion: null,
   q: '',
+  simulated: false,
   // Selected countries: the first filter for the whole page.
+
   countries: [],
   track: '',
   region: '',
@@ -103,6 +106,11 @@ async function load() {
 
 function renderFreshness() {
   const snap = state.snapshot;
+  if (state.simulated) {
+    $('#freshDot').className = 'dot warn';
+    $('#freshTxt').textContent = 'simulated data — not a forecast';
+    return;
+  }
   const ageMin = Math.round((Date.now() - new Date(snap.fetchedAt).getTime()) / 60000);
   const dot = $('#freshDot');
   const txt = $('#freshTxt');
@@ -507,6 +515,9 @@ async function loadResorts() {
   } catch (err) {
     state.resorts = { resorts: [], sources: {}, error: err.message };
   }
+  // In a simulated winter the real list is kept (the resorts exist) but the
+  // open counts are invented, so the layer is not a row of closed resorts.
+  if (state.simulated) state.resorts = simulateResorts(state.resorts) ?? state.resorts;
   drawMap();
 }
 
@@ -945,9 +956,14 @@ async function loadTourExtras(t, reg) {
     view.own = own?.error ? null : own;
     paint();
   });
-  getJson(`/api/forecast?tour=${q}`).then((fc) => {
-    if (still()) renderForecast($('#forecast'), fc);
-  });
+  if (state.simulated) {
+    const fc = state.outlook?.forecasts?.[t.name];
+    renderForecast($('#forecast'), fc ? { ...fc, simulated: true } : { error: 'not part of the simulation' });
+  } else {
+    getJson(`/api/forecast?tour=${q}`).then((fc) => {
+      if (still()) renderForecast($('#forecast'), fc);
+    });
+  }
 }
 
 function selectRegion(id) {
@@ -1149,10 +1165,77 @@ $('#fSort').addEventListener('change', (e) => {
   renderList();
 });
 
+/* ------------------------------------------------------------------ *
+ * simulated winter
+ *
+ * Everything is invented in the browser from the real region and tour
+ * lists; the service is not asked for anything and is not told anything.
+ * "Refresh now" loads the live data again.
+ * ------------------------------------------------------------------ */
+
+async function enterSimulation() {
+  let regions = state.snapshot?.regions;
+  let tours = state.snapshot?.tours;
+  if (!regions?.length || !tours?.length) {
+    // Nothing loaded yet (out of season, or the first refresh has not run):
+    // the static lists are enough to invent a winter over.
+    const meta = await fetch('/api/meta').then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    regions = meta?.regions ?? [];
+    tours = meta?.tours ?? [];
+  }
+  if (!regions.length) return;
+  const sim = simulate({ regions, tours, resorts: state.resorts, threshold: state.alerts?.threshold ?? 30 });
+  state.simulated = true;
+  state.snapshot = sim.snapshot;
+  state.alerts = sim.alerts;
+  state.outlook = sim.outlook;
+  if (sim.resorts) state.resorts = sim.resorts;
+  state.sel = null;
+  state.selRegion = null;
+  $('#simBanner').hidden = false;
+  $('#simBtn').classList.add('on');
+  $('#simBtn').textContent = 'Simulated data · on';
+  $('#detailTitle').textContent = 'Select a tour or region';
+  $('#detail').innerHTML = '<p class="note">Simulated conditions. Pick a pin on the map or a tour from the list.</p>';
+  renderFreshness();
+  initCountries();
+  renderCountryBar();
+  fillRegionSelect();
+  renderAlerts();
+  renderList();
+  renderSources();
+  renderPlanner();
+  drawMap();
+  if (state.showResorts) loadResorts();
+}
+
+function leaveSimulation() {
+  state.simulated = false;
+  state.resorts = null;
+  $('#simBanner').hidden = true;
+  $('#simBtn').classList.remove('on');
+  $('#simBtn').textContent = 'Simulated data';
+  // Say so at once: fetching the real snapshot can take a moment.
+  $('#freshDot').className = 'dot';
+  $('#freshTxt').textContent = 'loading live data…';
+}
+
+$('#simBtn').addEventListener('click', async () => {
+  if (state.simulated) {
+    leaveSimulation();
+    await load();
+    return;
+  }
+  await enterSimulation();
+});
+
 $('#refreshBtn').addEventListener('click', async (e) => {
   const btn = e.target;
   btn.disabled = true;
   btn.textContent = 'Refreshing…';
+  // Refreshing always ends the simulation: the point of the button is the
+  // real data.
+  leaveSimulation();
   try {
     await fetch('/api/refresh', { method: 'POST' });
     await load();
@@ -1168,7 +1251,7 @@ $('#refreshBtn').addEventListener('click', async (e) => {
 load();
 // Pick up server-side refreshes without a reload; cheap, and the server
 // coalesces so this cannot stampede upstream.
-setInterval(load, 10 * 60 * 1000);
+setInterval(() => !state.simulated && load(), 10 * 60 * 1000);
 
 /* ------------------------------------------------------------------ *
  * trip planner

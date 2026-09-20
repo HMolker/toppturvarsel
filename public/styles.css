@@ -513,6 +513,16 @@ table.fc .eyebrow { display: block; color: var(--ink); font-weight: 600; }
 .morelinks a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--line-2); text-underline-offset: 3px; }
 .morelinks a:hover { text-decoration-color: var(--ink); }
 
+/* ---------- banner: simulated data ---------- */
+.banner { max-width: 1440px; margin: 14px auto 0; padding: 0 20px; }
+.banner > div {
+  display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap;
+  background: var(--paper); border: 1px dashed var(--steel); border-radius: var(--r-ctl);
+  padding: 10px 14px; font-size: 14px; color: var(--ink-2);
+}
+@media (max-width: 980px) { .banner { padding: 0 16px; } }
+.btn.on { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+
 /* ---------- country selection (the first filter) ---------- */
 .countrybar {
   max-width: 1440px; margin: 0 auto; padding: 14px 20px 0;

@@ -3,6 +3,18 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v4.4 — a simulated winter, on a button (2026-09-21)
+
+- **Simulated data** next to "Refresh now": invents a storm week over the
+  real region and tour lists and fills every panel — snow depth, new snow,
+  avalanche danger with problems, bulletins, powder alerts, the trip
+  planner's five days and lift status. A banner and the freshness chip say
+  it is not a forecast, and each simulated bulletin says so in its own text.
+- It runs entirely in the browser (`public/simulate.js`): the service is
+  asked for nothing, told nothing, and no alert is sent. "Refresh now" ends
+  it and loads the live data; the 10-minute auto-refresh pauses while it is
+  on, so it stays until you leave it.
+
 ## v4.3 — the tour editor inside the tool, as a preview (2026-09-21)
 
 - The service serves the editor at **/editor**, linked from the Tours card.

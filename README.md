@@ -248,6 +248,16 @@ further; hover for the numbers.
 
 Set `RESORTS_ENABLED=false` to turn the layer and its endpoint off.
 
+## Simulated data, on a button
+
+Out of season the map is mostly empty. **Simulated data**, next to "Refresh
+now", invents a storm week over the real regions and tours and fills every
+panel with it, so you can see the winter layout: loaded regions, danger
+levels and problems, powder alerts, the planner's week and open lifts. It is
+drawn in the browser from a fixed seed — nothing is fetched, stored or sent,
+and every simulated bulletin says it is not a forecast. "Refresh now" puts
+the live data back.
+
 ## Demo out of season
 
 `demo/` produces a 30-second video of a simulated storm week (Mon 8 – Sun 14

@@ -1,0 +1,1204 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fjällskred Tour Editor</title>
+<style>
+/* Same tokens as the main tool (public/styles.css): the Henrik Molker
+   profile. Ink for data, steel for secondary, signal red only for errors. */
+:root {
+  --sans: "IBM Plex Sans", "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --page: #F4F3EF; --paper: #FFFFFF; --ink: #1A1A1A; --ink-2: #4A473F; --muted: #706C64;
+  --steel: #8C8880; --line: #E3E0D8; --line-2: #D8D5CC; --red: #C0392B; --red-ink: #C0392B;
+  --land: #F4F3EF; --fill: #E3E0D8; --warn-bg: #F4EFE2;
+  --r-card: 14px; --r-ctl: 8px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --page: #121211; --paper: #1A1A1A; --ink: #EDEBE5; --ink-2: #C7C4BC; --muted: #A8A49B;
+    --steel: #8C8880; --line: #2E2C28; --line-2: #3A3833; --red-ink: #E46A5C;
+    --land: #24231F; --fill: #3A3833; --warn-bg: #2A2720;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --page: #121211; --paper: #1A1A1A; --ink: #EDEBE5; --ink-2: #C7C4BC; --muted: #A8A49B;
+  --steel: #8C8880; --line: #2E2C28; --line-2: #3A3833; --red-ink: #E46A5C;
+  --land: #24231F; --fill: #3A3833; --warn-bg: #2A2720;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--ink); font: 15px/1.55 var(--sans); -webkit-text-size-adjust: 100%; }
+a { color: var(--ink); text-underline-offset: 2px; text-decoration-color: var(--steel); }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.mono { font-family: var(--mono); }
+.eyebrow { font-family: var(--mono); font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.note { color: var(--muted); font-size: 13px; }
+
+header.top {
+  max-width: 1440px; margin: 0 auto; padding: 32px 20px 20px;
+  display: flex; gap: 20px; align-items: flex-end; flex-wrap: wrap; border-bottom: 2px solid var(--ink);
+}
+header.top h1 { font-size: 30px; line-height: 1.15; margin: 6px 0; font-weight: 700; letter-spacing: -.01em; text-wrap: balance; }
+header.top .sub { color: var(--ink-2); font-size: 14.5px; margin: 0; max-width: 680px; }
+.hdact { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+
+.btn {
+  font: 500 14px/1 var(--sans); color: var(--ink); background: var(--paper); cursor: pointer;
+  border: 1px solid var(--line-2); border-radius: var(--r-ctl); padding: 10px 14px; min-height: 40px;
+  display: inline-flex; align-items: center; gap: 8px; text-decoration: none;
+}
+.btn:hover { border-color: var(--steel); }
+.btn.primary { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.btn.small { padding: 6px 10px; min-height: 32px; font-size: 13px; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+
+.wrap {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px;
+  max-width: 1440px; margin: 0 auto; padding: 24px 20px 48px;
+}
+.full { grid-column: 1 / -1; }
+@media (max-width: 980px) {
+  .wrap { grid-template-columns: 1fr; padding: 16px; gap: 16px; }
+  header.top { padding: 22px 16px 16px; }
+  header.top h1 { font-size: 24px; }
+}
+.card { background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-card); min-width: 0; }
+.card > .hd { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+.card > .hd h2 { margin: 0; font: 600 12px/1.4 var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+.card > .bd { padding: 18px; display: grid; gap: 18px; }
+
+.banner {
+  max-width: 1440px; margin: 16px auto 0; padding: 0 20px;
+}
+.banner > div {
+  display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+  background: var(--warn-bg); border: 1px dashed var(--steel); border-radius: var(--r-ctl); padding: 10px 14px; font-size: 14px;
+}
+@media (max-width: 980px) { .banner { padding: 0 16px; } }
+
+/* drop zone */
+.drop {
+  border: 1.5px dashed var(--line-2); border-radius: var(--r-ctl); padding: 16px;
+  display: flex; gap: 14px; align-items: center; flex-wrap: wrap; background: var(--page);
+}
+.drop.over { border-color: var(--ink); background: var(--paper); }
+.drop .what { flex: 1 1 220px; }
+.drop .what b { display: block; font-size: 15px; }
+.drop input[type=file] { position: absolute; width: 1px; height: 1px; opacity: 0; }
+
+/* stats */
+.stats { display: flex; flex-wrap: wrap; border: 1px solid var(--line); border-radius: var(--r-ctl); overflow: hidden; }
+.stat { flex: 1 1 96px; background: var(--paper); padding: 10px 12px; box-shadow: 0 0 0 .5px var(--line); }
+.stat .v { font: 600 19px/1.2 var(--mono); font-variant-numeric: tabular-nums; }
+.stat .v small { font-size: 12px; font-weight: 400; color: var(--muted); margin-left: 2px; }
+.stat .k { font-size: 12px; color: var(--muted); }
+
+.viz { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+svg.plan, svg.prof { display: block; width: 100%; height: auto; background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-ctl); }
+svg text { font-family: var(--mono); font-size: 10px; fill: var(--muted); }
+.opts { display: flex; gap: 18px; flex-wrap: wrap; font-size: 14px; }
+.opts label { display: inline-flex; gap: 8px; align-items: center; cursor: pointer; }
+
+/* form */
+fieldset { border: 0; margin: 0; padding: 0; display: grid; gap: 12px; min-width: 0; }
+legend { padding: 0; margin-bottom: 4px; }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 560px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
+.field { display: grid; gap: 5px; min-width: 0; }
+.field > label, .field > .lab { font-size: 13px; font-weight: 600; color: var(--ink-2); display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.field .hint { font-weight: 400; color: var(--muted); font-size: 12.5px; }
+input[type=text], input[type=number], input[type=url], select, textarea {
+  width: 100%; font: 15px/1.4 var(--sans); color: var(--ink); background: var(--paper);
+  border: 1px solid var(--line-2); border-radius: var(--r-ctl); padding: 9px 11px; min-height: 40px;
+}
+input[type=number] { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+textarea { min-height: 120px; resize: vertical; line-height: 1.5; }
+input:hover, select:hover, textarea:hover { border-color: var(--steel); }
+.inrow { display: flex; gap: 8px; align-items: center; }
+.inrow > input, .inrow > select { flex: 1; min-width: 0; }
+.fromtrk { white-space: nowrap; }
+.sep { height: 1px; background: var(--line); }
+
+/* aspect rose */
+.aspect { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.rose { width: 132px; height: 132px; flex: none; }
+.rose .seg { fill: var(--paper); stroke: var(--line-2); stroke-width: 1; cursor: pointer; }
+.rose .seg:hover { fill: var(--fill); }
+.rose .seg.on { fill: var(--ink); stroke: var(--ink); }
+.rose .lbl { font: 600 10px var(--mono); fill: var(--ink-2); pointer-events: none; }
+.rose .lbl.on { fill: var(--paper); }
+.rose .hub { fill: var(--page); stroke: var(--line-2); }
+.aspect .out { display: grid; gap: 6px; }
+.aspect .val { font: 600 17px var(--mono); }
+
+/* segmented 1-5 */
+.seg5 { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border: 1px solid var(--line-2); border-radius: var(--r-ctl); overflow: hidden; }
+.seg5 button { border: 0; border-right: 1px solid var(--line-2); background: var(--paper); color: var(--ink); cursor: pointer; padding: 8px 4px; font: 600 15px var(--mono); min-height: 40px; }
+.seg5 button:last-child { border-right: 0; }
+.seg5 button[aria-pressed=true] { background: var(--ink); color: var(--paper); }
+.seg5 button small { display: block; font: 400 10.5px/1.2 var(--sans); margin-top: 2px; opacity: .8; }
+.stars { display: flex; gap: 2px; }
+.stars button { border: 0; background: none; font-size: 24px; line-height: 1; cursor: pointer; color: var(--steel); padding: 2px; }
+.stars button.on { color: var(--ink); }
+
+.links { display: grid; gap: 8px; }
+.linkrow { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.1fr) minmax(0, 1.6fr) auto; gap: 8px; align-items: center; }
+@media (max-width: 700px) { .linkrow { grid-template-columns: 1fr 1fr; } .linkrow .u { grid-column: 1 / -1; } }
+.x { border: 1px solid var(--line-2); background: var(--paper); color: var(--muted); border-radius: var(--r-ctl); width: 40px; height: 40px; cursor: pointer; font-size: 18px; }
+.x:hover { color: var(--ink); border-color: var(--steel); }
+
+/* output */
+.checks { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.checks li { display: grid; grid-template-columns: 22px 1fr; gap: 8px; font-size: 14px; align-items: baseline; }
+.checks i { font-style: normal; font: 600 12px var(--mono); text-align: center; border-radius: 4px; padding: 1px 0; }
+.checks .ok i { background: var(--fill); color: var(--ink); }
+.checks .warn i { background: var(--warn-bg); color: var(--ink); border: 1px dashed var(--steel); }
+.checks .error i { background: var(--red); color: #fff; }
+.checks .error span { color: var(--red-ink); }
+.outgrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 20px; }
+@media (max-width: 980px) { .outgrid { grid-template-columns: 1fr; } }
+.files { display: grid; gap: 8px; }
+.file { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; border: 1px solid var(--line); border-radius: var(--r-ctl); padding: 10px 12px; }
+.file .fn { font: 600 13.5px var(--mono); word-break: break-all; }
+.file .where { font-size: 12.5px; color: var(--muted); flex-basis: 100%; }
+.file .sz { font: 12px var(--mono); color: var(--muted); margin-left: auto; }
+.tabs { display: flex; gap: 0; border-bottom: 1px solid var(--line); }
+.tabs button { border: 0; background: none; padding: 8px 12px; font: 600 12px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tabs button[aria-selected=true] { color: var(--ink); border-bottom-color: var(--ink); }
+pre.preview { margin: 0; padding: 12px; background: var(--page); border: 1px solid var(--line); border-top: 0; border-radius: 0 0 var(--r-ctl) var(--r-ctl); max-height: 380px; overflow: auto; font: 12.5px/1.5 var(--mono); white-space: pre; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--paper); padding: 10px 16px; border-radius: var(--r-ctl); font-size: 14px; z-index: 10; max-width: calc(100% - 32px); }
+footer { max-width: 1440px; margin: 0 auto; padding: 0 20px 40px; color: var(--muted); font-size: 13px; }
+@media (prefers-reduced-motion: no-preference) { .btn, .seg5 button, .rose .seg { transition: background-color .12s, border-color .12s, color .12s; } }
+</style>
+
+<header class="top">
+  <div>
+    <div class="eyebrow">Fjällskred · Molker Digital — tour editor</div>
+    <h1>Add your own tour</h1>
+    <p class="sub">Load a GPX track, describe the tour, and get the two files the map needs: the track for <span class="mono">data/tracks/</span> and the entry for <span class="mono">data/tours.json</span>.</p>
+  </div>
+  <div class="hdact">
+    <button class="btn" id="newBtn" type="button">Start a new tour</button>
+  </div>
+</header>
+
+<div class="banner" id="exampleBanner" hidden>
+  <div><strong>Example loaded.</strong> The track and text below are made up to show how it works. Drop your own GPX file to replace them, or press “Start a new tour”.</div>
+</div>
+
+<main class="wrap">
+
+  <!-- ============ TRACK ============ -->
+  <section class="card" aria-labelledby="trkH">
+    <div class="hd"><h2 id="trkH">Track</h2><span class="note" id="trkName">no file loaded</span></div>
+    <div class="bd">
+      <label class="drop" id="drop" for="fileIn">
+        <input type="file" id="fileIn" accept=".gpx,.json,application/gpx+xml,application/json">
+        <div class="what"><b>Drop a GPX file here</b><span class="note">or a <span class="mono">.tour.json</span> made here earlier, to continue editing it. Garmin, Suunto, Strava, Fatmap and OsmAnd exports all work.</span></div>
+        <span class="btn">Choose file…</span>
+      </label>
+
+      <div class="stats" id="stats"></div>
+
+      <div class="viz">
+        <svg class="plan" id="plan" viewBox="0 0 600 340" role="img" aria-label="Track seen from above"></svg>
+        <svg class="prof" id="prof" viewBox="0 0 600 190" role="img" aria-label="Elevation profile"></svg>
+      </div>
+
+      <div class="opts">
+        <label><input type="checkbox" id="optAscent"> Only the way up (start → highest point)</label>
+        <label><input type="checkbox" id="optTimes"> Keep timestamps</label>
+      </div>
+      <p class="note" style="margin:0">Timestamps are removed by default: they show the day and hour you were there, which the map does not need.</p>
+    </div>
+  </section>
+
+  <!-- ============ DESCRIPTION ============ -->
+  <section class="card" aria-labelledby="descH">
+    <div class="hd"><h2 id="descH">Description</h2><span class="note">what the tour list and tour panel show</span></div>
+    <form class="bd" id="form" autocomplete="off" onsubmit="return false">
+
+      <fieldset>
+        <legend class="eyebrow">Tour</legend>
+        <div class="field">
+          <label for="fName">Name <span class="hint" id="slugOut"></span></label>
+          <input type="text" id="fName" maxlength="80" placeholder="e.g. Store Nup">
+        </div>
+        <div class="grid2">
+          <div class="field">
+            <label for="fCountry">Country</label>
+            <select id="fCountry"></select>
+          </div>
+          <div class="field">
+            <label for="fRegion">Avalanche forecast region <span class="hint" id="regionHint"></span></label>
+            <select id="fRegion"></select>
+          </div>
+        </div>
+        <div class="field">
+          <span class="lab">Type</span>
+          <div class="opts" role="radiogroup" aria-label="Type">
+            <label><input type="radio" name="kind" id="kLine" value="" checked> One line (a route to a summit)</label>
+            <label><input type="radio" name="kind" id="kArea" value="area"> Touring area (many lines)</label>
+          </div>
+        </div>
+      </fieldset>
+
+      <div class="sep"></div>
+
+      <fieldset>
+        <legend class="eyebrow">Summit</legend>
+        <div class="grid2">
+          <div class="field">
+            <label for="fLat">Latitude <span class="hint">decimal °N</span></label>
+            <input type="number" id="fLat" step="0.0001" inputmode="decimal">
+          </div>
+          <div class="field">
+            <label for="fLon">Longitude <span class="hint">decimal °E</span></label>
+            <input type="number" id="fLon" step="0.0001" inputmode="decimal">
+          </div>
+        </div>
+        <div class="grid2">
+          <div class="field">
+            <label for="fSummit">Summit height <span class="hint">m</span></label>
+            <input type="number" id="fSummit" step="1" inputmode="numeric">
+          </div>
+          <div class="field">
+            <label for="fVert">Vertical <span class="hint">m of descent</span></label>
+            <input type="number" id="fVert" step="10" inputmode="numeric">
+          </div>
+        </div>
+        <div><button class="btn small fromtrk" type="button" id="fillSummit">Take summit, height and vertical from the track</button></div>
+      </fieldset>
+
+      <div class="sep"></div>
+
+      <fieldset>
+        <legend class="eyebrow">Character</legend>
+        <div class="field">
+          <span class="lab">Aspect of the descent <span class="hint">click the directions the skiing faces; none = varied</span></span>
+          <div class="aspect">
+            <svg class="rose" id="rose" viewBox="-66 -66 132 132" role="group" aria-label="Aspect"></svg>
+            <div class="out">
+              <span class="val" id="aspectVal">varied</span>
+              <span class="note" id="aspectSug"></span>
+              <div><button class="btn small" type="button" id="aspectFromTrk">Estimate from the track</button></div>
+            </div>
+          </div>
+        </div>
+        <div class="field">
+          <span class="lab">Difficulty <span class="hint">the steepest part you must ski; the planner weighs it against avalanche danger</span></span>
+          <div class="seg5" id="diff" role="radiogroup" aria-label="Difficulty"></div>
+        </div>
+        <div class="field">
+          <span class="lab">Quality <span class="hint">how good the skiing is when it is good</span></span>
+          <div class="stars" id="qual" role="radiogroup" aria-label="Quality"></div>
+        </div>
+      </fieldset>
+
+      <div class="sep"></div>
+
+      <fieldset>
+        <legend class="eyebrow">Practical</legend>
+        <div class="field">
+          <label for="fAccess">Access <span class="hint">where to park or start</span></label>
+          <div class="inrow">
+            <input type="text" id="fAccess" maxlength="160" placeholder="e.g. Fv362 at Ulevå">
+            <button class="btn small fromtrk" type="button" id="insStart">+ track start</button>
+          </div>
+        </div>
+        <div class="grid2">
+          <div class="field">
+            <label for="fFrom">Season from</label>
+            <select id="fFrom"></select>
+          </div>
+          <div class="field">
+            <label for="fTo">Season to</label>
+            <select id="fTo"></select>
+          </div>
+        </div>
+      </fieldset>
+
+      <div class="sep"></div>
+
+      <fieldset>
+        <legend class="eyebrow">In your words</legend>
+        <div class="field">
+          <label for="fNote">Description <span class="hint" id="noteCount"></span></label>
+          <textarea id="fNote" maxlength="900" placeholder="The line, the terrain, what to watch for, when it is at its best."></textarea>
+        </div>
+        <div class="field">
+          <span class="lab">Links <span class="hint">route pages elsewhere; linked, never copied</span></span>
+          <div class="links" id="links"></div>
+          <div><button class="btn small" type="button" id="addLink">+ Add a link</button></div>
+        </div>
+      </fieldset>
+    </form>
+  </section>
+
+  <!-- ============ OUTPUT ============ -->
+  <section class="card full" aria-labelledby="outH">
+    <div class="hd"><h2 id="outH">Files</h2><span class="note" id="outMeta"></span></div>
+    <div class="bd">
+      <div class="outgrid">
+        <div style="display:grid;gap:16px;align-content:start">
+          <div>
+            <div class="eyebrow" style="margin-bottom:8px">Checks</div>
+            <ul class="checks" id="checks"></ul>
+          </div>
+          <div class="files" id="files"></div>
+          <div class="actions" id="actions"></div>
+        </div>
+        <div>
+          <div class="tabs" role="tablist">
+            <button role="tab" id="tabJson" aria-selected="true" type="button">Tour entry</button>
+            <button role="tab" id="tabGpx" aria-selected="false" type="button">GPX</button>
+            <button role="tab" id="tabHow" aria-selected="false" type="button">Where it goes</button>
+          </div>
+          <pre class="preview" id="preview"></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  Your draft is kept in this browser until you start a new tour. Nothing is uploaded anywhere: the files are made on this page.
+</footer>
+
+<div class="toast" id="toast" role="status" hidden></div>
+
+<!-- Regions and existing tour names, from data/regions.json and data/tours.json.
+     Kept in sync by `npm run editor:sync`; a test fails if they drift. -->
+<script type="application/json" id="fjData">{"regions":[{"id":"nordenskiold","name":"Nordenskiöld Land (Svalbard)","country":"NO","lat":78.2,"lon":15.6,"offMap":true},{"id":"finnmarkskysten","name":"Finnmarkskysten","country":"NO","lat":70.6,"lon":24.5},{"id":"vest-finnmark","name":"Vest-Finnmark","country":"NO","lat":70,"lon":23},{"id":"nord-troms","name":"Nord-Troms","country":"NO","lat":69.7,"lon":21.3},{"id":"lyngen","name":"Lyngen","country":"NO","lat":69.6,"lon":20.1},{"id":"tromso","name":"Tromsø","country":"NO","lat":69.6,"lon":18.7},{"id":"sor-troms","name":"Sør-Troms","country":"NO","lat":69,"lon":17.5},{"id":"indre-troms","name":"Indre Troms","country":"NO","lat":68.9,"lon":19.6},{"id":"lofoten","name":"Lofoten og Vesterålen","country":"NO","lat":68.45,"lon":14.9},{"id":"ofoten","name":"Ofoten","country":"NO","lat":68.4,"lon":17.2},{"id":"salten","name":"Salten","country":"NO","lat":67.2,"lon":15.4},{"id":"svartisen","name":"Svartisen","country":"NO","lat":66.6,"lon":14.2},{"id":"helgeland","name":"Helgeland","country":"NO","lat":65.7,"lon":13.4},{"id":"trollheimen","name":"Trollheimen","country":"NO","lat":62.85,"lon":9.2},{"id":"romsdal","name":"Romsdal","country":"NO","lat":62.5,"lon":7.9},{"id":"sunnmore","name":"Sunnmøre","country":"NO","lat":62.2,"lon":6.8},{"id":"indre-fjordane","name":"Indre Fjordane","country":"NO","lat":61.8,"lon":6.5},{"id":"jotunheimen","name":"Jotunheimen","country":"NO","lat":61.6,"lon":8.4},{"id":"indre-sogn","name":"Indre Sogn","country":"NO","lat":61.25,"lon":7.4},{"id":"voss","name":"Voss","country":"NO","lat":60.75,"lon":6.4},{"id":"hallingdal","name":"Hallingdal","country":"NO","lat":60.75,"lon":8.3},{"id":"hardanger","name":"Hardanger","country":"NO","lat":60.3,"lon":7},{"id":"vest-telemark","name":"Vest-Telemark","country":"NO","lat":59.75,"lon":7.7},{"id":"heiane","name":"Heiane","country":"NO","lat":59.4,"lon":6.9},{"id":"abisko","name":"Abisko/Riksgränsfjällen","country":"SE","lat":68.4,"lon":18.5},{"id":"kebnekaise","name":"Kebnekaisefjällen","country":"SE","lat":67.9,"lon":18.6},{"id":"vindelfjallen","name":"Västra Vindelfjällen","country":"SE","lat":65.85,"lon":15.2},{"id":"s-lappland","name":"Södra Lapplandsfjällen","country":"SE","lat":65,"lon":15.5},{"id":"s-jamtland","name":"Södra Jämtlandsfjällen","country":"SE","lat":63.2,"lon":12.5},{"id":"v-harjedalen","name":"Västra Härjedalsfjällen","country":"SE","lat":62.8,"lon":12.5},{"id":"se-no-forecast","name":"Outside the avalanche forecast areas","country":"SE","lat":62.2,"lon":13,"noForecast":true,"offMap":true}],"tours":["Store Blåmann","Tromsdalstinden","Hamperokken","Rørnestinden","Goalsevárri (Goalsevarri)","Store Jægervasstind","Fastdalstinden","Storgalten","Segla","Breidtinden","Keipen","Higravstinden","Geitgaljen","Stornappstind","Rombakstøtta","Storsteinsfjellet","Sulitjelma area","Kirketaket","Store Venjetinden","Slogen","Skårasalen","Kolåstinden","Snota","Trollhetta","Fannaråken","Galdhøpiggen","Store Ringstind","Skogshorn","Gaustatoppen","Njulla (Nuolja)","Låktatjåkko","Kårsavagge / Kårsatjåkka","Kebnekaise Sydtoppen","Duolbagorni (Tolpagorni)","Kaskasatjåkka","Nallo & Sälka couloirs","Norra Sytertoppen","Hemavan–Tärnaby roadside fjäll","Marsfjället","Kittelfjäll backcountry","Storsnasen (Snasahögarna)","Getryggen","Tväråklumpen","Storsylen","Åreskutan off-piste laps","Helags","Lill-Helags couloirs","Ramundberget–Bruksvallarna fjäll","Lillsylen","Storsola (Templet)","Sylskalsstöten","Vaktklumpen","Herrklumpen","Bandaklumpen","Lillsnasen","Miektjieburrientjahke","Laptentjahke","Blåhammarkläppen","Norra Helagsstöten","Ottfjället","Städjan","Sonfjället","Elgåhogna","Høgeloft","Nibbi","Leinenøse","Harahorn","Slettind","Råskardfjellet","Svarthetta","Totten","Storehorn","Prestholtskarvet (Hallingskarvet)","Folarskardnuten","Einsetnuten","Blåbergi","Såteggi","Urevassnutane (Urvassnuten)","Gaustatoppen east couloirs","Røldalsåta","Stordalsnibba (Røldal)","Fjetlandsnuten","Midnuten (Røldal)","Havrenos","Kistenuten","Store Nup","Vesle Nup","Verjesteinsnuten","Sveigen","Stavsnuten","Nupsegga"]}</script>
+
+<script>
+(() => {
+'use strict';
+
+/* ------------------------------------------------------------------ *
+ * data and helpers
+ * ------------------------------------------------------------------ */
+const DATA = JSON.parse(document.getElementById('fjData').textContent);
+const REGIONS = DATA.regions;
+const EXISTING = new Set(DATA.tours.map((n) => n.toLowerCase()));
+const COUNTRY_NAME = { NO: 'Norway', SE: 'Sweden', FR: 'France', ES: 'Spain', AD: 'Andorra', MK: 'North Macedonia' };
+const OCT = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const DIFF = [
+  [1, 'rolling fjäll'], [2, '25–30°'], [3, '30–35°'], [4, '35–45°'], [5, 'ski mountaineering'],
+];
+const DRAFT_KEY = 'fjallskred.editor.draft.v1';
+
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const xmlEsc = (s) => String(s ?? '').replace(/[<>&"']/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&apos;' })[c]);
+const R = Math.PI / 180;
+function hav(a, b) {
+  const dLat = (b.lat - a.lat) * R, dLon = (b.lon - a.lon) * R;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * R) * Math.cos(b.lat * R) * Math.sin(dLon / 2) ** 2;
+  return 2 * 6371008.8 * Math.asin(Math.sqrt(h));
+}
+function bearing(a, b) {
+  const y = Math.sin((b.lon - a.lon) * R) * Math.cos(b.lat * R);
+  const x = Math.cos(a.lat * R) * Math.sin(b.lat * R) - Math.sin(a.lat * R) * Math.cos(b.lat * R) * Math.cos((b.lon - a.lon) * R);
+  return (Math.atan2(y, x) / R + 360) % 360;
+}
+/** Same slug rule as src/util/gpx.js: the GPX file must be named this. */
+function slugify(name) {
+  return String(name).toLowerCase().replace(/æ/g, 'ae').replace(/ø/g, 'o').replace(/å/g, 'a')
+    .normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+const store = {
+  get() { try { return JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); } catch { return null; } },
+  set(v) { try { localStorage.setItem(DRAFT_KEY, JSON.stringify(v)); } catch { /* private mode: the draft just is not kept */ } },
+  clear() { try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ } },
+};
+let toastT;
+function toast(msg) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.hidden = false;
+  clearTimeout(toastT);
+  toastT = setTimeout(() => (t.hidden = true), 2600);
+}
+
+/* ------------------------------------------------------------------ *
+ * state
+ * ------------------------------------------------------------------ */
+const blankForm = () => ({
+  name: '', country: 'NO', region: '', kind: '', lat: '', lon: '', summit_m: '', vertical_m: '',
+  aspect: [], difficulty: 2, quality: 3, access: '', from: 'Feb', to: 'May', note: '', links: [],
+});
+const state = { file: null, points: [], form: blankForm(), example: false, optAscent: false, optTimes: false, tab: 'json' };
+
+/* ------------------------------------------------------------------ *
+ * GPX in
+ * ------------------------------------------------------------------ */
+function parseGpx(text) {
+  const doc = new DOMParser().parseFromString(text, 'application/xml');
+  if (doc.querySelector('parsererror')) throw new Error('This is not a readable GPX file (the XML is broken).');
+  const pick = (tag) => [...doc.getElementsByTagName(tag)];
+  let nodes = pick('trkpt');
+  if (!nodes.length) nodes = pick('rtept');
+  const pts = [];
+  for (const n of nodes) {
+    const lat = Number(n.getAttribute('lat')), lon = Number(n.getAttribute('lon'));
+    if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) continue;
+    const eleN = n.getElementsByTagName('ele')[0], timeN = n.getElementsByTagName('time')[0];
+    const ele = eleN ? Number(eleN.textContent) : NaN;
+    pts.push({ lat, lon, ele: Number.isFinite(ele) ? ele : null, time: timeN ? timeN.textContent.trim() : null });
+  }
+  if (pts.length < 2) throw new Error('No track found: the file has fewer than two track or route points.');
+  const nameN = doc.querySelector('trk > name, metadata > name, rte > name');
+  return { points: pts, name: nameN ? nameN.textContent.trim() : '' };
+}
+
+function trackStats(pts) {
+  let dist = 0, up = 0, down = 0, hasEle = pts.every((p) => p.ele != null);
+  const cum = [0];
+  for (let i = 1; i < pts.length; i++) { dist += hav(pts[i - 1], pts[i]); cum.push(dist); }
+  let hi = 0, lo = 0;
+  if (hasEle) {
+    // Count climbs only past a 3 m band, so GPS noise on the flat is not "ascent".
+    let ref = pts[0].ele;
+    for (const p of pts) {
+      if (p.ele > ref + 3) { up += p.ele - ref; ref = p.ele; }
+      else if (p.ele < ref - 3) { down += ref - p.ele; ref = p.ele; }
+    }
+    pts.forEach((p, i) => { if (p.ele > pts[hi].ele) hi = i; if (p.ele < pts[lo].ele) lo = i; });
+  }
+  const t0 = Date.parse(pts[0].time), t1 = Date.parse(pts[pts.length - 1].time);
+  return {
+    dist, up, down, hasEle, cum, hi, lo,
+    max: hasEle ? pts[hi].ele : null, min: hasEle ? pts[lo].ele : null,
+    startEle: pts[0].ele,
+    minBeforeTop: hasEle ? Math.min(...pts.slice(0, hi + 1).map((p) => p.ele)) : null,
+    hours: Number.isFinite(t0) && Number.isFinite(t1) && t1 > t0 ? (t1 - t0) / 3.6e6 : null,
+    hasTimes: pts.some((p) => p.time),
+  };
+}
+
+/** Descent aspect from the top of the climb: you climb up the fall line,
+ *  so the slope faces the way you came from. Uses the upper 40 % of the
+ *  vertical before the summit. An estimate, and labelled as one. */
+function estimateAspect(pts, st) {
+  if (!st.hasEle || st.hi < 2) return null;
+  const top = st.max, base = st.minBeforeTop, cut = top - 0.4 * (top - base);
+  let i0 = st.hi;
+  while (i0 > 0 && pts[i0].ele > cut) i0--;
+  if (st.hi - i0 < 2) return null;
+  let sx = 0, sy = 0;
+  for (let i = i0 + 1; i <= st.hi; i++) {
+    const climb = pts[i].ele - pts[i - 1].ele;
+    if (climb <= 0) continue;
+    const b = (bearing(pts[i - 1], pts[i]) + 180) * R; // facing: opposite the climb
+    sx += Math.sin(b) * climb; sy += Math.cos(b) * climb;
+  }
+  if (!sx && !sy) return null;
+  const deg = (Math.atan2(sx, sy) / R + 360) % 360;
+  return OCT[Math.round(deg / 45) % 8];
+}
+
+/* ------------------------------------------------------------------ *
+ * example (shown only when there is no draft)
+ * ------------------------------------------------------------------ */
+function examplePoints() {
+  // A made-up zig-zag climb of ~900 m, drawn in code. Not a real route.
+  const pts = [], n = 180, lat0 = 62.80, lon0 = 12.62;
+  for (let i = 0; i <= n; i++) {
+    const t = i / n;
+    const zig = t > 0.45 ? Math.sin((t - 0.45) * 60) * 0.0022 * (1 - t) : 0;
+    const lat = lat0 + t * 0.043 + Math.sin(t * 5) * 0.002;
+    const lon = lon0 + t * 0.012 + zig + (t < 0.45 ? t * 0.02 : 0.009);
+    const ele = 720 + 880 * (t < 0.35 ? t * 0.55 / 0.35 : 0.55 + (t - 0.35) * 0.45 / 0.65) - 30 * Math.sin(t * 14) * (1 - t) ** 2;
+    pts.push({ lat: +lat.toFixed(6), lon: +lon.toFixed(6), ele: Math.round(ele), time: null });
+  }
+  return pts;
+}
+function loadExample() {
+  state.example = true;
+  state.file = 'example-track.gpx';
+  state.points = examplePoints();
+  const st = trackStats(state.points);
+  const top = state.points[st.hi];
+  state.form = {
+    ...blankForm(),
+    name: 'Example: north ridge line', country: 'SE', region: nearestRegion(top, 'SE')?.id ?? '',
+    lat: top.lat.toFixed(4), lon: top.lon.toFixed(4), summit_m: String(Math.round(st.max)),
+    vertical_m: String(Math.round((st.max - st.minBeforeTop) / 10) * 10),
+    aspect: ['N', 'NE'], difficulty: 3, quality: 4, access: 'Road-end parking in the valley (example)',
+    from: 'Feb', to: 'May',
+    note: 'Example text. Skin up the valley through open birch, then zig-zag the broad shoulder to the top. The descent follows the north-east face, 30–35° at the top, easing into long open slopes.',
+    links: [{ site: 'Example site', title: 'Route description', url: 'https://example.com/route' }],
+  };
+}
+
+/* ------------------------------------------------------------------ *
+ * regions
+ * ------------------------------------------------------------------ */
+function nearestRegion(p, country) {
+  let best = null;
+  for (const r of REGIONS) {
+    if (country && r.country !== country) continue;
+    if (r.offMap && !r.noForecast) continue;
+    const d = hav(p, r);
+    if (!best || d < best.d) best = { ...r, d };
+  }
+  return best;
+}
+function fillCountries() {
+  const cs = [...new Set(REGIONS.map((r) => r.country))];
+  $('#fCountry').innerHTML = cs.map((c) => `<option value="${c}">${esc(COUNTRY_NAME[c] ?? c)}</option>`).join('');
+}
+function fillRegions() {
+  const c = state.form.country;
+  const list = REGIONS.filter((r) => r.country === c);
+  $('#fRegion').innerHTML = '<option value="">Choose…</option>' +
+    list.map((r) => `<option value="${esc(r.id)}">${esc(r.name)}${r.noForecast ? ' (no avalanche forecast)' : ''}</option>`).join('');
+  $('#fRegion').value = list.some((r) => r.id === state.form.region) ? state.form.region : '';
+}
+
+/* ------------------------------------------------------------------ *
+ * drawing
+ * ------------------------------------------------------------------ */
+let st = null;          // stats of the current track
+let regionGuessed = false; // region picked from the nearest marker, not by you
+let hoverI = null;      // index hovered on the profile
+
+function renderStats() {
+  const s = st;
+  const cell = (v, u, k) => `<div class="stat"><div class="v">${v}${u ? `<small>${u}</small>` : ''}</div><div class="k">${k}</div></div>`;
+  if (!s) { $('#stats').innerHTML = cell('–', '', 'no track yet'); return; }
+  $('#stats').innerHTML =
+    cell((s.dist / 1000).toFixed(1), 'km', 'distance') +
+    cell(s.hasEle ? Math.round(s.up) : '–', s.hasEle ? 'm' : '', 'climbing') +
+    cell(s.hasEle ? Math.round(s.max) : '–', s.hasEle ? 'm' : '', 'highest point') +
+    cell(s.hasEle ? Math.round(s.startEle) : '–', s.hasEle ? 'm' : '', 'start') +
+    cell(state.points.length, '', 'points') +
+    (s.hours ? cell(s.hours.toFixed(1), 'h', 'moving + stops') : '');
+}
+
+function renderPlan() {
+  const svg = $('#plan'), W = 600, pad = 30;
+  let H = 340;
+  const pts = state.points;
+  if (!pts.length) { svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.innerHTML = `<text x="${W / 2}" y="${H / 2}" text-anchor="middle">The track appears here</text>`; return; }
+  const lat0 = pts.reduce((a, p) => a + p.lat, 0) / pts.length, k = Math.cos(lat0 * R);
+  const xs = pts.map((p) => p.lon * k), ys = pts.map((p) => -p.lat);
+  const summit = Number.isFinite(+state.form.lat) && state.form.lat !== '' && Number.isFinite(+state.form.lon) && state.form.lon !== ''
+    ? { lat: +state.form.lat, lon: +state.form.lon } : null;
+  if (summit && hav(summit, pts[st.hi]) < 5000) { xs.push(summit.lon * k); ys.push(-summit.lat); }
+  const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  // Height follows the track's shape, so a long flat line gets a short box.
+  H = Math.round(Math.max(210, Math.min(380, ((y1 - y0) / (x1 - x0 || 1e-6)) * (W - 2 * pad) + 2 * pad + 20)));
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const s = Math.min((W - 2 * pad) / (x1 - x0 || 1e-6), (H - 2 * pad) / (y1 - y0 || 1e-6));
+  const ox = (W - (x1 - x0) * s) / 2, oy = (H - (y1 - y0) * s) / 2;
+  const P = (p) => [ox + (p.lon * k - x0) * s, oy + (-p.lat - y0) * s];
+  const d = pts.map((p, i) => { const [x, y] = P(p); return `${i ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`; }).join('');
+  const upTo = state.optAscent && st.hasEle ? st.hi : pts.length - 1;
+  const dUsed = pts.slice(0, upTo + 1).map((p, i) => { const [x, y] = P(p); return `${i ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`; }).join('');
+  // scale bar: a round distance near a fifth of the width
+  const mPerPx = 1 / s * 111320;
+  const target = (W / 5) * mPerPx;
+  const nice = [100, 200, 250, 500, 1000, 2000, 2500, 5000, 10000].reduce((a, b) => (Math.abs(b - target) < Math.abs(a - target) ? b : a));
+  const barPx = nice / mPerPx;
+  const [sx, sy] = P(pts[0]);
+  const [tx, ty] = P(pts[st.hi]);
+  const sm = summit ? P(summit) : null;
+  const hv = hoverI != null ? P(pts[hoverI]) : null;
+  svg.innerHTML =
+    `<rect x="0" y="0" width="${W}" height="${H}" fill="var(--paper)"/>` +
+    `<path d="${d}" fill="none" stroke="var(--line-2)" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>` +
+    `<path d="${dUsed}" fill="none" stroke="var(--ink)" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>` +
+    `<circle cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="5" fill="var(--paper)" stroke="var(--ink)" stroke-width="2"/>` +
+    `<text x="${(sx + (sx > W - 90 ? -9 : 9)).toFixed(1)}" y="${(sy + 4).toFixed(1)}" text-anchor="${sx > W - 90 ? 'end' : 'start'}" fill="var(--ink-2)">start</text>` +
+    (st.hasEle ? `<path d="M${tx.toFixed(1)} ${(ty - 7).toFixed(1)} l6 10 h-12 Z" fill="var(--ink)"/>` +
+      `<text x="${(tx + (tx > W - 130 ? -10 : 10)).toFixed(1)}" y="${(ty - 10).toFixed(1)}" text-anchor="${tx > W - 130 ? 'end' : 'start'}" fill="var(--ink-2)">highest ${Math.round(st.max)} m</text>` : '') +
+    (sm && hav(summit, pts[st.hi]) > 30 ? `<circle cx="${sm[0].toFixed(1)}" cy="${sm[1].toFixed(1)}" r="6" fill="none" stroke="var(--ink)" stroke-width="1.2" stroke-dasharray="2 2"/>` +
+      `<text x="${(sm[0] + 9).toFixed(1)}" y="${(sm[1] - 6).toFixed(1)}">summit as entered</text>` : '') +
+    (hv ? `<circle cx="${hv[0].toFixed(1)}" cy="${hv[1].toFixed(1)}" r="5" fill="var(--ink)" stroke="var(--paper)" stroke-width="2"/>` : '') +
+    `<g transform="translate(${W - 34},${30})"><path d="M0 -14 L5 4 L0 0 L-5 4 Z" fill="var(--ink)"/><text x="0" y="16" text-anchor="middle">N</text></g>` +
+    `<g transform="translate(${pad},${H - 14})"><path d="M0 -4 V0 H${barPx.toFixed(1)} V-4" fill="none" stroke="var(--ink-2)"/>` +
+    `<text x="${(barPx + 6).toFixed(1)}" y="2">${nice >= 1000 ? nice / 1000 + ' km' : nice + ' m'}</text></g>` +
+    `<text x="${W - pad}" y="${H - 12}" text-anchor="end">seen from above · no map background here</text>`;
+}
+
+function renderProfile() {
+  const svg = $('#prof'), W = 600, H = 190, L = 44, Rt = 12, T = 14, B = 26;
+  if (!st || !st.hasEle) {
+    svg.innerHTML = `<text x="${W / 2}" y="${H / 2}" text-anchor="middle">${st ? 'This track has no elevation, so no profile. Enter the heights by hand.' : 'The elevation profile appears here'}</text>`;
+    return;
+  }
+  const pts = state.points, cum = st.cum, dist = st.dist || 1;
+  const lo = Math.floor(st.min / 100) * 100, hi = Math.ceil(st.max / 100) * 100 || lo + 100;
+  const X = (m) => L + (m / dist) * (W - L - Rt), Y = (e) => T + (1 - (e - lo) / (hi - lo || 1)) * (H - T - B);
+  const line = pts.map((p, i) => `${i ? 'L' : 'M'}${X(cum[i]).toFixed(1)} ${Y(p.ele).toFixed(1)}`).join('');
+  const step = hi - lo > 1200 ? 500 : hi - lo > 500 ? 200 : 100;
+  let grid = '';
+  for (let e = lo; e <= hi; e += step) {
+    grid += `<line x1="${L}" x2="${W - Rt}" y1="${Y(e).toFixed(1)}" y2="${Y(e).toFixed(1)}" stroke="var(--line)"/>` +
+      `<text x="${L - 6}" y="${(Y(e) + 3).toFixed(1)}" text-anchor="end">${e}</text>`;
+  }
+  const kmStep = dist > 12000 ? 2 : dist > 5000 ? 1 : 0.5;
+  for (let km = 0; km * 1000 <= dist + 1; km += kmStep) {
+    grid += `<text x="${X(km * 1000).toFixed(1)}" y="${H - 8}" text-anchor="middle">${km}${km === 0 ? ' km' : ''}</text>`;
+  }
+  const upTo = state.optAscent ? st.hi : pts.length - 1;
+  const shade = state.optAscent && st.hi < pts.length - 1
+    ? `<rect x="${X(cum[st.hi]).toFixed(1)}" y="${T}" width="${(X(dist) - X(cum[st.hi])).toFixed(1)}" height="${H - T - B}" fill="var(--page)" opacity=".75"/>` : '';
+  const hv = hoverI != null
+    ? `<line x1="${X(cum[hoverI]).toFixed(1)}" x2="${X(cum[hoverI]).toFixed(1)}" y1="${T}" y2="${H - B}" stroke="var(--steel)" stroke-dasharray="3 3"/>` +
+      `<circle cx="${X(cum[hoverI]).toFixed(1)}" cy="${Y(pts[hoverI].ele).toFixed(1)}" r="4" fill="var(--ink)" stroke="var(--paper)" stroke-width="1.5"/>` +
+      `<text x="${Math.min(W - Rt - 4, X(cum[hoverI]) + 8).toFixed(1)}" y="${T + 10}" text-anchor="${X(cum[hoverI]) > W - 120 ? 'end' : 'start'}" fill="var(--ink)">${Math.round(pts[hoverI].ele)} m · ${(cum[hoverI] / 1000).toFixed(2)} km</text>`
+    : '';
+  svg.innerHTML =
+    `<rect x="0" y="0" width="${W}" height="${H}" fill="var(--paper)"/>` + grid +
+    `<path d="${line} L${X(dist).toFixed(1)} ${H - B} L${L} ${H - B} Z" fill="var(--fill)"/>` +
+    `<path d="${line}" fill="none" stroke="var(--ink)" stroke-width="1.8" stroke-linejoin="round"/>` + shade +
+    `<text x="${L}" y="${T - 3}">m</text>` + hv +
+    `<rect id="profHit" x="${L}" y="${T}" width="${W - L - Rt}" height="${H - T - B}" fill="transparent" style="cursor:crosshair"/>`;
+  void upTo;
+}
+
+function renderTrack() {
+  $('#trkName').textContent = state.file ? `${state.file}${state.example ? ' (example)' : ''}` : 'no file loaded';
+  renderStats(); renderPlan(); renderProfile();
+}
+
+/* ------------------------------------------------------------------ *
+ * form <-> state
+ * ------------------------------------------------------------------ */
+const F = {
+  name: '#fName', lat: '#fLat', lon: '#fLon', summit_m: '#fSummit', vertical_m: '#fVert',
+  access: '#fAccess', note: '#fNote', from: '#fFrom', to: '#fTo', country: '#fCountry', region: '#fRegion',
+};
+
+function writeForm() {
+  const f = state.form;
+  for (const [k, sel] of Object.entries(F)) if (k !== 'region') $(sel).value = f[k] ?? '';
+  fillRegions();
+  $(f.kind === 'area' ? '#kArea' : '#kLine').checked = true;
+  $('#optAscent').checked = state.optAscent;
+  $('#optTimes').checked = state.optTimes;
+  renderRose(); renderDiff(); renderQual(); renderLinks();
+}
+
+function renderRose() {
+  const on = new Set(state.form.aspect);
+  let g = '';
+  OCT.forEach((d, i) => {
+    const a0 = (i * 45 - 22.5 - 90) * R, a1 = (i * 45 + 22.5 - 90) * R, r0 = 20, r1 = 62;
+    const p = (r, a) => `${(r * Math.cos(a)).toFixed(2)} ${(r * Math.sin(a)).toFixed(2)}`;
+    const mid = (i * 45 - 90) * R;
+    g += `<path class="seg${on.has(d) ? ' on' : ''}" data-d="${d}" tabindex="0" role="checkbox" aria-checked="${on.has(d)}" aria-label="${d}" ` +
+      `d="M${p(r0, a0)} L${p(r1, a0)} A${r1} ${r1} 0 0 1 ${p(r1, a1)} L${p(r0, a1)} A${r0} ${r0} 0 0 0 ${p(r0, a0)} Z"/>` +
+      `<text class="lbl${on.has(d) ? ' on' : ''}" x="${(41 * Math.cos(mid)).toFixed(1)}" y="${(41 * Math.sin(mid) + 3.5).toFixed(1)}" text-anchor="middle">${d}</text>`;
+  });
+  $('#rose').innerHTML = g + `<circle class="hub" r="18"/>`;
+  $('#aspectVal').textContent = aspectString(state.form.aspect);
+}
+
+/** Selected octants -> the planner's format: "N–NE", "N–E, SE–S", "varied". */
+function aspectString(sel) {
+  const on = OCT.map((d) => sel.includes(d));
+  const n = on.filter(Boolean).length;
+  if (n === 0 || n === 8) return 'varied';
+  const start = on.findIndex((v, i) => v && !on[(i + 7) % 8]); // first octant of an arc
+  const arcs = [];
+  for (let k = 0; k < 8; k++) {
+    const i = (start + k) % 8;
+    if (!on[i]) continue;
+    if (on[(i + 7) % 8] && arcs.length && k) arcs[arcs.length - 1].push(i);
+    else arcs.push([i]);
+  }
+  // The planner reads "A–B" the short way round, so arcs wider than 4 steps are split.
+  const out = [];
+  for (const a of arcs) for (let j = 0; j < a.length; j += 4) {
+    const part = a.slice(j, j + 4);
+    out.push(part.length === 1 ? OCT[part[0]] : `${OCT[part[0]]}–${OCT[part[part.length - 1]]}`);
+  }
+  return out.join(', ');
+}
+
+function renderDiff() {
+  $('#diff').innerHTML = DIFF.map(([v, t]) =>
+    `<button type="button" role="radio" data-v="${v}" aria-pressed="${state.form.difficulty === v}" aria-checked="${state.form.difficulty === v}">${v}<small>${t}</small></button>`).join('');
+}
+function renderQual() {
+  $('#qual').innerHTML = [1, 2, 3, 4, 5].map((v) =>
+    `<button type="button" role="radio" data-v="${v}" class="${v <= state.form.quality ? 'on' : ''}" aria-checked="${state.form.quality === v}" aria-label="${v} of 5">${v <= state.form.quality ? '★' : '☆'}</button>`).join('') +
+    `<span class="note" style="align-self:center;margin-left:6px">${state.form.quality} of 5</span>`;
+}
+function renderLinks() {
+  $('#links').innerHTML = state.form.links.map((l, i) =>
+    `<div class="linkrow" data-i="${i}">` +
+    `<input type="text" id="lSite${i}" data-k="site" placeholder="Site, e.g. UT.no" value="${esc(l.site)}" aria-label="Site">` +
+    `<input type="text" id="lTitle${i}" data-k="title" maxlength="80" placeholder="Page title" value="${esc(l.title)}" aria-label="Title">` +
+    `<input type="url" class="u" id="lUrl${i}" data-k="url" placeholder="https://…" value="${esc(l.url)}" aria-label="Address">` +
+    `<button class="x" type="button" data-rm="${i}" aria-label="Remove link">×</button></div>`).join('') ||
+    '<span class="note">No links yet.</span>';
+}
+
+/* ------------------------------------------------------------------ *
+ * the tour entry and the files
+ * ------------------------------------------------------------------ */
+const numOr = (v) => (v === '' || v == null || !Number.isFinite(+v) ? null : +v);
+
+function buildTour() {
+  const f = state.form;
+  const t = {
+    name: f.name.trim(),
+    region: f.region,
+    lat: numOr(f.lat) != null ? Math.round(+f.lat * 1e4) / 1e4 : null,
+    lon: numOr(f.lon) != null ? Math.round(+f.lon * 1e4) / 1e4 : null,
+    summit_m: numOr(f.summit_m) != null ? Math.round(+f.summit_m) : null,
+    vertical_m: numOr(f.vertical_m) != null ? Math.round(+f.vertical_m) : null,
+    aspect: aspectString(f.aspect),
+    difficulty: f.difficulty,
+    quality: f.quality,
+    access: f.access.trim(),
+    season: `${f.from}–${f.to}`,
+    note: f.note.trim().replace(/\s+/g, ' '),
+  };
+  const links = f.links.map((l) => ({ site: l.site.trim(), title: l.title.trim(), url: l.url.trim() })).filter((l) => l.site || l.title || l.url);
+  if (links.length) t.links = links;
+  if (f.kind === 'area') t.kind = 'area';
+  return t;
+}
+
+function usedPoints() {
+  if (!state.points.length) return [];
+  return state.optAscent && st?.hasEle ? state.points.slice(0, st.hi + 1) : state.points;
+}
+
+function buildGpx(tour) {
+  const pts = usedPoints();
+  const body = pts.map((p) =>
+    `      <trkpt lat="${p.lat.toFixed(7)}" lon="${p.lon.toFixed(7)}">` +
+    (p.ele != null ? `<ele>${Math.round(p.ele * 10) / 10}</ele>` : '') +
+    (state.optTimes && p.time ? `<time>${xmlEsc(p.time)}</time>` : '') + `</trkpt>`).join('\n');
+  const desc = tour.note.split(/(?<=\.)\s/)[0] ?? '';
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Fjällskred tour editor" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata>
+    <name>${xmlEsc(tour.name)}</name>
+    <desc>${xmlEsc(desc)}</desc>
+  </metadata>
+  <trk>
+    <name>${xmlEsc(tour.name)}</name>
+    <trkseg>
+${body}
+    </trkseg>
+  </trk>
+</gpx>
+`;
+}
+
+function howText(slug, hasGpx) {
+  return [
+    'Where the files go (in the Fjällskred folder on the Pi or your computer):',
+    '',
+    hasGpx ? `1. ${slug}.gpx  ->  data/tracks/${slug}.gpx` : '1. (no track: this tour will use a route from OpenStreetMap, if one exists)',
+    `2. ${slug}.tour.json  ->  open data/tours.json and paste the object inside it`,
+    '   at the end of the list, before the closing ]. Put a comma after the',
+    '   tour before it.',
+    '',
+    'Then:',
+    '  npm test                         checks the new entry (names, region, links)',
+    '  docker compose up -d --build     or commit, push and let GitHub build the image',
+    '',
+    'The GPX file name must match the tour name exactly as slugged above:',
+    `  "${state.form.name.trim()}"  ->  ${slug}.gpx`,
+    'A GPX in data/tracks/ is picked up without a rebuild (the folder is mounted);',
+    'a new tours.json entry needs one.',
+  ].join('\n');
+}
+
+/* ------------------------------------------------------------------ *
+ * checks, mirroring test/tours-data.test.js plus track sanity
+ * ------------------------------------------------------------------ */
+function checks(t) {
+  const out = [];
+  const add = (level, text) => out.push({ level, text });
+  const reg = REGIONS.find((r) => r.id === t.region);
+
+  if (!t.name) add('error', 'Give the tour a name.');
+  else if (EXISTING.has(t.name.toLowerCase())) add('warn', `“${t.name}” is already in the tour list. That is right if you are updating it: replace the old entry in tours.json. For a new tour, pick another name, e.g. add the area in brackets.`);
+  else add('ok', `Name is new; files will be called ${slugify(t.name)}.*`);
+
+  if (!reg) add('error', 'Choose the avalanche forecast region.');
+  else if (reg.noForecast) add('warn', 'This region has no avalanche forecast: the planner only ranks it for gentle terrain (difficulty 1–2), with caution.');
+  else add('ok', `Region: ${reg.name}.`);
+
+  if (t.lat == null || t.lon == null) add('error', 'Enter the summit position (or take it from the track).');
+  else if (!(t.lat > 55 && t.lat < 72 && t.lon > 4 && t.lon < 32)) add('error', 'The summit is outside Norway and Sweden, which the tool covers today.');
+  else if (reg && hav(t, reg) > 250000) add('warn', `The summit is ${Math.round(hav(t, reg) / 1000)} km from the ${reg.name} region marker. Check the region.`);
+  else add('ok', `Summit at ${t.lat.toFixed(4)} °N, ${t.lon.toFixed(4)} °E.`);
+
+  if (t.summit_m == null || t.vertical_m == null) add('error', 'Enter the summit height and the vertical.');
+  else if (t.vertical_m >= t.summit_m) add('error', 'The vertical is larger than the summit height.');
+  else if (t.vertical_m < 50) add('warn', 'Under 50 m of vertical: is that right?');
+  else add('ok', `${t.summit_m} m summit, ${t.vertical_m} m of descent.`);
+
+  if (!t.access) add('warn', 'Access is empty. Where do people park or start?');
+  if (t.note.length < 40) add('warn', 'The description is short. What is the line like, and when is it good?');
+  const monthsOK = MONTHS.indexOf(state.form.from) >= 0 && MONTHS.indexOf(state.form.to) >= 0;
+  if (!monthsOK) add('error', 'Choose the season.');
+  if (t.aspect === 'varied' && t.kind !== 'area') add('warn', 'Aspect is “varied”: the planner then tests the tour against every avalanche problem. Pick the directions the skiing faces if you know them.');
+
+  (t.links ?? []).forEach((l, i) => {
+    const n = `Link ${i + 1}`;
+    if (!/^https:\/\//.test(l.url)) add('error', `${n}: the address must start with https://`);
+    else if (!l.site || !l.title) add('error', `${n}: give it a site and a title.`);
+    else if (l.title.length >= 60) add('error', `${n}: the title is a name, not a description; keep it under 60 characters.`);
+  });
+
+  if (!state.points.length) {
+    add(t.kind === 'area' ? 'ok' : 'warn', t.kind === 'area' ? 'Touring area: no track needed.' : 'No GPX loaded: only the tour entry will be made.');
+  } else {
+    if (!st.hasEle) add('warn', 'The track has no elevation. The map adds it from the terrain model when shown.');
+    if (t.lat != null && t.lon != null && st.hasEle) {
+      const d = hav(t, state.points[st.hi]);
+      if (d > 300) add('warn', `The summit you entered is ${d >= 1000 ? (d / 1000).toFixed(1) + ' km' : Math.round(d) + ' m'} from the track’s highest point.`);
+    }
+    if (t.lat != null && t.lon != null && hav(t, state.points[0]) > 20000) add('warn', 'The track starts more than 20 km from the summit. Is it the right file?');
+    if (state.points.length > 20000) add('warn', `${state.points.length} points is a lot; the map is fine with it, but the file is large.`);
+    if (st.hasTimes && state.optTimes) add('warn', 'Timestamps are kept: the file shows when you were there.');
+  }
+  return out;
+}
+
+/* ------------------------------------------------------------------ *
+ * output panel
+ * ------------------------------------------------------------------ */
+let lastOut = null;
+function renderOutput() {
+  const tour = buildTour();
+  const slug = slugify(tour.name) || 'new-tour';
+  const hasGpx = state.points.length > 0;
+  const tourJson = JSON.stringify(tour, null, 2);
+  const gpx = hasGpx ? buildGpx(tour) : '';
+  const cs = checks(tour);
+  const errors = cs.filter((c) => c.level === 'error').length;
+  lastOut = { tour, slug, tourJson, gpx, hasGpx, errors };
+
+  $('#slugOut').textContent = tour.name ? `file name: ${slug}` : '';
+  $('#regionHint').textContent = regionGuessed && tour.region ? 'nearest to the summit — check it' : '';
+  $('#noteCount').textContent = `${tour.note.length} / 900`;
+  const sym = { ok: '✓', warn: '!', error: '×' };
+  $('#checks').innerHTML = cs.map((c) => `<li class="${c.level}"><i aria-hidden="true">${sym[c.level]}</i><span>${esc(c.text)}</span></li>`).join('');
+  $('#outMeta').textContent = errors ? `${errors} thing${errors > 1 ? 's' : ''} to fix before the files are ready` : 'ready';
+
+  const kb = (s) => `${(new Blob([s]).size / 1024).toFixed(1)} kB`;
+  $('#files').innerHTML =
+    (hasGpx ? `<div class="file"><span class="fn">${esc(slug)}.gpx</span><span class="sz">${kb(gpx)} · ${usedPoints().length} points</span><span class="where">goes in data/tracks/</span></div>` : '') +
+    `<div class="file"><span class="fn">${esc(slug)}.tour.json</span><span class="sz">${kb(tourJson)}</span><span class="where">paste into data/tours.json</span></div>`;
+
+  const dis = errors ? ' disabled' : '';
+  $('#actions').innerHTML =
+    `<button class="btn primary" type="button" id="dlZip"${dis}>Download both (.zip)</button>` +
+    (canDirect && hasGpx ? `<button class="btn" type="button" id="dlGpx"${dis}>${esc(slug)}.gpx</button>` : '') +
+    `<button class="btn" type="button" id="dlJson"${dis}>${esc(slug)}.tour.json</button>` +
+    `<button class="btn" type="button" id="cpJson">Copy tour entry</button>`;
+
+  const pv = state.tab === 'gpx' ? (hasGpx ? gpxPreview(gpx) : 'No track loaded.') : state.tab === 'how' ? howText(slug, hasGpx) : tourJson;
+  $('#preview').textContent = pv;
+  ['json', 'gpx', 'how'].forEach((k) => $(`#tab${k === 'json' ? 'Json' : k === 'gpx' ? 'Gpx' : 'How'}`).setAttribute('aria-selected', String(state.tab === k)));
+}
+function gpxPreview(g) {
+  const lines = g.split('\n');
+  return lines.length > 40 ? [...lines.slice(0, 18), `      … ${lines.length - 30} more points …`, ...lines.slice(-12)].join('\n') : g;
+}
+
+/* ------------------------------------------------------------------ *
+ * saving files
+ * On the published page, files go through the viewer's save dialog
+ * (which takes .zip and .json, not .gpx). Opened locally or from the Pi,
+ * ordinary downloads work for every file.
+ * ------------------------------------------------------------------ */
+let downloads = null;
+const inViewer = !!(window.claude && typeof window.claude.use === 'function');
+let canDirect = !inViewer;
+if (inViewer) {
+  window.claude.use('downloads').then((d) => { downloads = d; renderOutput(); }).catch(() => {});
+}
+
+async function saveFile(filename, data) {
+  if (inViewer) {
+    if (!downloads) { toast('Saving files is not available here. Use “Copy tour entry”.'); return; }
+    try {
+      await downloads.save({ filename, data });
+      toast(`Saved ${filename}`);
+    } catch (e) {
+      if (e?.code === 'declined') return;
+      toast(e?.code === 'rate_limited' ? 'A save dialog is already open.' : `Could not save: ${e?.message ?? 'unavailable'}`);
+    }
+    return;
+  }
+  const blob = data instanceof Blob ? data : new Blob([data], { type: 'application/octet-stream' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  toast(`Saved ${filename}`);
+}
+
+/* A plain "stored" zip: no compression library needed. */
+const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+const crc32 = (b) => { let c = 0xFFFFFFFF; for (const x of b) c = CRC[(c ^ x) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+function makeZip(files) {
+  const enc = new TextEncoder(), parts = [], central = [];
+  let offset = 0;
+  const now = new Date();
+  const dosTime = (now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1);
+  const dosDate = ((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate();
+  for (const f of files) {
+    const name = enc.encode(f.name), data = enc.encode(f.data), crc = crc32(data);
+    const h = new DataView(new ArrayBuffer(30));
+    h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(8, 0, true);
+    h.setUint16(10, dosTime, true); h.setUint16(12, dosDate, true); h.setUint32(14, crc, true);
+    h.setUint32(18, data.length, true); h.setUint32(22, data.length, true); h.setUint16(26, name.length, true); h.setUint16(28, 0, true);
+    parts.push(new Uint8Array(h.buffer), name, data);
+    const c = new DataView(new ArrayBuffer(46));
+    c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint16(10, 0, true);
+    c.setUint16(12, dosTime, true); c.setUint16(14, dosDate, true); c.setUint32(16, crc, true);
+    c.setUint32(20, data.length, true); c.setUint32(24, data.length, true); c.setUint16(28, name.length, true);
+    c.setUint32(42, offset, true);
+    central.push(new Uint8Array(c.buffer), name);
+    offset += 30 + name.length + data.length;
+  }
+  const cSize = central.reduce((a, b) => a + b.length, 0);
+  const e = new DataView(new ArrayBuffer(22));
+  e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true);
+  e.setUint32(12, cSize, true); e.setUint32(16, offset, true);
+  return new Blob([...parts, ...central, new Uint8Array(e.buffer)], { type: 'application/zip' });
+}
+
+/* ------------------------------------------------------------------ *
+ * loading files
+ * ------------------------------------------------------------------ */
+async function loadFile(file) {
+  const text = await file.text();
+  if (/\.json$/i.test(file.name) || /^\s*[{[]/.test(text)) {
+    let t;
+    try { t = JSON.parse(text); } catch { toast('That JSON file could not be read.'); return; }
+    if (Array.isArray(t)) { toast('That is a whole tour list. Open one tour’s .tour.json instead.'); return; }
+    const reg = REGIONS.find((r) => r.id === t.region);
+    const [from, to] = String(t.season ?? 'Feb–May').split(/[–-]/);
+    state.form = {
+      ...blankForm(), name: t.name ?? '', region: t.region ?? '', country: reg?.country ?? 'NO', kind: t.kind === 'area' ? 'area' : '',
+      lat: t.lat ?? '', lon: t.lon ?? '', summit_m: t.summit_m ?? '', vertical_m: t.vertical_m ?? '',
+      aspect: t.aspect && !/varied/i.test(t.aspect) ? expandAspect(t.aspect) : [],
+      difficulty: t.difficulty ?? 2, quality: t.quality ?? 3, access: t.access ?? '', from: from ?? 'Feb', to: to ?? 'May',
+      note: t.note ?? '', links: (t.links ?? []).map((l) => ({ site: l.site ?? '', title: l.title ?? '', url: l.url ?? '' })),
+    };
+    if (state.example) { state.points = []; state.file = null; st = null; }
+    state.example = false;
+    afterChange(true);
+    toast(`Opened ${t.name ?? 'tour'}. Drop its GPX too, if it has one.`);
+    return;
+  }
+  let parsed;
+  try { parsed = parseGpx(text); } catch (e) { toast(e.message); return; }
+  const wasExample = state.example;
+  state.example = false;
+  state.file = file.name;
+  state.points = parsed.points;
+  st = trackStats(state.points);
+  hoverI = null;
+  if (wasExample) state.form = blankForm();
+  const f = state.form;
+  // Fill what is still empty from the track; never overwrite what you typed.
+  if (!f.name && parsed.name) f.name = parsed.name;
+  if (st.hasEle) {
+    const top = state.points[st.hi];
+    if (f.lat === '' && f.lon === '') { f.lat = top.lat.toFixed(4); f.lon = top.lon.toFixed(4); }
+    if (f.summit_m === '') f.summit_m = String(Math.round(st.max));
+    if (f.vertical_m === '') f.vertical_m = String(Math.round((st.max - st.minBeforeTop) / 10) * 10);
+    if (!f.region) {
+      const near = nearestRegion(top);
+      if (near) { f.country = near.country; f.region = near.id; regionGuessed = true; }
+    }
+  }
+  afterChange(true);
+  toast(`Loaded ${file.name}: ${state.points.length} points`);
+}
+function expandAspect(s) {
+  const out = new Set();
+  for (const part of String(s).toUpperCase().replace(/\s/g, '').split(/[,/]/)) {
+    const [a, b] = part.split(/[–—-]/);
+    const i = OCT.indexOf(a), j = OCT.indexOf(b ?? a);
+    if (i < 0 || j < 0) continue;
+    const fwd = (j - i + 8) % 8, back = (i - j + 8) % 8;
+    const [n, dir] = fwd <= back ? [fwd, 1] : [back, -1];
+    for (let k = 0; k <= n; k++) out.add(OCT[(i + dir * k + 8) % 8]);
+  }
+  return OCT.filter((d) => out.has(d));
+}
+
+/* ------------------------------------------------------------------ *
+ * wiring
+ * ------------------------------------------------------------------ */
+function saveDraft() {
+  if (state.example) return;
+  store.set({ file: state.file, points: state.points, form: state.form, optAscent: state.optAscent, optTimes: state.optTimes });
+}
+function afterChange(full) {
+  if (full) writeForm();
+  $('#exampleBanner').hidden = !state.example;
+  renderTrack();
+  renderOutput();
+  saveDraft();
+}
+
+function readField(k) {
+  const v = $(F[k]).value;
+  state.form[k] = v;
+}
+for (const k of Object.keys(F)) {
+  $(F[k]).addEventListener('input', () => {
+    if (state.example) state.example = false;
+    readField(k);
+    if (k === 'country') { state.form.region = ''; fillRegions(); }
+    if (k === 'country' || k === 'region') regionGuessed = false;
+    if (k === 'lat' || k === 'lon') renderPlan();
+    $('#exampleBanner').hidden = true;
+    renderOutput(); saveDraft();
+  });
+}
+for (const id of ['#kLine', '#kArea']) $(id).addEventListener('change', (e) => { state.form.kind = e.target.value; renderOutput(); saveDraft(); });
+$('#optAscent').addEventListener('change', (e) => { state.optAscent = e.target.checked; renderTrack(); renderOutput(); saveDraft(); });
+$('#optTimes').addEventListener('change', (e) => { state.optTimes = e.target.checked; renderOutput(); saveDraft(); });
+
+function toggleAspect(d) {
+  const s = new Set(state.form.aspect);
+  s.has(d) ? s.delete(d) : s.add(d);
+  state.form.aspect = OCT.filter((x) => s.has(x));
+  renderRose(); renderOutput(); saveDraft();
+}
+$('#rose').addEventListener('click', (e) => { const d = e.target.closest('[data-d]')?.dataset.d; if (d) toggleAspect(d); });
+$('#rose').addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const d = e.target.closest('[data-d]')?.dataset.d;
+  if (d) { e.preventDefault(); toggleAspect(d); requestAnimationFrame(() => $(`#rose [data-d="${d}"]`)?.focus()); }
+});
+$('#aspectFromTrk').addEventListener('click', () => {
+  if (!st) { toast('Load a track first.'); return; }
+  const a = estimateAspect(state.points, st);
+  if (!a) { $('#aspectSug').textContent = 'The track is too short or flat near the top to tell.'; return; }
+  const i = OCT.indexOf(a);
+  state.form.aspect = OCT.filter((_, k) => k === i || k === (i + 1) % 8 || k === (i + 7) % 8);
+  $('#aspectSug').textContent = `Estimate: the upper climb faces ${a}. The ski line may differ; adjust it.`;
+  renderRose(); renderOutput(); saveDraft();
+});
+$('#diff').addEventListener('click', (e) => { const v = +e.target.closest('[data-v]')?.dataset.v; if (v) { state.form.difficulty = v; renderDiff(); renderOutput(); saveDraft(); } });
+$('#qual').addEventListener('click', (e) => { const v = +e.target.closest('[data-v]')?.dataset.v; if (v) { state.form.quality = v; renderQual(); renderOutput(); saveDraft(); } });
+
+$('#addLink').addEventListener('click', () => {
+  state.form.links.push({ site: '', title: '', url: '' });
+  renderLinks(); renderOutput(); saveDraft();
+  $(`#lSite${state.form.links.length - 1}`)?.focus();
+});
+$('#links').addEventListener('input', (e) => {
+  const row = e.target.closest('.linkrow'); if (!row) return;
+  state.form.links[+row.dataset.i][e.target.dataset.k] = e.target.value;
+  renderOutput(); saveDraft();
+});
+$('#links').addEventListener('click', (e) => {
+  const i = e.target.closest('[data-rm]')?.dataset.rm; if (i == null) return;
+  state.form.links.splice(+i, 1); renderLinks(); renderOutput(); saveDraft();
+});
+
+$('#fillSummit').addEventListener('click', () => {
+  if (!st?.hasEle) { toast(st ? 'This track has no elevation.' : 'Load a track first.'); return; }
+  const top = state.points[st.hi];
+  Object.assign(state.form, {
+    lat: top.lat.toFixed(4), lon: top.lon.toFixed(4), summit_m: String(Math.round(st.max)),
+    vertical_m: String(Math.round((st.max - st.minBeforeTop) / 10) * 10),
+  });
+  writeForm(); renderPlan(); renderOutput(); saveDraft();
+  toast('Summit, height and vertical taken from the track. GPS heights can be off by 10–30 m.');
+});
+$('#insStart').addEventListener('click', () => {
+  if (!state.points.length) { toast('Load a track first.'); return; }
+  const p = state.points[0];
+  const add = `start ${p.lat.toFixed(4)}, ${p.lon.toFixed(4)}${p.ele != null ? ` (about ${Math.round(p.ele / 10) * 10} m)` : ''}`;
+  state.form.access = state.form.access ? `${state.form.access.replace(/\s*$/, '')}; ${add}` : add[0].toUpperCase() + add.slice(1);
+  $('#fAccess').value = state.form.access;
+  renderOutput(); saveDraft();
+});
+
+// profile hover -> dot on the plan view
+$('#prof').addEventListener('pointermove', (e) => {
+  if (!st?.hasEle || !e.target.closest('#profHit')) return;
+  const svg = $('#prof'), pt = svg.createSVGPoint();
+  pt.x = e.clientX; pt.y = e.clientY;
+  const x = pt.matrixTransform(svg.getScreenCTM().inverse()).x;
+  const m = ((x - 44) / (600 - 44 - 12)) * st.dist;
+  let i = st.cum.findIndex((c) => c >= m); if (i < 0) i = st.cum.length - 1;
+  if (i !== hoverI) { hoverI = i; renderProfile(); renderPlan(); }
+});
+$('#prof').addEventListener('pointerleave', () => { hoverI = null; renderProfile(); renderPlan(); });
+
+// drop zone
+const drop = $('#drop');
+['dragenter', 'dragover'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave', 'drop'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', (e) => { const f = e.dataTransfer?.files?.[0]; if (f) loadFile(f); });
+$('#fileIn').addEventListener('change', (e) => { const f = e.target.files?.[0]; if (f) loadFile(f); e.target.value = ''; });
+
+// output actions
+$('#actions').addEventListener('click', async (e) => {
+  const id = e.target.closest('button')?.id; if (!id || !lastOut) return;
+  const o = lastOut;
+  if (id === 'cpJson') {
+    try { await navigator.clipboard.writeText(o.tourJson); toast('Tour entry copied'); }
+    catch {
+      const r = document.createRange(); r.selectNodeContents($('#preview')); state.tab = 'json'; renderOutput();
+      const s = getSelection(); s.removeAllRanges(); s.addRange(r); toast('Selected: press Ctrl+C (⌘C) to copy');
+    }
+    return;
+  }
+  if (o.errors) return;
+  if (id === 'dlJson') return saveFile(`${o.slug}.tour.json`, o.tourJson + '\n');
+  if (id === 'dlGpx') return saveFile(`${o.slug}.gpx`, o.gpx);
+  if (id === 'dlZip') {
+    const files = [{ name: `${o.slug}.tour.json`, data: o.tourJson + '\n' }, { name: 'WHERE-THESE-GO.txt', data: howText(o.slug, o.hasGpx) + '\n' }];
+    if (o.hasGpx) files.unshift({ name: `${o.slug}.gpx`, data: o.gpx });
+    return saveFile(`${o.slug}.zip`, makeZip(files));
+  }
+});
+for (const [id, tab] of [['#tabJson', 'json'], ['#tabGpx', 'gpx'], ['#tabHow', 'how']]) $(id).addEventListener('click', () => { state.tab = tab; renderOutput(); });
+
+$('#newBtn').addEventListener('click', () => {
+  if (!state.example && (state.form.name || state.points.length) && !confirm('Clear this tour and start a new one? The current draft is removed from this browser.')) return;
+  store.clear();
+  Object.assign(state, { file: null, points: [], form: blankForm(), example: false, optAscent: false, optTimes: false });
+  st = null; hoverI = null;
+  afterChange(true);
+  $('#fName').focus();
+});
+
+/* ------------------------------------------------------------------ *
+ * start: your draft if there is one, otherwise the example
+ * ------------------------------------------------------------------ */
+fillCountries();
+$('#fFrom').innerHTML = $('#fTo').innerHTML = MONTHS.map((m) => `<option>${m}</option>`).join('');
+const draft = store.get();
+if (draft && (draft.form?.name || draft.points?.length)) {
+  Object.assign(state, { file: draft.file, points: draft.points ?? [], form: { ...blankForm(), ...draft.form }, optAscent: !!draft.optAscent, optTimes: !!draft.optTimes });
+} else {
+  loadExample();
+}
+st = state.points.length ? trackStats(state.points) : null;
+afterChange(true);
+})();
+</script>

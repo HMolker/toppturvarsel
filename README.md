@@ -355,6 +355,11 @@ unhealthy instead of looking fine.
 
 ## Adding your own tours
 
+**The easy way:** open `editor/tour-editor.html` in a browser (double-click
+it; no server needed). Load your GPX, fill in the fields, and download the
+two files it makes. It checks the entry the same way the tests do and tells
+you where each file goes. The manual route below is what it automates.
+
 `data/tours.json` is a plain array. Add an entry, restart:
 
 ```json

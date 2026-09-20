@@ -1,6 +1,6 @@
 {
   "name": "toppturvarsel",
-  "version": "4.0.1",
+  "version": "4.1.0",
   "description": "Self-hosted ski touring conditions service: snow depth, new snow, avalanche danger, trip planner, routes and powder alerts, country by country.",
   "type": "module",
   "engines": {
@@ -13,7 +13,8 @@
     "demo:simulate": "node demo/simulate.mjs demo/out",
     "demo:record": "node demo/record.mjs demo/out demo/toppturvarsel-demo.mp4",
     "demo:record-full": "node demo/record-full.mjs demo/out demo/toppturvarsel-walkthrough.mp4",
-    "demo:music": "python3 demo/music.py demo/out/music.wav 121 && ffmpeg -y -i demo/toppturvarsel-walkthrough.mp4 -i demo/out/music.wav -map 0:v -map 1:a -c:v copy -af loudnorm=I=-16:TP=-1.5 -c:a aac -b:a 192k -shortest demo/toppturvarsel-walkthrough-music.mp4"
+    "demo:music": "python3 demo/music.py demo/out/music.wav 121 && ffmpeg -y -i demo/toppturvarsel-walkthrough.mp4 -i demo/out/music.wav -map 0:v -map 1:a -c:v copy -af loudnorm=I=-16:TP=-1.5 -c:a aac -b:a 192k -shortest demo/toppturvarsel-walkthrough-music.mp4",
+    "editor:sync": "node editor/sync-data.mjs"
   },
   "dependencies": {},
   "optionalDependencies": {},

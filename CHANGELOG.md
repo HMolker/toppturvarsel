@@ -3,6 +3,16 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v4.1 — tour editor (2026-09-20)
+
+- `editor/tour-editor.html`: a standalone page for your own tours. Load a GPX
+  (or a `.tour.json` made earlier), see the track from above and its profile,
+  fill in name, region, summit, aspect, difficulty, quality, access, season,
+  description and links, and download `<slug>.gpx` + `<slug>.tour.json`
+  (or both as a .zip with a note on where they go). Checks mirror the
+  tour-data tests. Timestamps are stripped by default. Works offline as a
+  single file; `npm run editor:sync` refreshes its region and tour lists.
+
 ## v4.0.1 — ready-made images for the Pi (2026-09-20)
 
 - GitHub builds the Docker image (arm64 for the Pi, and amd64) on every push:

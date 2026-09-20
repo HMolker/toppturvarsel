@@ -1713,5 +1713,187 @@
         "url": "https://www.toppturnorge.no/roldal/"
       }
     ]
+  },
+  {
+    "region": "hardanger",
+    "aspect": "varied",
+    "season": "Feb–May",
+    "name": "Kistenuten",
+    "lat": 59.7828,
+    "lon": 7.0963,
+    "summit_m": 1648,
+    "vertical_m": 660,
+    "difficulty": 4,
+    "quality": 5,
+    "access": "Haukeliseter fjellstue on E134 (about 990 m)",
+    "note": "The classic Haukeli line: a long approach over plateau, water and scree to the couloir you can see from Haukeliseter, then a spectacular descent. Committing and avalanche-prone, so pick the day. About 7.5 km each way. Aspect is set to 'varied' until checked, so the planner tests it against every avalanche problem. Position: Kartverket place names, height checked against the terrain model (1648 m).",
+    "links": [
+      {
+        "site": "ToppturNorge",
+        "title": "Kistenuten",
+        "url": "https://www.toppturnorge.no/turer/kistenuten/"
+      },
+      {
+        "site": "Friflyt",
+        "title": "Kistenuten",
+        "url": "https://www.friflyt.no/topptur/skiturer-odda-roeldal-og-haukeli/turbeskrivelse-kistenuten"
+      }
+    ]
+  },
+  {
+    "region": "hardanger",
+    "aspect": "varied",
+    "season": "Feb–May",
+    "name": "Store Nup",
+    "lat": 59.871,
+    "lon": 7.1324,
+    "summit_m": 1661,
+    "vertical_m": 700,
+    "difficulty": 3,
+    "quality": 4,
+    "access": "Fv362 at Ulevå",
+    "note": "Easy plateau to start, then a steep final ridge that can need crampons on hard snow; broad, wide descent. About 3.5 km. Aspect is set to 'varied' until checked, so the planner tests it against every avalanche problem. Position: Kartverket place names, height checked against the terrain model (1656 m).",
+    "links": [
+      {
+        "site": "ToppturNorge",
+        "title": "Store Nup",
+        "url": "https://www.toppturnorge.no/turer/store-nup/"
+      },
+      {
+        "site": "ToppturNorge",
+        "title": "Ski tours at Haukeli",
+        "url": "https://www.toppturnorge.no/haukeli/"
+      }
+    ]
+  },
+  {
+    "region": "hardanger",
+    "aspect": "varied",
+    "season": "Feb–May",
+    "name": "Vesle Nup",
+    "lat": 59.8587,
+    "lon": 7.2325,
+    "summit_m": 1510,
+    "vertical_m": 540,
+    "difficulty": 2,
+    "quality": 4,
+    "access": "Small winter parking on Fv362 at Ulevå",
+    "note": "One of the quickest ways onto the Nup massif: open plateau, no steep sections, a broad south ridge to the top and long open flanks down. About 5 km. ToppturNorge gives 1540 m, but Kartverket and PeakVisor both put the summit at about 1510 m. Aspect is set to 'varied' until checked, so the planner tests it against every avalanche problem. Position: Kartverket place names and PeakVisor, height checked against the terrain model (1506 m).",
+    "links": [
+      {
+        "site": "ToppturNorge",
+        "title": "Vesle Nup",
+        "url": "https://www.toppturnorge.no/turer/vesle-nup/"
+      },
+      {
+        "site": "UT.no",
+        "title": "Vesle Nup from Haukeliseter",
+        "url": "https://ut.no/turforslag/1112154503/topptur-pa-ski-til-vesle-nup"
+      }
+    ]
+  },
+  {
+    "region": "hardanger",
+    "aspect": "varied",
+    "season": "Feb–May",
+    "name": "Verjesteinsnuten",
+    "lat": 59.8679,
+    "lon": 7.0772,
+    "summit_m": 1651,
+    "vertical_m": 740,
+    "difficulty": 2,
+    "quality": 4,
+    "access": "Fv362 at Ulevåvatnet, by Pepparsteinen",
+    "note": "Treeless from the car, then a steady broad ridge with moderate angles and no exposure; big views over Hardangervidda. About 5 km. Aspect is set to 'varied' until checked, so the planner tests it against every avalanche problem. Position: Kartverket place names, height checked against the terrain model (1650 m).",
+    "links": [
+      {
+        "site": "ToppturNorge",
+        "title": "Verjesteinsnuten",
+        "url": "https://www.toppturnorge.no/turer/verjesteinsnuten/"
+      },
+      {
+        "site": "ToppturNorge",
+        "title": "Ski tours at Haukeli",
+        "url": "https://www.toppturnorge.no/haukeli/"
+      }
+    ]
+  },
+  {
+    "region": "hardanger",
+    "aspect": "varied",
+    "season": "Feb–May",
+    "name": "Sveigen",
+    "lat": 59.8373,
+    "lon": 7.0772,
+    "summit_m": 1543,
+    "vertical_m": 500,
+    "difficulty": 3,
+    "quality": 4,
+    "access": "Pepparsteinen parking on the old road by Haukelitunnelen",
+    "note": "Short and steep: 500 m in about 2 km, up a gully or round the flank; the north-west gully is the pick for the descent. Rated 3 here for the gully. Aspect is set to 'varied' until checked, so the planner tests it against every avalanche problem. Position: Kartverket place names, height checked against the terrain model (1538 m).",
+    "links": [
+      {
+        "site": "ToppturNorge",
+        "title": "Sveigen",
+        "url": "https://www.toppturnorge.no/turer/sveigen/"
+      },
+      {
+        "site": "ToppturNorge",
+        "title": "Ski tours at Haukeli",
+        "url": "https://www.toppturnorge.no/haukeli/"
+      }
+    ]
+  },
+  {
+    "region": "hardanger",
+    "aspect": "varied",
+    "season": "Feb–May",
+    "name": "Stavsnuten",
+    "lat": 59.8597,
+    "lon": 7.0098,
+    "summit_m": 1661,
+    "vertical_m": 600,
+    "difficulty": 1,
+    "quality": 3,
+    "access": "Parking west of Haukelitunnelen on E134",
+    "note": "Efficient spring tour: up a stream valley, then a broad, open mountainside to the top and the same way down. About 3 km. Aspect is set to 'varied' until checked, so the planner tests it against every avalanche problem. Position: Kartverket place names, height checked against the terrain model (1658 m).",
+    "links": [
+      {
+        "site": "ToppturNorge",
+        "title": "Stavsnuten",
+        "url": "https://www.toppturnorge.no/turer/stavsnuten/"
+      },
+      {
+        "site": "ToppturNorge",
+        "title": "Ski tours at Haukeli",
+        "url": "https://www.toppturnorge.no/haukeli/"
+      }
+    ]
+  },
+  {
+    "region": "hardanger",
+    "aspect": "varied",
+    "season": "Jan–Jun",
+    "name": "Nupsegga",
+    "lat": 59.9033,
+    "lon": 7.1679,
+    "summit_m": 1673,
+    "vertical_m": 711,
+    "difficulty": 2,
+    "quality": 4,
+    "access": "Parking along E134 at Haukeli, where cleared",
+    "note": "Longer day, about 7 km each way, over even, open terrain; the long open flats down are at their best on warm spring days. Aspect is set to 'varied' until checked, so the planner tests it against every avalanche problem. Position: Kartverket place names, height checked against the terrain model (1672 m).",
+    "links": [
+      {
+        "site": "ToppturNorge",
+        "title": "Nupsegga",
+        "url": "https://www.toppturnorge.no/turer/nupsegga/"
+      },
+      {
+        "site": "ToppturNorge",
+        "title": "Ski tours at Haukeli",
+        "url": "https://www.toppturnorge.no/haukeli/"
+      }
+    ]
   }
 ]

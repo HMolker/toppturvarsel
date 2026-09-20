@@ -1,8 +1,9 @@
 import { COAST, BORDER } from './geo.js';
-import { renderRouteMap, renderProfile, routeSummary, renderForecast, renderPhotos } from './route.js';
+import { renderRouteMap, renderProfile, routeSummary, renderForecast, renderPhotos, renderOwnPhotos } from './route.js';
 import { layoutResorts, resortSvg, OPEN_BANDS } from './resorts.js';
 import { plan } from './planner.js';
 import { explainHtml } from './explain.js';
+import { aspectRose } from './aspect.js';
 import { COUNTRIES, GROUPS, countryName, joinNames, normaliseSelection, fitFrame } from './countries.js';
 
 /* ------------------------------------------------------------------ *
@@ -699,7 +700,7 @@ function renderList() {
         return (
           `<div class="trow${state.sel === t.name ? ' sel' : ''}" tabindex="0" data-tour="${esc(t.name)}">` +
           `<div><div class="tname"><button class="fav${FAVS[t.name] ? ' on' : ''}" data-fav="${esc(t.name)}" aria-label="Favourite">${FAVS[t.name] ? '★' : '☆'}</button>${esc(t.name)} ${trackTag(t.name)} ${badge}</div>` +
-          `<div class="tmeta">${esc(reg.name)} · ${t.summit_m} m · ${t.vertical_m} m vert · ${esc(t.aspect)}</div></div>` +
+          `<div class="tmeta">${esc(reg.name)} · ${t.summit_m} m · ${t.vertical_m} m vert · <span class="asp">${aspectRose(t.aspect, { size: 14 })}${esc(t.aspect)}</span></div></div>` +
           `<div style="text-align:right"><div class="stars">${stars(t.quality)}</div><div class="grade">diff ${t.difficulty}/5</div></div></div>`
         );
       })
@@ -848,6 +849,7 @@ function selectTour(name) {
     `<div class="routemap" id="routeMap"></div>` +
     `<div class="profile" id="routeProfile"></div>` +
     `<div id="routeMeta">${routeSummary(null, t)}</div>` +
+    `<div id="ownPhotosWrap" hidden><h4>Your photos</h4><div id="ownPhotos"></div></div>` +
     `<h4>Photos near the summit</h4><div id="photos"></div>` +
     `<p class="attrib">Map © ${reg.country === 'SE' ? 'OpenTopoMap, © OpenStreetMap contributors' : 'Kartverket'} · ` +
     `Route © OpenStreetMap contributors (ODbL) · Elevation: ${reg.country === 'SE' ? 'Copernicus DEM GLO-90 via Open-Meteo' : 'Kartverket (DTM 1 m / 10 m)'} · ` +
@@ -857,7 +859,8 @@ function selectTour(name) {
     `<dl>` +
     `<dt>Region</dt><dd>${esc(reg.name)} (${esc(countryName(reg.country))}) — ${dangerPill(reg)}</dd>` +
     `<dt>Summit / vertical</dt><dd>${t.summit_m} m · ≈${t.vertical_m} m of descent</dd>` +
-    `<dt>Main aspect</dt><dd>${esc(t.aspect)}</dd>` +
+    `<dt>Descent aspect</dt><dd class="aspdd">${aspectRose(t.aspect, { size: 64, labels: true })}<span>${esc(t.aspect)}` +
+    `${/varied/i.test(t.aspect) ? '<br><span class="note">not yet known, so the planner tests it against every avalanche problem</span>' : '<br><span class="note">the directions the skiing faces</span>'}</span></dd>` +
     `<dt>Difficulty</dt><dd>${t.difficulty}/5 &nbsp; <span class="stars">${stars(t.quality)}</span></dd>` +
     `<dt>Access</dt><dd>${esc(t.access)}</dd>` +
     `<dt>Usual window</dt><dd>${esc(t.season)}</dd>` +
@@ -877,7 +880,7 @@ function selectTour(name) {
     (reg.offMap ? '' : `<button class="btn" data-region="${esc(reg.id)}">Region overview</button>`) + `</div>` +
     `</div></div>`;
 
-  state.tourView = { route: null, terrain: null, photos: null };
+  state.tourView = { route: null, terrain: null, photos: null, own: null };
   renderRouteMap($('#routeMap'), { route: null, tour: t, country: reg.country });
   renderForecast($('#forecast'), null);
   renderPhotos($('#photos'), null, t, null);
@@ -906,15 +909,20 @@ async function loadTourExtras(t, reg) {
   const paint = () => {
     if (!still()) return;
     const mapEl = $('#routeMap');
+    // Your photos first, then Commons; one numbering, so a number on the
+    // map finds its photo in either list.
+    const own = (view.own?.photos ?? []).map((p) => ({ ...p, own: true }));
     renderRouteMap(mapEl, {
       route: view.route?.error ? { found: false, reason: view.route.error } : view.route,
       tour: t,
       country: reg.country,
       terrain: view.terrain?.error ? null : view.terrain,
-      photos: view.photos?.photos ?? [],
+      photos: [...own, ...(view.photos?.photos ?? [])],
     });
     if (view.route) renderProfile($('#routeProfile'), view.route, mapEl);
-    if (view.photos) renderPhotos($('#photos'), view.photos, t, mapEl);
+    $('#ownPhotosWrap').hidden = !own.length;
+    if (own.length) renderOwnPhotos($('#ownPhotos'), own, t, mapEl);
+    if (view.photos) renderPhotos($('#photos'), view.photos, t, mapEl, own.length);
   };
 
   getJson(`/api/track?tour=${q}`).then((route) => {
@@ -931,6 +939,10 @@ async function loadTourExtras(t, reg) {
   });
   getJson(`/api/photos?tour=${q}`).then((photos) => {
     view.photos = photos;
+    paint();
+  });
+  getJson(`/api/own-photos?tour=${q}`).then((own) => {
+    view.own = own?.error ? null : own;
     paint();
   });
   getJson(`/api/forecast?tour=${q}`).then((fc) => {

@@ -18,6 +18,9 @@ services:
       - ./data/cache:/app/data/cache
       # Your own GPX files, one per tour slug; read-only is enough.
       - ./data/tracks:/app/data/tracks:ro
+      # Your own photos, one folder per tour slug with a photos.json (made by
+      # the tour editor); read-only is enough.
+      - ./data/photos:/app/data/photos:ro
     # The service holds no secrets beyond the notification keys in .env and
     # writes nothing outside its volume, so it can run read-only.
     read_only: true

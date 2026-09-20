@@ -356,8 +356,11 @@ unhealthy instead of looking fine.
 ## Adding your own tours
 
 **The easy way:** open `editor/tour-editor.html` in a browser (double-click
-it; no server needed). Load your GPX, fill in the fields, and download the
-two files it makes. It checks the entry the same way the tests do and tells
+it; no server needed). Load your GPX, fill in the fields, add photos if you
+like, and download the .zip it makes: the track for `data/tracks/`, the entry
+for `data/tours.json`, and a `photos/<slug>/` folder for `data/photos/`.
+Photos from a phone keep their position (in `photos.json`, not in the image
+files) and show on the tour's route map. It checks the entry the same way the tests do and tells
 you where each file goes. The manual route below is what it automates.
 
 `data/tours.json` is a plain array. Add an entry, restart:

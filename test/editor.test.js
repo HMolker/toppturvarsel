@@ -21,3 +21,21 @@ test("the editor's slug rule is the server's, so GPX file names match", () => {
     assert.equal(editorSlug(n), slugify(n), n);
   }
 });
+
+test("the editor reads a photo's position, height, direction and time from EXIF", async () => {
+  const src = html.match(/function parseExif\(buf\) \{([\s\S]*?)\n\}/)[1];
+  const parseExif = new Function('buf', src);
+  const buf = async (f) => {
+    const b = await readFile(new URL(`./fixtures/${f}`, import.meta.url));
+    return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength);
+  };
+  const e = parseExif(await buf('photo-gps.jpg'));
+  assert.equal(e.lat, 69.6605);
+  assert.equal(e.lon, 20.0484);
+  assert.equal(e.ele, 987);
+  assert.equal(e.direction, 45);
+  assert.equal(e.takenAt, '2026-03-01T10:15:30+01:00');
+  const none = parseExif(await buf('photo-nogps.jpg'));
+  assert.equal(none?.lat, undefined, 'a photo without GPS has no position');
+  assert.equal(parseExif(new ArrayBuffer(8)), null, 'not a JPEG');
+});

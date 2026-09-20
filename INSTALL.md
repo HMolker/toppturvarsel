@@ -48,7 +48,7 @@ snapshots, caches and alert history in `data/cache`. Create it yourself so
 it gets the right owner:
 
 ```bash
-mkdir -p data/cache data/tracks
+mkdir -p data/cache data/tracks data/photos
 sudo chown -R 1000:1000 data/cache
 ```
 
@@ -271,6 +271,9 @@ seconds instead of minutes.
 FJALLSKRED_VERSION=latest     # follow the newest
 # FJALLSKRED_VERSION=v4.0.1   # or stay on one version
 ```
+
+After copying a new `docker-compose.yml`, create any folder it mounts that
+you do not have yet (from v4.2: `mkdir -p data/photos`).
 
 **Update, or switch version:**
 

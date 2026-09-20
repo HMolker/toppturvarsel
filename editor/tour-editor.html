@@ -12,6 +12,7 @@
   --page: #F4F3EF; --paper: #FFFFFF; --ink: #1A1A1A; --ink-2: #4A473F; --muted: #706C64;
   --steel: #8C8880; --line: #E3E0D8; --line-2: #D8D5CC; --red: #C0392B; --red-ink: #C0392B;
   --land: #F4F3EF; --fill: #E3E0D8; --warn-bg: #F4EFE2;
+  --own: #C2402A; --own-ink: #FFFFFF;
   --r-card: 14px; --r-ctl: 8px;
   color-scheme: light;
 }
@@ -20,6 +21,7 @@
     --page: #121211; --paper: #1A1A1A; --ink: #EDEBE5; --ink-2: #C7C4BC; --muted: #A8A49B;
     --steel: #8C8880; --line: #2E2C28; --line-2: #3A3833; --red-ink: #E46A5C;
     --land: #24231F; --fill: #3A3833; --warn-bg: #2A2720;
+    --own: #E8734F; --own-ink: #1A1A1A;
     color-scheme: dark;
   }
 }
@@ -27,6 +29,7 @@
   --page: #121211; --paper: #1A1A1A; --ink: #EDEBE5; --ink-2: #C7C4BC; --muted: #A8A49B;
   --steel: #8C8880; --line: #2E2C28; --line-2: #3A3833; --red-ink: #E46A5C;
   --land: #24231F; --fill: #3A3833; --warn-bg: #2A2720;
+  --own: #E8734F; --own-ink: #1A1A1A;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -60,6 +63,8 @@ header.top .sub { color: var(--ink-2); font-size: 14.5px; margin: 0; max-width: 
   max-width: 1440px; margin: 0 auto; padding: 24px 20px 48px;
 }
 .full { grid-column: 1 / -1; }
+.span2 { grid-row: span 2; }
+@media (max-width: 980px) { .span2 { grid-row: auto; } }
 @media (max-width: 980px) {
   .wrap { grid-template-columns: 1fr; padding: 16px; gap: 16px; }
   header.top { padding: 22px 16px 16px; }
@@ -172,6 +177,19 @@ input:hover, select:hover, textarea:hover { border-color: var(--steel); }
 pre.preview { margin: 0; padding: 12px; background: var(--page); border: 1px solid var(--line); border-top: 0; border-radius: 0 0 var(--r-ctl) var(--r-ctl); max-height: 380px; overflow: auto; font: 12.5px/1.5 var(--mono); white-space: pre; }
 .actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--paper); padding: 10px 16px; border-radius: var(--r-ctl); font-size: 14px; z-index: 10; max-width: calc(100% - 32px); }
+.phs { display: grid; gap: 10px; }
+.ph { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; gap: 12px; align-items: start; border: 1px solid var(--line); border-radius: var(--r-ctl); padding: 10px; }
+.ph img { width: 96px; height: 72px; object-fit: cover; border-radius: 6px; background: var(--fill); display: block; }
+.ph.bad img { visibility: hidden; }
+.ph .phb { display: grid; gap: 6px; min-width: 0; }
+.ph .phn { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; font-size: 13px; }
+.ph .num { font: 600 11px var(--mono); background: var(--own); color: var(--own-ink); border-radius: 4px; padding: 1px 5px; }
+.ph .fn { font: 600 12.5px var(--mono); word-break: break-all; }
+.ph .phloc { font-size: 13px; color: var(--ink-2); }
+.ph .phloc.none { color: var(--muted); }
+.ph .phuse { font-size: 13px; display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+.ph input[type=text] { min-height: 36px; padding: 7px 10px; font-size: 14px; }
+@media (max-width: 560px) { .ph { grid-template-columns: 72px minmax(0, 1fr); } .ph img { width: 72px; height: 54px; } .ph .x { grid-column: 2; justify-self: end; } }
 footer { max-width: 1440px; margin: 0 auto; padding: 0 20px 40px; color: var(--muted); font-size: 13px; }
 @media (prefers-reduced-motion: no-preference) { .btn, .seg5 button, .rose .seg { transition: background-color .12s, border-color .12s, color .12s; } }
 </style>
@@ -219,7 +237,7 @@ footer { max-width: 1440px; margin: 0 auto; padding: 0 20px 40px; color: var(--m
   </section>
 
   <!-- ============ DESCRIPTION ============ -->
-  <section class="card" aria-labelledby="descH">
+  <section class="card span2" aria-labelledby="descH">
     <div class="hd"><h2 id="descH">Description</h2><span class="note">what the tour list and tour panel show</span></div>
     <form class="bd" id="form" autocomplete="off" onsubmit="return false">
 
@@ -340,6 +358,24 @@ footer { max-width: 1440px; margin: 0 auto; padding: 0 20px 40px; color: var(--m
     </form>
   </section>
 
+  <!-- ============ PHOTOS ============ -->
+  <section class="card" aria-labelledby="phH">
+    <div class="hd"><h2 id="phH">Photos</h2><span class="note" id="phMeta">optional</span></div>
+    <div class="bd">
+      <label class="drop" id="phDrop" for="phIn">
+        <input type="file" id="phIn" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" multiple>
+        <div class="what"><b>Drop photos here</b><span class="note">JPEG from a phone or camera keeps its position, time and the direction the camera faced, if it recorded them.</span></div>
+        <span class="btn">Choose photos…</span>
+      </label>
+      <div class="field">
+        <label for="fCredit">Photographer <span class="hint">shown as © on every photo</span></label>
+        <input type="text" id="fCredit" maxlength="120" placeholder="Your name">
+      </div>
+      <div class="phs" id="phList"></div>
+      <p class="note" style="margin:0">The images are resized to 2048 px and saved without their hidden metadata, so the files themselves carry no position. Positions you keep go in <span class="mono">photos.json</span> next to them, for the map. Photos are not kept in the draft: add them in the same sitting as you download.</p>
+    </div>
+  </section>
+
   <!-- ============ OUTPUT ============ -->
   <section class="card full" aria-labelledby="outH">
     <div class="hd"><h2 id="outH">Files</h2><span class="note" id="outMeta"></span></div>
@@ -357,6 +393,7 @@ footer { max-width: 1440px; margin: 0 auto; padding: 0 20px 40px; color: var(--m
           <div class="tabs" role="tablist">
             <button role="tab" id="tabJson" aria-selected="true" type="button">Tour entry</button>
             <button role="tab" id="tabGpx" aria-selected="false" type="button">GPX</button>
+            <button role="tab" id="tabPh" aria-selected="false" type="button">Photos</button>
             <button role="tab" id="tabHow" aria-selected="false" type="button">Where it goes</button>
           </div>
           <pre class="preview" id="preview"></pre>
@@ -367,7 +404,7 @@ footer { max-width: 1440px; margin: 0 auto; padding: 0 20px 40px; color: var(--m
 </main>
 
 <footer>
-  Your draft is kept in this browser until you start a new tour. Nothing is uploaded anywhere: the files are made on this page.
+  Your draft (not the photos) is kept in this browser until you start a new tour. Nothing is uploaded anywhere: the files are made on this page.
 </footer>
 
 <div class="toast" id="toast" role="status" hidden></div>
@@ -432,9 +469,10 @@ function toast(msg) {
  * ------------------------------------------------------------------ */
 const blankForm = () => ({
   name: '', country: 'NO', region: '', kind: '', lat: '', lon: '', summit_m: '', vertical_m: '',
-  aspect: [], difficulty: 2, quality: 3, access: '', from: 'Feb', to: 'May', note: '', links: [],
+  aspect: [], difficulty: 2, quality: 3, access: '', from: 'Feb', to: 'May', note: '', links: [], credit: '',
 });
-const state = { file: null, points: [], form: blankForm(), example: false, optAscent: false, optTimes: false, tab: 'json' };
+const state = { file: null, points: [], form: blankForm(), example: false, optAscent: false, optTimes: false, tab: 'json', photos: [] };
+let photoSeq = 0;
 
 /* ------------------------------------------------------------------ *
  * GPX in
@@ -623,6 +661,14 @@ function renderPlan() {
     (sm && hav(summit, pts[st.hi]) > 30 ? `<circle cx="${sm[0].toFixed(1)}" cy="${sm[1].toFixed(1)}" r="6" fill="none" stroke="var(--ink)" stroke-width="1.2" stroke-dasharray="2 2"/>` +
       `<text x="${(sm[0] + 9).toFixed(1)}" y="${(sm[1] - 6).toFixed(1)}">summit as entered</text>` : '') +
     (hv ? `<circle cx="${hv[0].toFixed(1)}" cy="${hv[1].toFixed(1)}" r="5" fill="var(--ink)" stroke="var(--paper)" stroke-width="2"/>` : '') +
+    state.photos.map((ph, k) => {
+      if (!ph.useLocation || !Number.isFinite(ph.exif.lat)) return '';
+      const [x, y] = P(ph.exif);
+      if (x < 4 || y < 4 || x > W - 4 || y > H - 4) return '';
+      const dir = Number.isFinite(ph.exif.direction) ? `<path d="M0 0 L-5 -17 A18 18 0 0 1 5 -17 Z" transform="rotate(${ph.exif.direction})" fill="var(--own)" opacity=".35"/>` : '';
+      return `<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)})">${dir}<rect x="-8" y="-8" width="16" height="16" rx="3" fill="var(--paper)" stroke="var(--own)" stroke-width="1.5"/>` +
+        `<text y="3.5" text-anchor="middle" style="fill:var(--own);font-weight:600">${k + 1}</text></g>`;
+    }).join('') +
     `<g transform="translate(${W - 34},${30})"><path d="M0 -14 L5 4 L0 0 L-5 4 Z" fill="var(--ink)"/><text x="0" y="16" text-anchor="middle">N</text></g>` +
     `<g transform="translate(${pad},${H - 14})"><path d="M0 -4 V0 H${barPx.toFixed(1)} V-4" fill="none" stroke="var(--ink-2)"/>` +
     `<text x="${(barPx + 6).toFixed(1)}" y="2">${nice >= 1000 ? nice / 1000 + ' km' : nice + ' m'}</text></g>` +
@@ -676,7 +722,7 @@ function renderTrack() {
  * ------------------------------------------------------------------ */
 const F = {
   name: '#fName', lat: '#fLat', lon: '#fLon', summit_m: '#fSummit', vertical_m: '#fVert',
-  access: '#fAccess', note: '#fNote', from: '#fFrom', to: '#fTo', country: '#fCountry', region: '#fRegion',
+  access: '#fAccess', note: '#fNote', from: '#fFrom', to: '#fTo', country: '#fCountry', region: '#fRegion', credit: '#fCredit',
 };
 
 function writeForm() {
@@ -746,6 +792,186 @@ function renderLinks() {
 }
 
 /* ------------------------------------------------------------------ *
+ * photos
+ * ------------------------------------------------------------------ */
+
+/** Position, time and camera direction from a JPEG's EXIF block, or null.
+ *  -> { lat, lon, ele, direction, takenAt } with whatever the file has. */
+function parseExif(buf) {
+  const v = new DataView(buf);
+  if (v.byteLength < 4 || v.getUint16(0) !== 0xFFD8) return null;
+  let o = 2;
+  while (o + 4 <= v.byteLength) {
+    if (v.getUint8(o) !== 0xFF) return null;
+    const marker = v.getUint8(o + 1);
+    if (marker === 0xDA || marker === 0xD9) return null;
+    const len = v.getUint16(o + 2);
+    if (marker === 0xE1 && o + 10 <= v.byteLength && v.getUint32(o + 4) === 0x45786966) return readTiff(o + 10);
+    o += 2 + len;
+  }
+  return null;
+
+  function readTiff(t) {
+    const le = v.getUint16(t) === 0x4949;
+    const u16 = (p) => v.getUint16(t + p, le), u32 = (p) => v.getUint32(t + p, le);
+    if (u16(2) !== 42) return null;
+    const SIZE = { 1: 1, 2: 1, 3: 2, 4: 4, 5: 8, 7: 1, 9: 4, 10: 8 };
+    const ifd = (p) => {
+      const out = {};
+      if (!p || t + p + 2 > v.byteLength) return out;
+      const n = u16(p);
+      for (let i = 0; i < n; i++) {
+        const e = p + 2 + i * 12;
+        if (t + e + 12 > v.byteLength) break;
+        out[u16(e)] = { type: u16(e + 2), count: u32(e + 4), at: e + 8 };
+      }
+      return out;
+    };
+    const val = (en) => {
+      if (!en) return null;
+      const size = SIZE[en.type] ?? 1, n = en.count;
+      const p = size * n > 4 ? u32(en.at) : en.at;
+      if (t + p + size * n > v.byteLength) return null;
+      if (en.type === 2) {
+        let s = '';
+        for (let i = 0; i < n; i++) { const c = v.getUint8(t + p + i); if (!c) break; s += String.fromCharCode(c); }
+        return s;
+      }
+      const one = (i) => {
+        switch (en.type) {
+          case 1: case 7: return v.getUint8(t + p + i);
+          case 3: return u16(p + i * 2);
+          case 4: return u32(p + i * 4);
+          case 9: return v.getInt32(t + p + i * 4, le);
+          case 5: { const d = u32(p + i * 8 + 4); return d ? u32(p + i * 8) / d : null; }
+          case 10: { const d = v.getInt32(t + p + i * 8 + 4, le); return d ? v.getInt32(t + p + i * 8, le) / d : null; }
+          default: return null;
+        }
+      };
+      return n === 1 ? one(0) : Array.from({ length: n }, (_, i) => one(i));
+    };
+    const ifd0 = ifd(u32(4));
+    const out = {};
+    const ex = ifd(val(ifd0[0x8769]));
+    const dt = val(ex[0x9003]) || val(ifd0[0x0132]);
+    const off = val(ex[0x9011]);
+    if (typeof dt === 'string' && /^\d{4}:\d\d:\d\d \d\d:\d\d:\d\d/.test(dt)) {
+      out.takenAt = `${dt.slice(0, 10).replace(/:/g, '-')}T${dt.slice(11, 19)}${typeof off === 'string' && /^[+-]\d\d:\d\d$/.test(off) ? off : ''}`;
+    }
+    const g = ifd(val(ifd0[0x8825]));
+    const dms = (a) => (Array.isArray(a) && a.length === 3 && a.every(Number.isFinite) ? a[0] + a[1] / 60 + a[2] / 3600 : null);
+    let lat = dms(val(g[2])), lon = dms(val(g[4]));
+    if (lat != null && lon != null && !(lat === 0 && lon === 0)) {
+      if (val(g[1]) === 'S') lat = -lat;
+      if (val(g[3]) === 'W') lon = -lon;
+      out.lat = Math.round(lat * 1e6) / 1e6;
+      out.lon = Math.round(lon * 1e6) / 1e6;
+      const alt = val(g[6]);
+      if (Number.isFinite(alt)) out.ele = Math.round((val(g[5]) === 1 ? -alt : alt) * 10) / 10;
+      const dir = val(g[17]);
+      if (Number.isFinite(dir)) out.direction = Math.round(dir) % 360;
+    }
+    return out;
+  }
+}
+
+const MAX_PHOTOS = 60;
+const compass = (deg) => OCT[Math.round(deg / 45) % 8];
+
+async function addPhotos(files) {
+  const imgs = [...files].filter((f) => /^image\//.test(f.type) || /\.(jpe?g|png|webp|heic|heif)$/i.test(f.name));
+  if (!imgs.length) { toast('Those are not photos.'); return; }
+  let added = 0;
+  for (const file of imgs) {
+    if (state.photos.length >= MAX_PHOTOS) { toast(`At most ${MAX_PHOTOS} photos per tour.`); break; }
+    const buf = await file.arrayBuffer();
+    let exif = null;
+    try { exif = parseExif(buf); } catch { exif = null; }
+    let w = null, h = null, readable = true;
+    try {
+      const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+      w = bmp.width; h = bmp.height; bmp.close?.();
+    } catch { readable = false; }
+    state.photos.push({
+      id: ++photoSeq, file, name: file.name, size: file.size, url: URL.createObjectURL(file),
+      exif: exif ?? {}, readable, width: w, height: h,
+      useLocation: Number.isFinite(exif?.lat), caption: '',
+    });
+    added++;
+  }
+  if (state.example) { state.example = false; $('#exampleBanner').hidden = true; }
+  renderPhotoList(); renderPlan(); renderOutput();
+  const located = state.photos.filter((p) => Number.isFinite(p.exif.lat)).length;
+  toast(`${added} photo${added === 1 ? '' : 's'} added · ${located} with a position`);
+}
+
+function photoDistances(p) {
+  if (!Number.isFinite(p.exif.lat)) return '';
+  const at = { lat: p.exif.lat, lon: p.exif.lon };
+  const bits = [];
+  if (state.points.length) {
+    let best = Infinity;
+    for (let i = 0; i < state.points.length; i += Math.max(1, Math.floor(state.points.length / 800))) best = Math.min(best, hav(at, state.points[i]));
+    bits.push(best < 1000 ? `${Math.round(best / 10) * 10} m from the track` : `${(best / 1000).toFixed(1)} km from the track`);
+  }
+  return bits.join(' · ');
+}
+
+function renderPhotoList() {
+  const ph = state.photos;
+  const located = ph.filter((p) => Number.isFinite(p.exif.lat)).length;
+  $('#phMeta').textContent = ph.length ? `${ph.length} photo${ph.length === 1 ? '' : 's'} · ${located} with a position` : 'optional';
+  $('#phList').innerHTML = ph.map((p, k) => {
+    const e = p.exif;
+    const when = e.takenAt ? new Date(e.takenAt.length > 19 ? e.takenAt : `${e.takenAt}`).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : null;
+    const loc = Number.isFinite(e.lat)
+      ? `<div class="phloc">${e.lat.toFixed(5)}, ${e.lon.toFixed(5)}${Number.isFinite(e.ele) ? ` · ${Math.round(e.ele)} m` : ''}${Number.isFinite(e.direction) ? ` · facing ${compass(e.direction)} (${e.direction}°)` : ''}${photoDistances(p) ? ` · ${photoDistances(p)}` : ''}</div>` +
+        `<label class="phuse"><input type="checkbox" data-use="${p.id}" ${p.useLocation ? 'checked' : ''}> Put it on the map (unticked: the position is left out of the files)</label>`
+      : `<div class="phloc none">${p.readable ? 'No position in this file' : 'This format cannot be read here (HEIC?). Export it as JPEG; it will be left out.'}</div>`;
+    return `<div class="ph${p.readable ? '' : ' bad'}" data-id="${p.id}">` +
+      `<img src="${p.url}" alt="" onerror="this.closest('.ph').classList.add('bad')">` +
+      `<div class="phb"><div class="phn"><span class="num">${k + 1}</span><span class="fn">${esc(p.name)}</span>` +
+      `<span class="note">${[when, `${(p.size / 1048576).toFixed(1)} MB`].filter(Boolean).join(' · ')}</span></div>` + loc +
+      `<input type="text" data-cap="${p.id}" id="cap${p.id}" maxlength="300" placeholder="Caption, e.g. the north face from the col" value="${esc(p.caption)}" aria-label="Caption">` +
+      `</div><button class="x" type="button" data-rmph="${p.id}" aria-label="Remove photo">×</button></div>`;
+  }).join('');
+}
+
+/** Resize to 2048 px and re-encode: this also drops every EXIF field. */
+async function processPhoto(p) {
+  const bmp = await createImageBitmap(p.file, { imageOrientation: 'from-image' });
+  const k = Math.min(1, 2048 / Math.max(bmp.width, bmp.height));
+  const w = Math.round(bmp.width * k), h = Math.round(bmp.height * k);
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  c.getContext('2d').drawImage(bmp, 0, 0, w, h);
+  bmp.close?.();
+  const blob = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.85));
+  return { bytes: new Uint8Array(await blob.arrayBuffer()), w, h };
+}
+
+const photoFileName = (p, k) => `${String(k + 1).padStart(2, '0')}-${slugify(p.name.replace(/\.[^.]+$/, '')).slice(0, 40) || 'photo'}.jpg`;
+
+/** photos.json: what the main tool reads from data/photos/<slug>/. */
+function photoManifest(tour) {
+  const credit = state.form.credit.trim();
+  return {
+    tour: tour.name,
+    photos: state.photos.filter((p) => p.readable).map((p, k) => {
+      const e = p.exif, use = p.useLocation && Number.isFinite(e.lat);
+      return {
+        file: photoFileName(p, k),
+        caption: p.caption.trim(),
+        credit,
+        takenAt: e.takenAt ?? null,
+        ...(use ? { lat: e.lat, lon: e.lon, ...(Number.isFinite(e.ele) ? { ele: e.ele } : {}), ...(Number.isFinite(e.direction) ? { direction: e.direction } : {}) } : {}),
+        useLocation: use,
+      };
+    }),
+  };
+}
+
+/* ------------------------------------------------------------------ *
  * the tour entry and the files
  * ------------------------------------------------------------------ */
 const numOr = (v) => (v === '' || v == null || !Number.isFinite(+v) ? null : +v);
@@ -808,6 +1034,7 @@ function howText(slug, hasGpx) {
     `2. ${slug}.tour.json  ->  open data/tours.json and paste the object inside it`,
     '   at the end of the list, before the closing ]. Put a comma after the',
     '   tour before it.',
+    ...(state.photos.some((p) => p.readable) ? [`3. photos/${slug}/  ->  data/photos/${slug}/  (the whole folder, with photos.json)`] : []),
     '',
     'Then:',
     '  npm test                         checks the new entry (names, region, links)',
@@ -871,6 +1098,17 @@ function checks(t) {
     if (state.points.length > 20000) add('warn', `${state.points.length} points is a lot; the map is fine with it, but the file is large.`);
     if (st.hasTimes && state.optTimes) add('warn', 'Timestamps are kept: the file shows when you were there.');
   }
+  if (state.photos.length) {
+    const bad = state.photos.filter((p) => !p.readable).length;
+    const loc = state.photos.filter((p) => p.useLocation && Number.isFinite(p.exif.lat));
+    add('ok', `${state.photos.length - bad} photo${state.photos.length - bad === 1 ? '' : 's'}, ${loc.length} on the map.`);
+    if (bad) add('warn', `${bad} photo${bad === 1 ? '' : 's'} cannot be read here and will be left out (HEIC: export as JPEG).`);
+    if (!state.form.credit.trim()) add('warn', 'Add the photographer’s name for the © line.');
+    if (t.lat != null && t.lon != null) {
+      const far = loc.filter((p) => hav(t, p.exif) > 10000).length;
+      if (far) add('warn', `${far} photo${far === 1 ? ' was' : 's were'} taken more than 10 km from the summit. Right tour?`);
+    }
+  }
   return out;
 }
 
@@ -896,9 +1134,11 @@ function renderOutput() {
   $('#outMeta').textContent = errors ? `${errors} thing${errors > 1 ? 's' : ''} to fix before the files are ready` : 'ready';
 
   const kb = (s) => `${(new Blob([s]).size / 1024).toFixed(1)} kB`;
+  const nPh = state.photos.filter((p) => p.readable).length;
   $('#files').innerHTML =
     (hasGpx ? `<div class="file"><span class="fn">${esc(slug)}.gpx</span><span class="sz">${kb(gpx)} · ${usedPoints().length} points</span><span class="where">goes in data/tracks/</span></div>` : '') +
-    `<div class="file"><span class="fn">${esc(slug)}.tour.json</span><span class="sz">${kb(tourJson)}</span><span class="where">paste into data/tours.json</span></div>`;
+    `<div class="file"><span class="fn">${esc(slug)}.tour.json</span><span class="sz">${kb(tourJson)}</span><span class="where">paste into data/tours.json</span></div>` +
+    (nPh ? `<div class="file"><span class="fn">photos/${esc(slug)}/</span><span class="sz">${nPh} photo${nPh === 1 ? '' : 's'} + photos.json</span><span class="where">goes in data/photos/${esc(slug)}/ (in the .zip)</span></div>` : '');
 
   const dis = errors ? ' disabled' : '';
   $('#actions').innerHTML =
@@ -907,9 +1147,12 @@ function renderOutput() {
     `<button class="btn" type="button" id="dlJson"${dis}>${esc(slug)}.tour.json</button>` +
     `<button class="btn" type="button" id="cpJson">Copy tour entry</button>`;
 
-  const pv = state.tab === 'gpx' ? (hasGpx ? gpxPreview(gpx) : 'No track loaded.') : state.tab === 'how' ? howText(slug, hasGpx) : tourJson;
+  const pv = state.tab === 'gpx' ? (hasGpx ? gpxPreview(gpx) : 'No track loaded.')
+    : state.tab === 'how' ? howText(slug, hasGpx)
+    : state.tab === 'ph' ? (nPh ? JSON.stringify(photoManifest(tour), null, 2) : 'No photos added.')
+    : tourJson;
   $('#preview').textContent = pv;
-  ['json', 'gpx', 'how'].forEach((k) => $(`#tab${k === 'json' ? 'Json' : k === 'gpx' ? 'Gpx' : 'How'}`).setAttribute('aria-selected', String(state.tab === k)));
+  for (const [id, k] of [['#tabJson', 'json'], ['#tabGpx', 'gpx'], ['#tabPh', 'ph'], ['#tabHow', 'how']]) $(id).setAttribute('aria-selected', String(state.tab === k));
 }
 function gpxPreview(g) {
   const lines = g.split('\n');
@@ -961,7 +1204,7 @@ function makeZip(files) {
   const dosTime = (now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1);
   const dosDate = ((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate();
   for (const f of files) {
-    const name = enc.encode(f.name), data = enc.encode(f.data), crc = crc32(data);
+    const name = enc.encode(f.name), data = typeof f.data === 'string' ? enc.encode(f.data) : f.data, crc = crc32(data);
     const h = new DataView(new ArrayBuffer(30));
     h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(8, 0, true);
     h.setUint16(10, dosTime, true); h.setUint16(12, dosDate, true); h.setUint32(14, crc, true);
@@ -1155,6 +1398,27 @@ const drop = $('#drop');
 drop.addEventListener('drop', (e) => { const f = e.dataTransfer?.files?.[0]; if (f) loadFile(f); });
 $('#fileIn').addEventListener('change', (e) => { const f = e.target.files?.[0]; if (f) loadFile(f); e.target.value = ''; });
 
+// photos
+const phDrop = $('#phDrop');
+['dragenter', 'dragover'].forEach((ev) => phDrop.addEventListener(ev, (e) => { e.preventDefault(); phDrop.classList.add('over'); }));
+['dragleave', 'drop'].forEach((ev) => phDrop.addEventListener(ev, (e) => { e.preventDefault(); phDrop.classList.remove('over'); }));
+phDrop.addEventListener('drop', (e) => { if (e.dataTransfer?.files?.length) addPhotos(e.dataTransfer.files); });
+$('#phIn').addEventListener('change', (e) => { if (e.target.files?.length) addPhotos(e.target.files); e.target.value = ''; });
+const phById = (id) => state.photos.find((p) => p.id === +id);
+$('#phList').addEventListener('input', (e) => {
+  const p = phById(e.target.dataset.cap); if (p) { p.caption = e.target.value; if (state.tab === 'ph') renderOutput(); }
+});
+$('#phList').addEventListener('change', (e) => {
+  const p = phById(e.target.dataset.use); if (!p) return;
+  p.useLocation = e.target.checked; renderPlan(); renderOutput();
+});
+$('#phList').addEventListener('click', (e) => {
+  const id = e.target.closest('[data-rmph]')?.dataset.rmph; if (!id) return;
+  const p = phById(id); if (p) URL.revokeObjectURL(p.url);
+  state.photos = state.photos.filter((x) => x.id !== +id);
+  renderPhotoList(); renderPlan(); renderOutput();
+});
+
 // output actions
 $('#actions').addEventListener('click', async (e) => {
   const id = e.target.closest('button')?.id; if (!id || !lastOut) return;
@@ -1173,15 +1437,37 @@ $('#actions').addEventListener('click', async (e) => {
   if (id === 'dlZip') {
     const files = [{ name: `${o.slug}.tour.json`, data: o.tourJson + '\n' }, { name: 'WHERE-THESE-GO.txt', data: howText(o.slug, o.hasGpx) + '\n' }];
     if (o.hasGpx) files.unshift({ name: `${o.slug}.gpx`, data: o.gpx });
+    const ok = state.photos.filter((p) => p.readable);
+    if (ok.length) {
+      const btn = e.target.closest('button');
+      btn.disabled = true;
+      btn.textContent = 'Preparing photos…';
+      try {
+        const manifest = photoManifest(o.tour);
+        for (let k = 0; k < ok.length; k++) {
+          const r = await processPhoto(ok[k]);
+          manifest.photos[k].width = r.w;
+          manifest.photos[k].height = r.h;
+          files.push({ name: `photos/${o.slug}/${manifest.photos[k].file}`, data: r.bytes });
+        }
+        files.push({ name: `photos/${o.slug}/photos.json`, data: JSON.stringify(manifest, null, 2) + '\n' });
+      } catch (err) {
+        toast(`A photo could not be prepared: ${err.message}`);
+        renderOutput();
+        return;
+      }
+      renderOutput();
+    }
     return saveFile(`${o.slug}.zip`, makeZip(files));
   }
 });
-for (const [id, tab] of [['#tabJson', 'json'], ['#tabGpx', 'gpx'], ['#tabHow', 'how']]) $(id).addEventListener('click', () => { state.tab = tab; renderOutput(); });
+for (const [id, tab] of [['#tabJson', 'json'], ['#tabGpx', 'gpx'], ['#tabPh', 'ph'], ['#tabHow', 'how']]) $(id).addEventListener('click', () => { state.tab = tab; renderOutput(); });
 
 $('#newBtn').addEventListener('click', () => {
   if (!state.example && (state.form.name || state.points.length) && !confirm('Clear this tour and start a new one? The current draft is removed from this browser.')) return;
   store.clear();
-  Object.assign(state, { file: null, points: [], form: blankForm(), example: false, optAscent: false, optTimes: false });
+  state.photos.forEach((p) => URL.revokeObjectURL(p.url));
+  Object.assign(state, { file: null, points: [], form: blankForm(), example: false, optAscent: false, optTimes: false, photos: [] });
   st = null; hoverI = null;
   afterChange(true);
   $('#fName').focus();
@@ -1200,5 +1486,6 @@ if (draft && (draft.form?.name || draft.points?.length)) {
 }
 st = state.points.length ? trackStats(state.points) : null;
 afterChange(true);
+renderPhotoList();
 })();
 </script>

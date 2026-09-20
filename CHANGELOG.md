@@ -3,6 +3,24 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v4.2 — photos, descent aspect, own tracks in red (2026-09-20)
+
+- **Your photos.** The tour editor takes photos, reads position, height,
+  camera direction and time from their EXIF, shows them on the track, and
+  packs them as `photos/<slug>/` with a `photos.json` into the .zip. Images
+  are resized to 2048 px and saved without metadata; positions live only in
+  `photos.json`, and only for photos you leave "on the map".
+- The main tool reads `data/photos/<slug>/` (mounted read-only, no rebuild)
+  and shows them first in the tour panel, numbered and in red, with a marker
+  and camera-direction cone on the route map. New endpoints
+  `/api/own-photos` and `/api/own-photo`, serving only listed files.
+- **Descent aspect** as a compass rose: small in the tour list, large in the
+  tour panel ("Descent aspect", with a note when it is still "varied").
+- **Your own GPX tracks** are marked in red in the tour list (`--own`, the
+  ramp's red step, a shade apart from the alert red).
+- `docker-compose.yml` mounts `./data/photos`; create it with
+  `mkdir -p data/photos` on the Pi.
+
 ## v4.1 — tour editor (2026-09-20)
 
 - `editor/tour-editor.html`: a standalone page for your own tours. Load a GPX

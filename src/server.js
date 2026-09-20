@@ -9,6 +9,7 @@ import { evaluateAlerts, runAlerts } from './alerts.js';
 import { startScheduler } from './scheduler.js';
 import { findTour, getRoute, routeGpx, getForecast, warmRoutes, getPhotos, getPhotoThumb, trackStatuses } from './tracks.js';
 import { getTerrain } from './terrain.js';
+import { getOwnPhotos, getOwnPhotoFile } from './own-photos.js';
 import { getResorts } from './resorts.js';
 import { getOutlook } from './outlook.js';
 import { serveTile } from './tiles.js';
@@ -177,7 +178,7 @@ async function handleApi(req, res, url) {
 
   // Per-tour routes and forecasts. Only tours from data/tours.json, by name
   // or slug: never arbitrary coordinates (see src/tracks.js for why).
-  if (['/api/track', '/api/track.gpx', '/api/forecast', '/api/terrain', '/api/photos', '/api/photo'].includes(route)) {
+  if (['/api/track', '/api/track.gpx', '/api/forecast', '/api/terrain', '/api/photos', '/api/photo', '/api/own-photos', '/api/own-photo'].includes(route)) {
     const tour = await findTour(url.searchParams.get('tour') ?? '');
     if (!tour) return json(res, 404, { error: 'unknown tour' });
 
@@ -205,6 +206,19 @@ async function handleApi(req, res, url) {
       if (!thumb) return json(res, 404, { error: 'no such photo' });
       res.writeHead(200, { 'Content-Type': thumb.type, 'Content-Length': thumb.body.length, 'Cache-Control': 'public, max-age=604800' });
       return res.end(thumb.body);
+    }
+
+    // Your own photos (data/photos/<slug>/, made with the tour editor).
+    if (route === '/api/own-photos') {
+      return json(res, 200, await getOwnPhotos(tour), { 'Cache-Control': 'public, max-age=60' });
+    }
+    if (route === '/api/own-photo') {
+      const raw = url.searchParams.get('i') ?? '';
+      if (!/^\d{1,2}$/.test(raw)) return json(res, 400, { error: 'bad index' });
+      const f = await getOwnPhotoFile(tour, Number(raw)).catch(() => null);
+      if (!f) return json(res, 404, { error: 'no such photo' });
+      res.writeHead(200, { 'Content-Type': f.type, 'Content-Length': f.body.length, 'Cache-Control': 'public, max-age=3600' });
+      return res.end(f.body);
     }
 
     if (route === '/api/forecast') {

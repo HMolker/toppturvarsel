@@ -101,11 +101,17 @@ export function renderRouteMap(el, { route, tour, country, terrain = null, photo
   // Numbered photo markers, for photos that fall inside the map.
   const photoSvg = (photos ?? [])
     .map((ph, k) => {
+      // Your own photos without a position have no marker, but keep their number.
+      if (!Number.isFinite(ph.lat) || !Number.isFinite(ph.lon)) return '';
       const [x, y] = px(f, ph);
       if (x < 8 || y < 8 || x > W - 8 || y > H - 8) return '';
       return (
-        `<g class="photomk" data-photo="${k}" transform="translate(${x.toFixed(1)} ${y.toFixed(1)})">` +
-        `<rect x="-8" y="-8" width="16" height="16" rx="3" fill="var(--paper)" stroke="var(--ink)" stroke-width="1.5"/>` +
+        `<g class="photomk${ph.own ? ' own' : ''}" data-photo="${k}" transform="translate(${x.toFixed(1)} ${y.toFixed(1)})">` +
+        // Your own photo: a pointer showing which way the camera faced, when known.
+        (ph.own && Number.isFinite(ph.direction)
+          ? `<path d="M0 0 L-5 -17 A18 18 0 0 1 5 -17 Z" transform="rotate(${ph.direction.toFixed(0)})" class="photodir"/>`
+          : '') +
+        `<rect x="-8" y="-8" width="16" height="16" rx="3" fill="var(--paper)" stroke="${ph.own ? 'var(--own)' : 'var(--ink)'}" stroke-width="1.5"/>` +
         `<text y="4" text-anchor="middle" class="photonum">${k + 1}</text></g>`
       );
     })
@@ -353,7 +359,7 @@ export function renderForecast(el, fc) {
  * photos near the summit
  * ------------------------------------------------------------------ */
 
-export function renderPhotos(el, data, tour, mapEl) {
+export function renderPhotos(el, data, tour, mapEl, offset = 0) {
   if (!data) {
     el.innerHTML = '<p class="note">Looking for photos near the summit…</p>';
     return;
@@ -371,8 +377,8 @@ export function renderPhotos(el, data, tour, mapEl) {
     photos
       .map(
         (p, k) =>
-          `<a class="photo" data-photo="${k}" href="${esc(p.pageUrl)}" target="_blank" rel="noopener" title="Open on Wikimedia Commons">` +
-          `<span class="photonumtag">${k + 1}</span>` +
+          `<a class="photo" data-photo="${k + offset}" href="${esc(p.pageUrl)}" target="_blank" rel="noopener" title="Open on Wikimedia Commons">` +
+          `<span class="photonumtag">${k + offset + 1}</span>` +
           `<img src="/api/photo?tour=${q}&i=${p.i ?? k}" alt="${esc(p.title)}" loading="lazy" onerror="this.closest('.photo').classList.add('noimg')">` +
           `<span class="photocap"><strong>${esc(p.from)}</strong>` +
           `<span>© ${esc(p.author)} · ${esc(p.license)}${p.date ? ` · ${esc(p.date)}` : ''}</span></span></a>`
@@ -381,7 +387,35 @@ export function renderPhotos(el, data, tour, mapEl) {
     `</div><p class="note">Openly licensed photos within 5 km of the summit, from Wikimedia Commons. ` +
     `Numbers match the markers on the map. Photos show the place, not today's conditions.</p>`;
 
-  // Hover a card: highlight its marker on the map, and the reverse.
+  linkPhotoHover(el, mapEl);
+}
+
+/* ------------------------------------------------------------------ *
+ * your own photos (data/photos/<slug>/, made with the tour editor)
+ * ------------------------------------------------------------------ */
+
+export function renderOwnPhotos(el, photos, tour, mapEl) {
+  const q = encodeURIComponent(tour.name);
+  const when = (iso) => (iso ? new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
+  el.innerHTML =
+    `<div class="photogrid">` +
+    photos
+      .map(
+        (p, k) =>
+          `<a class="photo own" data-photo="${k}" href="/api/own-photo?tour=${q}&i=${p.i}" target="_blank" rel="noopener" title="Open full size">` +
+          `<span class="photonumtag">${k + 1}</span>` +
+          `<img src="/api/own-photo?tour=${q}&i=${p.i}" alt="${esc(p.caption || tour.name)}" loading="lazy" onerror="this.closest('.photo').classList.add('noimg')">` +
+          `<span class="photocap">${p.caption ? `<strong>${esc(p.caption)}</strong>` : ''}` +
+          `<span>${[p.credit && `© ${esc(p.credit)}`, when(p.takenAt), p.located ? 'on the map' : 'no position']
+            .filter(Boolean).join(' · ')}</span></span></a>`
+      )
+      .join('') +
+    `</div>`;
+  linkPhotoHover(el, mapEl);
+}
+
+/** Hover a card: highlight its marker on the map, and the reverse. */
+function linkPhotoHover(el, mapEl) {
   const mark = (k, on) => {
     mapEl?.querySelector(`.photomk[data-photo="${k}"]`)?.classList.toggle('on', on);
     el.querySelector(`.photo[data-photo="${k}"]`)?.classList.toggle('on', on);

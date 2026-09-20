@@ -1,6 +1,6 @@
 {
   "name": "toppturvarsel",
-  "version": "4.4.0",
+  "version": "4.5.0",
   "description": "Self-hosted ski touring conditions service: snow depth, new snow, avalanche danger, trip planner, routes and powder alerts, country by country.",
   "type": "module",
   "engines": {

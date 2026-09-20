@@ -3,6 +3,16 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v4.5 — alerts through an ordinary mailbox (2026-09-21)
+
+- The image now installs `nodemailer` (itself dependency-free), so
+  `MAIL_PROVIDER=smtp` works out of the box: alerts can go through Gmail or
+  any other mailbox with an app password, instead of needing a Resend
+  account and a verified domain. If the package cannot be fetched the build
+  still succeeds and only SMTP mail is unavailable.
+- `.env.example` and the README carry the Gmail and Outlook address lines,
+  including the app-password step and the `%40` encoding that trips people up.
+
 ## v4.4 — a simulated winter, on a button (2026-09-21)
 
 - **Simulated data** next to "Refresh now": invents a storm week over the

@@ -8,10 +8,15 @@ RUN apk add --no-cache tzdata
 # Run as the unprivileged user the base image already provides.
 WORKDIR /app
 
-# Only package.json exists to copy; there is no lockfile because there are
-# no dependencies. If you add nodemailer for SMTP, add a lockfile and an
-# `npm ci` step here.
+# The service itself has no dependencies. The one optional package is
+# nodemailer, for sending alerts through an ordinary mailbox (Gmail and the
+# like) over SMTP; it has no dependencies of its own. If it cannot be
+# fetched the build still succeeds and only SMTP mail is unavailable —
+# Resend, ntfy push and everything else are untouched.
 COPY package.json ./
+RUN npm install --omit=dev --no-audit --no-fund nodemailer@^6.9 \
+    || echo "nodemailer not installed: MAIL_PROVIDER=smtp will be unavailable"
+
 COPY src ./src
 COPY public ./public
 COPY data ./data

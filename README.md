@@ -323,6 +323,28 @@ SMTP_URL=smtps://user:pass@smtp.example.com:465
 SMTP needs one dependency: `npm install nodemailer` and rebuild. It is loaded
 dynamically, so nothing is pulled in unless you ask for it.
 
+#### Through your own mailbox (Gmail, Outlook, …)
+
+`MAIL_PROVIDER=smtp` sends through any ordinary mailbox. Gmail needs an app
+password, not your account password:
+
+1. Google Account → Security → turn on 2-Step Verification (required).
+2. Security → App passwords → create one for "Mail"; Google shows 16 letters
+   in four groups. Write them without the spaces.
+3. In `.env`:
+
+```
+MAIL_PROVIDER=smtp
+MAIL_TO=you@gmail.com
+MAIL_FROM=you@gmail.com
+SMTP_URL=smtps://you%40gmail.com:abcdefghijklmnop@smtp.gmail.com:465
+```
+
+`@` in the user name is written `%40`. `MAIL_FROM` must be the mailbox you
+log in as; Gmail rewrites anything else. The image installs `nodemailer` at
+build time for this; if that download fails the build still succeeds and
+SMTP simply stays unavailable (the log says so).
+
 ### Alerts by phone push (ntfy)
 
 ```env

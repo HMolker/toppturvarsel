@@ -126,6 +126,21 @@ test('serves the frontend and refuses path traversal', async () => {
   });
 });
 
+test('the tour editor is served at /editor, marked as a read-only preview', async () => {
+  await withServer(async (base) => {
+    const res = await fetch(`${base}/editor`);
+    assert.equal(res.status, 200);
+    assert.match(res.headers.get('content-type'), /text\/html/);
+    const html = await res.text();
+    // The marker is what turns off loading and saving in the page.
+    assert.match(html, /window\.FJALLSKRED_PREVIEW = true/);
+    assert.match(html, /<title>Fjällskred Tour Editor<\/title>/);
+    assert.equal((await fetch(`${base}/editor`, { method: 'POST' })).status, 405);
+    // Only that one file: the folder is not browsable.
+    assert.equal((await fetch(`${base}/editor/sync-data.mjs`)).status, 404);
+  });
+});
+
 test('unknown API routes 404 rather than falling through to static', async () => {
   await withServer(async (base) => {
     const res = await fetch(`${base}/api/nope`);

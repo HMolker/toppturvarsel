@@ -355,6 +355,10 @@ unhealthy instead of looking fine.
 
 ## Adding your own tours
 
+There is a preview of the editor in the running service at **/editor** (the
+"Tour editor" button on the Tours card). It shows the parts but cannot load
+or save anything yet.
+
 **The easy way:** open `editor/tour-editor.html` in a browser (double-click
 it; no server needed). Load your GPX, fill in the fields, add photos if you
 like, and download the .zip it makes: the track for `data/tracks/`, the entry

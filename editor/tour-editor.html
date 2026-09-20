@@ -190,6 +190,12 @@ pre.preview { margin: 0; padding: 12px; background: var(--page); border: 1px sol
 .ph .phuse { font-size: 13px; display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
 .ph input[type=text] { min-height: 36px; padding: 7px 10px; font-size: 14px; }
 @media (max-width: 560px) { .ph { grid-template-columns: 72px minmax(0, 1fr); } .ph img { width: 72px; height: 54px; } .ph .x { grid-column: 2; justify-self: end; } }
+dialog#nyDlg { max-width: 460px; border: 1px solid var(--line); border-radius: var(--r-card); background: var(--paper); color: var(--ink); padding: 20px; }
+dialog#nyDlg::backdrop { background: rgba(26, 26, 26, .35); }
+dialog#nyDlg h3 { margin: 0 0 8px; font-size: 18px; }
+dialog#nyDlg p { margin: 0 0 12px; font-size: 14.5px; line-height: 1.5; }
+dialog#nyDlg form { display: flex; justify-content: flex-end; }
+.preview-off { opacity: .6; }
 footer { max-width: 1440px; margin: 0 auto; padding: 0 20px 40px; color: var(--muted); font-size: 13px; }
 @media (prefers-reduced-motion: no-preference) { .btn, .seg5 button, .rose .seg { transition: background-color .12s, border-color .12s, color .12s; } }
 </style>
@@ -204,6 +210,17 @@ footer { max-width: 1440px; margin: 0 auto; padding: 0 20px 40px; color: var(--m
     <button class="btn" id="newBtn" type="button">Start a new tour</button>
   </div>
 </header>
+
+<div class="banner" id="previewBanner" hidden>
+  <div><strong>Preview.</strong> This is the tour editor as it will look inside Fjällskred. Nothing can be loaded or saved from here yet — the buttons show what the parts are. To make real files, open <span class="mono">editor/tour-editor.html</span> from the project folder on your own computer.</div>
+</div>
+
+<dialog id="nyDlg">
+  <h3>Not wired up yet</h3>
+  <p id="nyWhat">Loading files into the page is not supported in this preview.</p>
+  <p class="note">Adding tracks and photos to the running service needs a way to sign in first, so that anyone who can reach the page cannot write to it. Until that exists, use the standalone editor on your own computer: it makes the same files, and you copy them into <span class="mono">data/tracks/</span>, <span class="mono">data/tours.json</span> and <span class="mono">data/photos/</span>.</p>
+  <form method="dialog"><button class="btn primary" value="ok">Close</button></form>
+</dialog>
 
 <div class="banner" id="exampleBanner" hidden>
   <div><strong>Example loaded.</strong> The track and text below are made up to show how it works. Drop your own GPX file to replace them, or press “Start a new tour”.</div>
@@ -432,6 +449,19 @@ const DIFF = [
 const DRAFT_KEY = 'fjallskred.editor.draft.v1';
 
 const $ = (s) => document.querySelector(s);
+/**
+ * Preview mode: set by the service when it serves this page at /editor.
+ * The page then shows every part but refuses anything that would read or
+ * write a file, since a page anyone on the network can reach must not be
+ * able to change the tour list.
+ */
+const PREVIEW = !!window.FJALLSKRED_PREVIEW;
+function notYet(what) {
+  const dlg = $('#nyDlg');
+  $('#nyWhat').textContent = what;
+  if (typeof dlg?.showModal === 'function') dlg.showModal();
+  else alert(`${what}\n\nUse editor/tour-editor.html on your own computer to make the files.`);
+}
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const xmlEsc = (s) => String(s ?? '').replace(/[<>&"']/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&apos;' })[c]);
 const R = Math.PI / 180;
@@ -1173,6 +1203,7 @@ if (inViewer) {
 }
 
 async function saveFile(filename, data) {
+  if (PREVIEW) { notYet(`Saving ${filename} is not supported in this preview.`); return; }
   if (inViewer) {
     if (!downloads) { toast('Saving files is not available here. Use “Copy tour entry”.'); return; }
     try {
@@ -1296,7 +1327,9 @@ function saveDraft() {
 }
 function afterChange(full) {
   if (full) writeForm();
-  $('#exampleBanner').hidden = !state.example;
+  // In the preview the example is all there is; its "drop your own file"
+  // line would contradict the preview notice above it.
+  $('#exampleBanner').hidden = PREVIEW || !state.example;
   renderTrack();
   renderOutput();
   saveDraft();
@@ -1395,14 +1428,21 @@ $('#prof').addEventListener('pointerleave', () => { hoverI = null; renderProfile
 const drop = $('#drop');
 ['dragenter', 'dragover'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add('over'); }));
 ['dragleave', 'drop'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
-drop.addEventListener('drop', (e) => { const f = e.dataTransfer?.files?.[0]; if (f) loadFile(f); });
+drop.addEventListener('drop', (e) => {
+  if (PREVIEW) return notYet('Loading a GPX track is not supported in this preview.');
+  const f = e.dataTransfer?.files?.[0];
+  if (f) loadFile(f);
+});
 $('#fileIn').addEventListener('change', (e) => { const f = e.target.files?.[0]; if (f) loadFile(f); e.target.value = ''; });
 
 // photos
 const phDrop = $('#phDrop');
 ['dragenter', 'dragover'].forEach((ev) => phDrop.addEventListener(ev, (e) => { e.preventDefault(); phDrop.classList.add('over'); }));
 ['dragleave', 'drop'].forEach((ev) => phDrop.addEventListener(ev, (e) => { e.preventDefault(); phDrop.classList.remove('over'); }));
-phDrop.addEventListener('drop', (e) => { if (e.dataTransfer?.files?.length) addPhotos(e.dataTransfer.files); });
+phDrop.addEventListener('drop', (e) => {
+  if (PREVIEW) return notYet('Adding photos is not supported in this preview.');
+  if (e.dataTransfer?.files?.length) addPhotos(e.dataTransfer.files);
+});
 $('#phIn').addEventListener('change', (e) => { if (e.target.files?.length) addPhotos(e.target.files); e.target.value = ''; });
 const phById = (id) => state.photos.find((p) => p.id === +id);
 $('#phList').addEventListener('input', (e) => {
@@ -1476,6 +1516,17 @@ $('#newBtn').addEventListener('click', () => {
 /* ------------------------------------------------------------------ *
  * start: your draft if there is one, otherwise the example
  * ------------------------------------------------------------------ */
+if (PREVIEW) {
+  $('#previewBanner').hidden = false;
+  // Clicking the drop area explains instead of opening a file chooser:
+  // preventDefault on the label stops it activating its file input.
+  for (const [input, dropEl, what] of [['#fileIn', '#drop', 'Loading a GPX track is not supported in this preview.'],
+    ['#phIn', '#phDrop', 'Adding photos is not supported in this preview.']]) {
+    $(dropEl).classList.add('preview-off');
+    $(dropEl).addEventListener('click', (e) => { e.preventDefault(); notYet(what); });
+    $(input).addEventListener('click', (e) => e.preventDefault());
+  }
+}
 fillCountries();
 $('#fFrom').innerHTML = $('#fTo').innerHTML = MONTHS.map((m) => `<option>${m}</option>`).join('');
 const draft = store.get();

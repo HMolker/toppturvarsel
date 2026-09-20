@@ -15,6 +15,8 @@ COPY package.json ./
 COPY src ./src
 COPY public ./public
 COPY data ./data
+# The tour editor is served (read-only) at /editor.
+COPY editor ./editor
 
 # The snapshot cache lives here; mount a volume so it survives restarts.
 RUN mkdir -p /app/data/cache && chown -R node:node /app

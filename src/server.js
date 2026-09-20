@@ -17,6 +17,26 @@ import { slugify } from './util/gpx.js';
 import { log } from './util/log.js';
 
 const PUBLIC_DIR = fileURLToPath(new URL('../public', import.meta.url));
+const EDITOR_FILE = fileURLToPath(new URL('../editor/tour-editor.html', import.meta.url));
+
+/**
+ * The tour editor, served at /editor as a PREVIEW: the page is the same
+ * single file you can open from your computer, but the copy served here is
+ * marked read-only, so loading a track or photos and saving files say "not
+ * supported yet" instead of half-working. Writing tours into the running
+ * service needs a way to authenticate first; until then the real editing is
+ * done with editor/tour-editor.html on your own machine.
+ */
+async function serveEditor(res) {
+  try {
+    const html = await readFile(EDITOR_FILE, 'utf8');
+    const body = Buffer.from(`<script>window.FJALLSKRED_PREVIEW = true;</script>\n${html}`, 'utf8');
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Content-Length': body.length, 'Cache-Control': 'no-cache' });
+    res.end(body);
+  } catch {
+    json(res, 404, { error: 'editor not installed' });
+  }
+}
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -257,6 +277,9 @@ export function createServer() {
       const tile = url.pathname.match(/^\/tiles\/([a-z]{2})\/(\d{1,2})\/(\d{1,6})\/(\d{1,6})\.png$/);
       if (tile && (req.method === 'GET' || req.method === 'HEAD')) {
         await serveTile(res, tile[1], +tile[2], +tile[3], +tile[4]);
+      } else if (url.pathname === '/editor' || url.pathname === '/editor/') {
+        if (req.method === 'GET' || req.method === 'HEAD') await serveEditor(res);
+        else json(res, 405, { error: 'method not allowed' });
       } else if (url.pathname.startsWith('/api/')) {
         await handleApi(req, res, url);
       } else if (req.method === 'GET' || req.method === 'HEAD') {

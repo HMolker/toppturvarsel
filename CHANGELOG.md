@@ -3,6 +3,17 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v4.3 — the tour editor inside the tool, as a preview (2026-09-21)
+
+- The service serves the editor at **/editor**, linked from the Tours card.
+  It is a read-only preview: every part is visible and the example tour is
+  loaded, but loading a track, adding photos or saving files opens a dialog
+  saying it is not wired up yet. Writing into a running service needs a way
+  to sign in first; until then the standalone `editor/tour-editor.html` on
+  your own computer makes the files.
+- The page itself is one file in both places: the service marks the copy it
+  serves with `window.FJALLSKRED_PREVIEW`.
+
 ## v4.2.1 — tests no longer reach the internet (2026-09-20)
 
 Fixes the red CI run. `test/tour-api.test.js` stubbed Open-Meteo but not

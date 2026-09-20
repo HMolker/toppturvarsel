@@ -553,3 +553,6 @@ svg.rose .rosel { font-family: var(--mono); font-size: 9px; font-weight: 600; fi
 .photodir { fill: var(--own); opacity: .35; }
 .photo.own { border-color: var(--own); }
 .photo.own .photonumtag { background: var(--own); color: var(--own-ink); }
+
+/* Small button, e.g. the link to the tour editor in a card header. */
+.btn.small { min-height: 32px; padding: 6px 10px; font-size: 13px; }

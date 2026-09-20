@@ -182,7 +182,12 @@ globalThis.fetch = async (url, opts = {}) => {
     return new Response(Buffer.from([0xff, 0xd8, 0xff, 0xe0]), { status: 200, headers: { 'Content-Type': 'image/jpeg' } });
   }
   if (u.includes('overpass')) return J({ elements: [] });
-  return realFetch(url, opts);
+  // The test's own server may be called; nothing else may leave the test.
+  // An unstubbed upstream request would make the result depend on the live
+  // internet: CI once reached Kartverket and profiled a synthetic route
+  // against the real terrain of Lyngen.
+  if (/^https?:\/\/(127\.0\.0\.1|localhost)[:/]/.test(u)) return realFetch(url, opts);
+  throw new Error(`unstubbed request in tests: ${u}`);
 };
 test.after(() => (globalThis.fetch = realFetch));
 

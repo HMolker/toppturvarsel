@@ -154,7 +154,12 @@ test('/api/outlook serves bulletins and every tour forecast, one request per tou
       const days = ['2027-02-10', '2027-02-11', '2027-02-12', '2027-02-13', '2027-02-14'];
       return new Response(JSON.stringify({ elevation: 1000, daily: { time: days, weather_code: [0, 0, 0, 0, 0], temperature_2m_max: [-5, -5, -5, -5, -5], temperature_2m_min: [-9, -9, -9, -9, -9], precipitation_sum: [0, 0, 0, 0, 0], snowfall_sum: [0, 0, 0, 0, 0], wind_speed_10m_max: [4, 4, 4, 4, 4], wind_gusts_10m_max: [7, 7, 7, 7, 7], wind_direction_10m_dominant: [0, 0, 0, 0, 0] } }), { status: 200, headers: { 'Content-Type': 'application/json' } });
     }
-    return realFetch(url, opts);
+    // The test's own server may be called; nothing else may leave the test.
+    // An unstubbed upstream request would make the result depend on the live
+    // internet: CI once reached Kartverket and profiled a synthetic route
+    // against the real terrain of Lyngen.
+    if (/^https?:\/\/(127\.0\.0\.1|localhost)[:/]/.test(u)) return realFetch(url, opts);
+    throw new Error(`unstubbed request in tests: ${u}`);
   };
   try {
     const server = createServer();
@@ -195,6 +200,8 @@ test('"Refresh now" has a cooldown: a fresh snapshot is returned without asking 
   let upstream = 0;
   const realFetch = globalThis.fetch;
   globalThis.fetch = async (url, opts) => {
+    // Only the test's own server may be called here; anything else would be
+    // a real upstream request, which this test exists to rule out.
     if (!String(url).startsWith('http://127.0.0.1')) upstream++;
     return realFetch(url, opts);
   };

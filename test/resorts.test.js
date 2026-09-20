@@ -106,7 +106,12 @@ globalThis.fetch = async (url, opts = {}) => {
     assert.equal(opts.method, 'POST');
     return J(overpassBody);
   }
-  return realFetch(url, opts);
+  // The test's own server may be called; nothing else may leave the test.
+  // An unstubbed upstream request would make the result depend on the live
+  // internet: CI once reached Kartverket and profiled a synthetic route
+  // against the real terrain of Lyngen.
+  if (/^https?:\/\/(127\.0\.0\.1|localhost)[:/]/.test(u)) return realFetch(url, opts);
+  throw new Error(`unstubbed request in tests: ${u}`);
 };
 test.after(() => (globalThis.fetch = realFetch));
 

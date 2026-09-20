@@ -3,6 +3,15 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v4.2.1 — tests no longer reach the internet (2026-09-20)
+
+Fixes the red CI run. `test/tour-api.test.js` stubbed Open-Meteo but not
+Kartverket, so on a machine with internet access (GitHub's runner) the
+synthetic test route was profiled against the real terrain of Lyngen and the
+ascent assertion failed. Kartverket is now stubbed, and every test's fetch
+refuses any request except to its own server: an unstubbed upstream call
+fails loudly instead of quietly depending on the network.
+
 ## v4.2 — photos, descent aspect, own tracks in red (2026-09-20)
 
 - **Your photos.** The tour editor takes photos, reads position, height,

@@ -17,7 +17,7 @@ await mkdir(path.join(tmp, 'cache'), { recursive: true });
 
 const { createServer } = await import('../src/server.js');
 
-const calls = { overpass: 0, elevation: 0, forecast: 0, tiles: 0 };
+const calls = { overpass: 0, elevation: 0, kartverket: 0, forecast: 0, tiles: 0 };
 const realFetch = globalThis.fetch;
 
 // A winding path from a road at sea level up to Rørnestinden (69.6533, 20.0252).
@@ -64,11 +64,23 @@ globalThis.fetch = async (url, opts = {}) => {
       hourly: { time: days.map((d) => `${d}T12:00`), freezing_level_height: [300, 0, 0, 450, 200] },
     });
   }
+  // Kartverket's point elevation API (the first choice for Norwegian tours),
+  // over the same synthetic slope as the Copernicus stub above.
+  if (u.includes('hoydedata') || u.includes('geonorge')) {
+    calls.kartverket++;
+    const pts = JSON.parse(new URL(u).searchParams.get('punkter'));
+    return J({ koordsys: 4258, punkter: pts.map(([lon, lat]) => ({ datakilde: 'dtm1', x: lon, y: lat, z: Math.round(((lat - 69.64) / 0.0134) * 1000) })) });
+  }
   if (u.includes('kartverket') || u.includes('opentopomap')) {
     calls.tiles++;
     return new Response(Buffer.from([0x89, 0x50, 0x4e, 0x47]), { status: 200, headers: { 'Content-Type': 'image/png' } });
   }
-  return realFetch(url, opts);
+  // The test's own server may be called; nothing else may leave the test.
+  // An unstubbed upstream request would make the result depend on the live
+  // internet: CI once reached Kartverket and profiled a synthetic route
+  // against the real terrain of Lyngen.
+  if (/^https?:\/\/(127\.0\.0\.1|localhost)[:/]/.test(u)) return realFetch(url, opts);
+  throw new Error(`unstubbed request in tests: ${u}`);
 };
 test.after(() => (globalThis.fetch = realFetch));
 
@@ -93,6 +105,10 @@ test('derives, profiles and caches a route for a listed tour', async () => {
     const expected = Math.min(100, Math.ceil(r.profile.stats.distanceM / 50) + 1);
     assert.ok(Math.abs(r.profile.samples.length - expected) <= 1, `${r.profile.samples.length} samples for ${r.profile.stats.distanceM} m`);
     assert.ok(r.profile.stats.ascentM > 900 && r.profile.stats.ascentM < 1100, `ascent ${r.profile.stats.ascentM}`);
+    // The heights must come from the stubs, never from the live services:
+    // a Norwegian tour profiles against Kartverket's model.
+    assert.equal(r.profile.source, 'kartverket-dtm');
+    assert.ok(calls.kartverket > 0, 'Kartverket was asked, and answered from the stub');
 
     // Second call is served from cache: no new upstream calls.
     const before = { ...calls };

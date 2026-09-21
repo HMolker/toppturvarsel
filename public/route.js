@@ -393,7 +393,7 @@ export function renderForecast(el, fc, tour = null, bulletins = []) {
 
   el.innerHTML =
     `<table class="fc">` +
-    `<caption class="note">Daily forecast at the summit (${esc(fc.elevation ?? fc.requestedElevation ?? '?')} m), from Open-Meteo (MET Nordic / ECMWF).</caption>` +
+    `<caption class="note">Daily forecast at ${esc(fc.place ?? 'the summit')} (${esc(fc.elevation ?? fc.requestedElevation ?? '?')} m), from Open-Meteo (MET Nordic / ECMWF).</caption>` +
     `<thead><tr><th scope="row"><span class="sr">Day</span></th>${days
       .map((d, i) => `<th scope="col"><span class="eyebrow">${dayName(d.date, i)}</span><span class="fcdate">${d.date.slice(8, 10)}.${d.date.slice(5, 7)}</span></th>`)
       .join('')}</tr></thead><tbody>` +

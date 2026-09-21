@@ -97,7 +97,7 @@ export function layoutResorts(pts, { detail, width, height, blocked = [] }) {
       continue;
     }
     taken.push(box);
-    const w = nameWidth(p.r.name) + (p.r.url ? 8 : 0);
+    const w = nameWidth(p.r.name);
     // Near the map edge the name slides inward rather than being dropped.
     let nx = p.x;
     if (nx - w / 2 < 3) nx = 3 + w / 2;
@@ -117,19 +117,15 @@ export function resortSvg({ dots, badges }) {
   for (const { r, x, y } of dots) {
     const sh = shade(mainCount(r));
     out.push(
-      `<rect class="resortdot" x="${(x - 3).toFixed(1)}" y="${(y - 3).toFixed(1)}" width="6" height="6" rx="1" ` +
+      `<rect class="resortdot" data-resort="${esc(r.id)}" x="${(x - 3).toFixed(1)}" y="${(y - 3).toFixed(1)}" width="6" height="6" rx="1" ` +
         `fill="${sh.bg}" stroke="${sh.unknown || sh.closed ? 'var(--steel)' : 'var(--marker-edge)'}" stroke-width=".9"` +
         `${sh.unknown ? ' stroke-dasharray="1.6 1.2"' : ''}><title>${esc(tooltip(r))}</title></rect>`
     );
   }
   for (const { r, x, y, named, nameDx = 0 } of badges) {
     const tx = nameDx.toFixed(1);
-    const name = named
-      ? r.url
-        ? `<a href="${esc(r.url)}" target="_blank" rel="noopener noreferrer" class="resortlink">` +
-          `<text x="${tx}" y="12" text-anchor="middle" class="resortname">${esc(r.name)} ↗</text></a>`
-        : `<text x="${tx}" y="12" text-anchor="middle" class="resortname nolink">${esc(r.name)}</text>`
-      : '';
+    // The name opens the resort's panel (with its website link), like a tour.
+    const name = named ? `<text x="${tx}" y="12" text-anchor="middle" class="resortname">${esc(r.name)}</text>` : '';
     out.push(
       `<g class="resort" data-resort="${esc(r.id)}" transform="translate(${x.toFixed(1)} ${y.toFixed(1)})">` +
         `<title>${esc(tooltip(r))}</title>` +

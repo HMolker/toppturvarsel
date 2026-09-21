@@ -3,6 +3,25 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v4.11 — snow through the winter, and a panel for each ski resort (2026-09-22)
+
+- **Snow depth this winter** in every tour panel: this winter's modelled
+  depth (solid) against the average of the five winters before (dashed)
+  and their range (shaded), with today's value as a red dot and how it
+  compares ("73 cm today, −53 % vs average"). Hover for any day. From NVE
+  seNorge at the tour's grid cell, via the new `GET /api/snowhistory`:
+  past winters are fetched once and cached for good, the current one is
+  refreshed every 6 hours. Out of season it shows the winter just gone;
+  in simulated mode a made-up winter so far.
+- **Ski resorts open a panel**, like tours: open or closed today, lifts
+  and slopes open with bars, season dates, the avalanche region and its
+  danger for off-piste, modelled snow at the nearest tour, touring
+  objectives within 40 km with today's planner score, the 5-day forecast
+  at the resort (`/api/forecast?resort=<id>`, listed resorts only), a map,
+  and the website. The map's resort names no longer jump straight to the
+  website; the panel links to it.
+- The map tile proxy also serves the areas around listed ski resorts.
+
 ## v4.10 — wet snow in the best window (2026-09-22)
 
 - **Wet-snow hours:** the best window now knows that warming makes the

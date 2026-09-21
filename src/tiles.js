@@ -52,7 +52,22 @@ export function tileAllowed(z, x, y, boxes) {
 }
 
 let boxesPromise = null;
-const boxes = () => (boxesPromise ??= tourBoxes());
+let resortBoxes = null;
+// Tours, plus ski resorts once their list has loaded (the resort view has a
+// map too). The resort list is only ever the one from Fnugg / OpenStreetMap.
+const boxes = async () => {
+  const tours = await (boxesPromise ??= tourBoxes());
+  if (!resortBoxes) {
+    try {
+      const { getResorts } = await import('./resorts.js');
+      const list = (await getResorts()).resorts ?? [];
+      if (list.length) resortBoxes = list.map((r) => ({ lat: r.lat, lon: r.lon, country: r.country }));
+    } catch {
+      /* not yet: tours only this time */
+    }
+  }
+  return resortBoxes ? [...tours, ...resortBoxes] : tours;
+};
 
 export async function serveTile(res, src, z, x, y) {
   const send = (status, body, type = 'text/plain') => {

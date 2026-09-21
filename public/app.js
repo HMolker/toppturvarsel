@@ -1,5 +1,6 @@
 import { COAST, BORDER } from './geo.js';
 import { planTrip } from './areaplan.js';
+import { snowHistoryModel, snowHistorySvg, linkSnowHistoryHover } from './snowhistory.js';
 import { renderRouteMap, renderProfile, routeSummary, renderForecast, renderPhotos, renderOwnPhotos } from './route.js';
 import { layoutResorts, resortSvg, OPEN_BANDS } from './resorts.js';
 import { plan, haversineKm as haversine } from './planner.js';
@@ -560,6 +561,8 @@ $('#map').addEventListener('click', (e) => {
   }
   const tour = e.target.closest('g.tourpin');
   if (tour) return selectTour(tour.dataset.tour);
+  const resort = e.target.closest('[data-resort]');
+  if (resort) return selectResort(resort.dataset.resort);
   const reg = e.target.closest('g.reg');
   if (reg) selectRegion(reg.dataset.region);
 });
@@ -926,6 +929,7 @@ function selectTour(name) {
     `<p class="bulletintext">${esc(t.note)}</p>` +
     linksBlock(t.links) +
     snowBlock(t.snow, 'At this tour') +
+    `<h4 id="snowHistH">Snow depth this winter</h4><div class="snowhist" id="snowHist"><p class="note">Loading the last winters…</p></div>` +
     `<h4>Next 5 days</h4><div id="forecast"></div>` +
     bulletinBlock(reg) +
     `<div class="linkrow">` +
@@ -954,6 +958,143 @@ function selectTour(name) {
  * picked another tour by the time a response lands, it is dropped rather
  * than painted over the wrong tour.
  */
+/* ------------------------------------------------------------------ *
+ * a ski resort's panel
+ * ------------------------------------------------------------------ */
+
+function openBar(c) {
+  if (!c) return '<span class="note">not published</span>';
+  const f = c.count ? c.open / c.count : 0;
+  const band = OPEN_BANDS.find(([max]) => f < max) ?? OPEN_BANDS[OPEN_BANDS.length - 1];
+  return (
+    `<span class="rsbar"><i style="width:${Math.round(f * 100)}%;background:${band[1]}"></i></span>` +
+    `<strong>${c.open}</strong> of ${c.count} open`
+  );
+}
+
+function selectResort(id) {
+  const r = (state.resorts?.resorts ?? []).find((x) => x.id === id);
+  if (!r) return;
+  state.sel = null;
+  state.selResort = id;
+  const regs = (state.snapshot?.regions ?? []).filter((g) => !g.offMap);
+  const nearReg = regs.map((g) => ({ g, d: haversine(r, g) })).sort((a, b) => a.d - b.d)[0]?.g ?? null;
+  const tours = (state.snapshot?.tours ?? [])
+    .map((t) => ({ t, d: haversine(r, t) }))
+    .filter((x) => x.d <= 40)
+    .sort((a, b) => a.d - b.d)
+    .slice(0, 8);
+  const todayRows = new Map((state.lastPlan?.days?.[0]?.rows ?? []).map((row) => [row.tour, row]));
+  const status = r.live
+    ? r.open === false || (r.lifts && r.lifts.open === 0)
+      ? '<span class="rsstat closed">Closed today</span>'
+      : '<span class="rsstat open">Open today</span>'
+    : '<span class="rsstat unknown">No live status published</span>';
+  const season = r.season?.from || r.season?.to ? `${esc(r.season.from ?? '?')} – ${esc(r.season.to ?? '?')}` : null;
+  const src = r.source === 'fnugg' ? 'Fnugg (as reported by the resort)' : 'OpenStreetMap (position and website only)';
+
+  $('#detailTitle').textContent = r.name;
+  $('#detail').innerHTML =
+    `<div class="tourgrid">` +
+    `<div class="tourcol">` +
+    `<div class="routemap" id="routeMap"></div>` +
+    `<h4>Touring nearby</h4>` +
+    (tours.length
+      ? `<ul class="rstours">${tours
+          .map(({ t, d }) => {
+            const row = todayRows.get(t.name);
+            const score = row && (row.status === 'ok' || row.status === 'caution') ? `<span class="rsscore">${row.score}</span>` : row?.status === 'excluded' ? '<span class="rsscore off">✕</span>' : '';
+            return `<li data-tour="${esc(t.name)}" tabindex="0"><span class="rsname">${esc(t.name)}${trackTag(t.name)}</span>` +
+              `<span class="note">${Math.round(d)} km · ${t.summit_m} m · diff ${t.difficulty}/5</span>${score}</li>`;
+          })
+          .join('')}</ul><p class="note">Today's planner score, where the tour passes the avalanche filter; ✕ where it does not.</p>`
+      : '<p class="note">No listed touring objectives within 40 km.</p>') +
+    `<p class="attrib">Map © ${r.country === 'SE' ? 'OpenTopoMap, © OpenStreetMap contributors' : 'Kartverket'} · Lift status: ${esc(src)}</p>` +
+    `</div>` +
+    `<div class="tourcol">` +
+    `<dl>` +
+    `<dt>Status</dt><dd>${status}</dd>` +
+    `<dt>Lifts</dt><dd>${openBar(r.lifts)}</dd>` +
+    `<dt>Slopes</dt><dd>${openBar(r.slopes)}</dd>` +
+    (!r.live && r.mappedLifts ? `<dt>Mapped lifts</dt><dd>${r.mappedLifts} in OpenStreetMap</dd>` : '') +
+    (season ? `<dt>Season</dt><dd>${season}</dd>` : '') +
+    `<dt>Country</dt><dd>${esc(countryName(r.country))}</dd>` +
+    (nearReg ? `<dt>Avalanche region</dt><dd>${esc(nearReg.name)} — ${dangerPill(nearReg)}<br><span class="note">for off-piste and touring from the lifts</span></dd>` : '') +
+    (tours[0]?.t?.snow?.depthCm != null ? `<dt>Snow nearby</dt><dd><strong>${Math.round(tours[0].t.snow.depthCm)} cm</strong> modelled at ${esc(tours[0].t.name)} (${Math.round(tours[0].d)} km)</dd>` : '') +
+    `<dt>Position</dt><dd>${r.lat.toFixed(4)}° N, ${r.lon.toFixed(4)}° E</dd>` +
+    `</dl>` +
+    `<h4>Next 5 days</h4><div id="forecast"></div>` +
+    `<div class="linkrow">` +
+    (r.url ? `<a class="btn primary" href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">${esc(r.name)} website ↗</a>` : '') +
+    `<a class="btn" href="https://www.openstreetmap.org/?mlat=${r.lat}&amp;mlon=${r.lon}#map=13/${r.lat}/${r.lon}" target="_blank" rel="noopener noreferrer">Map ↗</a>` +
+    (nearReg && !nearReg.offMap ? `<button class="btn" data-region="${esc(nearReg.id)}">Region overview</button>` : '') +
+    `</div>` +
+    `</div></div>`;
+
+  renderRouteMap($('#routeMap'), { route: null, tour: { name: r.name, lat: r.lat, lon: r.lon }, country: r.country });
+  renderForecast($('#forecast'), null);
+  const still = () => state.selResort === id && !state.sel;
+  if (state.simulated) {
+    // The simulation has no resort forecasts; the nearest tour's summit stands in, and says so.
+    const near = tours[0]?.t;
+    const fc = near ? state.outlook?.forecasts?.[near.name] : null;
+    renderForecast($('#forecast'), fc ? { ...fc, place: `${near.name}, the nearest tour summit,` } : { error: 'not part of the simulation' });
+  } else {
+    fetch(`/api/forecast?resort=${encodeURIComponent(id)}`)
+      .then((res) => res.json().then((b) => (res.ok ? b : { error: b.detail ?? b.error ?? `HTTP ${res.status}` })))
+      .catch((err) => ({ error: err.message }))
+      .then((fc) => still() && renderForecast($('#forecast'), fc.error ? fc : { ...fc, place: 'the resort' }));
+  }
+  drawMap();
+  $('#detailCard').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+$('#detail').addEventListener('click', (e) => {
+  const li = e.target.closest('.rstours [data-tour]');
+  if (li) selectTour(li.dataset.tour);
+});
+
+/**
+ * Snow depth through the winter: this one against the five before.
+ * Out of season (July–September) the winter just gone is drawn instead, and
+ * in simulated mode a made-up winter so far, ending at the simulated depth.
+ */
+function renderSnowHistory(el, h, t) {
+  if (!el) return;
+  if (!h || h.error || !h.seasons) {
+    el.innerHTML = `<p class="note">Snow history could not be loaded right now${h?.error ? ` (${esc(h.error)})` : ''}.</p>`;
+    return;
+  }
+  const has = (k) => (h.seasons[k]?.depth ?? []).some((v) => Number.isFinite(v));
+  let seasons = h.seasons, current = h.current, today = h.today, opts = {};
+  const prevKey = (k) => `${Number(k.slice(0, 4)) - 1}-${k.slice(2, 4)}`;
+  if (state.simulated) {
+    // A made-up winter so far, shaped like the average and ending at the
+    // simulated depth, "today" in mid-February.
+    const base = snowHistoryModel({ seasons, current, today: `${Number(current.slice(0, 4)) + 1}-02-15` });
+    const f = Number.isFinite(base.avgNow) && base.avgNow > 0 ? Math.max(0.4, Math.min(1.8, (t.snow?.depthCm ?? base.avgNow) / base.avgNow)) : 1;
+    const fake = base.avg.map((v, i) => (i <= base.todayIdx && Number.isFinite(v) ? Math.round(v * f * (0.93 + 0.07 * Math.sin(i / 6))) : null));
+    seasons = { ...seasons, [current]: { start: `${current.slice(0, 4)}-10-01`, depth: fake } };
+    today = base.today;
+    opts = { note: 'simulated winter' };
+  } else if (!has(current) && has(prevKey(current))) {
+    current = prevKey(current);
+    today = `${Number(current.slice(0, 4)) + 1}-06-30`;
+    opts = { lastWinter: true };
+  }
+  const m = snowHistoryModel({ seasons, current, today });
+  if (!m.past.length) {
+    el.innerHTML = '<p class="note">No earlier winters to compare with yet.</p>';
+    return;
+  }
+  el.innerHTML = snowHistorySvg(m, opts) +
+    `<p class="note">seNorge snow model at the tour's 1 km grid cell${h.altitude ? ` (${h.altitude} m)` : ''}, daily at 06:00. ` +
+    `Dashed: the average of the ${m.past.length} winters before; shaded: their lowest to highest.` +
+    (opts.lastWinter ? ' The new winter starts on 1 October; until then this shows the last one.' : '') +
+    (opts.note ? ' This winter is simulated.' : '') + `</p>`;
+  linkSnowHistoryHover(el, m, { lastWinter: Boolean(opts.lastWinter) });
+}
+
 async function loadTourExtras(t, reg) {
   const q = encodeURIComponent(t.name);
   const still = () => state.sel === t.name;
@@ -962,6 +1103,8 @@ async function loadTourExtras(t, reg) {
     fetch(url)
       .then((r) => r.json().then((b) => (r.ok ? b : { error: b.detail ?? b.error ?? `HTTP ${r.status}`, ...b })))
       .catch((e) => ({ error: e.message }));
+
+  getJson(`/api/snowhistory?tour=${q}`).then((h) => still() && renderSnowHistory($('#snowHist'), h, t));
 
   // Route, terrain and photos all feed the one map; repaint as each arrives.
   const paint = () => {

@@ -176,8 +176,10 @@ test('layout: dots zoomed out; badges, names and fallbacks zoomed in', () => {
   const edge = d.badges.find((b) => b.r.name === 'Edge');
   assert.ok(edge.named && edge.nameDx < 0, 'name near the edge slides inward');
   const svg = resortSvg(d);
-  assert.match(svg, /<a href="https:\/\/x\.no\/" target="_blank" rel="noopener noreferrer"/);
-  assert.match(svg, /class="resortname nolink">Edge</, 'no link without a homepage');
+  assert.doesNotMatch(svg, /<a /, 'names open the resort panel; the website link lives there');
+  assert.match(svg, /data-resort="Big"/);
+  assert.match(svg, /data-resort="Neighbour" x=/, 'dots are clickable too');
+  assert.match(svg, /class="resortname">Edge</);
   assert.match(tooltip(pts[0].r), /lifts 2\/20 open · slopes 1\/2 open · Fnugg/);
 });
 
@@ -185,5 +187,5 @@ test('names are escaped in the SVG', () => {
   const p = { r: { id: 'x', name: '<script>', url: 'https://a.no/?a=1&b="2"', lifts: null, slopes: null, live: false, source: 'osm' }, x: 100, y: 100 };
   const svg = resortSvg(layoutResorts([p], { detail: true, width: 560, height: 760 }));
   assert.doesNotMatch(svg, /<script>/);
-  assert.match(svg, /&amp;b=&quot;2&quot;/);
+  assert.match(svg, /&lt;script&gt;/);
 });

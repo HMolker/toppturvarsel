@@ -13,6 +13,10 @@ import { getTerrain, getSlopeGrid } from './terrain.js';
 import { getOwnPhotos, getOwnPhotoFile } from './own-photos.js';
 import { getResorts } from './resorts.js';
 import { getOutlook } from './outlook.js';
+import { getSnowHistory } from './snowhistory.js';
+import { fetchForecast } from './sources/forecast.js';
+
+const resortFc = new Map();
 import { serveTile } from './tiles.js';
 import { slugify } from './util/gpx.js';
 import { log } from './util/log.js';
@@ -234,10 +238,35 @@ async function handleApi(req, res, url) {
 
   // Per-tour routes and forecasts. Only tours from data/tours.json, by name
   // or slug: never arbitrary coordinates (see src/tracks.js for why).
-  if (['/api/track', '/api/track.gpx', '/api/forecast', '/api/terrain', '/api/photos', '/api/photo', '/api/own-photos', '/api/own-photo', '/api/slopes'].includes(route)) {
+  // A resort's forecast: only resorts from the resort list, by id, never
+  // arbitrary coordinates (same reason as for tours).
+  if (route === '/api/forecast' && url.searchParams.has('resort')) {
+    const id = url.searchParams.get('resort');
+    const list = (await getResorts().catch(() => null))?.resorts ?? [];
+    const r = list.find((x) => x.id === id);
+    if (!r) return json(res, 404, { error: 'unknown resort' });
+    const hit = resortFc.get(id);
+    if (hit && Date.now() - hit.at < 2 * 3600e3) return json(res, 200, hit.value);
+    try {
+      const value = { resort: r.name, where: { lat: r.lat, lon: r.lon }, ...(await fetchForecast({ lat: r.lat, lon: r.lon })), fetchedAt: new Date().toISOString() };
+      resortFc.set(id, { at: Date.now(), value });
+      return json(res, 200, value);
+    } catch (err) {
+      return json(res, 502, { error: 'forecast unavailable', detail: err.message });
+    }
+  }
+
+  if (['/api/track', '/api/track.gpx', '/api/forecast', '/api/terrain', '/api/photos', '/api/photo', '/api/own-photos', '/api/own-photo', '/api/slopes', '/api/snowhistory'].includes(route)) {
     const tour = await findTour(url.searchParams.get('tour') ?? '');
     if (!tour) return json(res, 404, { error: 'unknown tour' });
 
+    if (route === '/api/snowhistory') {
+      try {
+        return jsonz(req, res, 200, await getSnowHistory(tour), { 'Cache-Control': 'public, max-age=3600' });
+      } catch (err) {
+        return json(res, 502, { error: 'snow history unavailable', detail: err.message });
+      }
+    }
     if (route === '/api/slopes') {
       try {
         return json(res, 200, await getSlopeGrid(tour), { 'Cache-Control': 'public, max-age=3600' });

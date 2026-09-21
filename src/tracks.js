@@ -196,6 +196,7 @@ const PHOTO_TTL = 7 * 86400e3;
 
 export async function getPhotos(tour) {
   const { fetchPhotos } = await import('./sources/photos.js');
+  const { fetchFlickr } = await import('./sources/flickr.js');
   const slug = slugify(tour.name);
   const file = cacheDir('photos', `${slug}.json`);
   const cached = await readJson(file);
@@ -203,7 +204,21 @@ export async function getPhotos(tour) {
 
   const route = await readJson(cacheDir('tracks', `${slug}.json`));
   const s = route?.summit?.source?.startsWith('osm') ? route.summit : { lat: tour.lat, lon: tour.lon };
-  const photos = await fetchPhotos(s);
+  // Two archives, one list: Commons first (best credited), then Flickr, which
+  // has far more of the smaller summits. Either failing leaves the other.
+  const [commons, flickr] = await Promise.all([
+    fetchPhotos({ ...s, name: tour.name }).catch((e) => {
+      log.warn(`photos: Commons failed for ${tour.name}: ${e.message}`);
+      return [];
+    }),
+    fetchFlickr(s).catch((e) => {
+      log.warn(`photos: Flickr failed for ${tour.name}: ${e.message}`);
+      return [];
+    }),
+  ]);
+  const photos = [...commons, ...flickr]
+    .sort((a, b) => (a.distM ?? Infinity) - (b.distM ?? Infinity))
+    .slice(0, 10);
   const value = { tour: tour.name, summit: { lat: s.lat, lon: s.lon }, photos, fetchedAt: new Date().toISOString() };
   await writeJson(file, value);
   return value;
@@ -217,9 +232,12 @@ export async function getPhotos(tour) {
  */
 export async function getPhotoThumb(tour, i) {
   const { isCommonsThumb } = await import('./sources/photos.js');
+  const { isFlickrThumb } = await import('./sources/flickr.js');
   const list = await getPhotos(tour);
   const photo = list.photos?.[i];
-  if (!photo || !isCommonsThumb(photo.thumbUrl)) return null;
+  // The browser asks for photo #i; only the two archives' own thumbnail hosts
+  // are ever fetched, so this cannot be turned into an open proxy.
+  if (!photo || !(isCommonsThumb(photo.thumbUrl) || isFlickrThumb(photo.thumbUrl))) return null;
 
   const file = cacheDir('photos', 'thumbs', `${slugify(tour.name)}-${i}.jpg`);
   try {

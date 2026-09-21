@@ -15,7 +15,8 @@ process.env.LOG_LEVEL = 'error';
 await mkdir(path.join(tmp, 'cache'), { recursive: true });
 
 const { contours, contourInterval, smooth } = await import('../public/contours.js');
-const { shapePhotos, commonsUrl, isCommonsThumb } = await import('../src/sources/photos.js');
+const { shapePhotos, commonsUrl, commonsSearchUrl, isCommonsThumb } = await import('../src/sources/photos.js');
+const { shapeFlickr, flickrUrl, isFlickrThumb } = await import('../src/sources/flickr.js');
 const { kartverketUrl, bestElevations } = await import('../src/sources/elevation.js');
 const { gridBox, gridPoints } = await import('../src/terrain.js');
 const { createServer } = await import('../src/server.js');
@@ -119,6 +120,34 @@ const commonsBody = {
   },
 };
 
+// Found by name, with no coordinates of their own — the common case for
+// smaller summits, which is why the name search exists.
+const commonsNamedBody = {
+  query: {
+    pages: [
+      { pageid: 21, title: 'File:Rørnestinden_in_March.jpg', imageinfo: page('x', 0, 0).imageinfo },
+      { pageid: 22, title: 'File:Rørnestinden_ridge.jpg', imageinfo: page('y', 0, 0).imageinfo },
+    ],
+  },
+};
+
+const flickrBody = {
+  stat: 'ok',
+  photos: {
+    photo: [
+      { id: '5551', owner: '99@N01', ownername: 'A Skier', pathalias: 'askier', title: 'Skinning up',
+        latitude: '69.6520', longitude: '20.0200', license: '4', datetaken: '2024-03-02 11:00:00',
+        url_z: 'https://live.staticflickr.com/65535/5551_z.jpg' },
+      { id: '5552', owner: '98@N01', ownername: 'B', title: 'All rights reserved one',
+        latitude: '69.6521', longitude: '20.0201', license: '0', url_z: 'https://live.staticflickr.com/65535/5552_z.jpg' },
+      { id: '5553', owner: '97@N01', ownername: 'C', title: 'No position', latitude: '0', longitude: '0',
+        license: '4', url_z: 'https://live.staticflickr.com/65535/5553_z.jpg' },
+      { id: '5554', owner: '96@N01', ownername: 'D', title: 'Elsewhere host', latitude: '69.65', longitude: '20.02',
+        license: '5', url_z: 'https://evil.example/x.jpg' },
+    ],
+  },
+};
+
 test('Commons photos: filtered, credited, nearest first', () => {
   const p = shapePhotos(commonsBody, summit);
   assert.deepEqual(p.map((x) => x.title), ['Rørnestinden summit', 'Far view of Lyngen']);
@@ -137,6 +166,31 @@ test('Commons photos: object-keyed pages (no formatversion=2) and empty answers'
   assert.deepEqual(shapePhotos(null, summit), []);
 });
 
+test('Commons: photos found by name are kept, labelled and listed last', () => {
+  const named = shapePhotos(commonsNamedBody, summit, { named: 'Rørnestinden' });
+  assert.deepEqual(named.map((x) => x.title), ['Rørnestinden in March', 'Rørnestinden ridge']);
+  assert.equal(named[0].from, 'named after Rørnestinden');
+  assert.equal(named[0].lat, null, 'a named photo has no position, and no map marker');
+  // Without `named`, a file with no coordinates is still refused.
+  assert.deepEqual(shapePhotos(commonsNamedBody, summit), []);
+  assert.match(commonsSearchUrl('Store Nup'), /generator=search/);
+});
+
+test('Flickr: only licences we can name, with a position and their own host', () => {
+  const p = shapeFlickr(flickrBody, summit);
+  assert.deepEqual(p.map((x) => x.title), ['Skinning up']);
+  assert.equal(p[0].license, 'CC BY 2.0');
+  assert.equal(p[0].author, 'A Skier');
+  assert.equal(p[0].source, 'flickr');
+  assert.equal(p[0].pageUrl, 'https://www.flickr.com/photos/askier/5551');
+  assert.ok(p[0].distM < 1500);
+  assert.ok(isFlickrThumb(p[0].thumbUrl));
+  assert.equal(isFlickrThumb('https://evil.example/x.jpg'), false);
+  assert.equal(isFlickrThumb('http://live.staticflickr.com/x.jpg'), false, 'https only');
+  assert.match(flickrUrl(69.65, 20.02, { key: 'K', radiusKm: 5 }), /license=1%2C2%2C3%2C4%2C5%2C6%2C7%2C9%2C10/);
+  assert.throws(() => shapeFlickr({}, summit), /unexpected response shape/);
+});
+
 test('Commons request and thumbnail host checks', () => {
   const u = new URL(commonsUrl(69.65, 20.02, 50000));
   assert.equal(u.searchParams.get('generator'), 'geosearch');
@@ -150,7 +204,7 @@ test('Commons request and thumbnail host checks', () => {
 
 // ---- stubbed upstreams --------------------------------------------------
 
-const calls = { kv: 0, kvPoints: [], om: 0, commons: 0, thumb: 0 };
+const calls = { kv: 0, kvPoints: [], om: 0, commons: 0, commonsByName: 0, flickr: 0, thumb: 0 };
 const realFetch = globalThis.fetch;
 const J = (b, status = 200) => new Response(JSON.stringify(b), { status, headers: { 'Content-Type': 'application/json' } });
 let kvDown = false;
@@ -174,8 +228,22 @@ globalThis.fetch = async (url, opts = {}) => {
     return J({ elevation: lats.map(() => 7) });
   }
   if (u.includes('commons.wikimedia.org/w/api.php')) {
+    // Two ways in: by coordinates (geosearch) and by name (search).
+    const gen = new URL(u).searchParams.get('generator');
     calls.commons++;
+    if (gen === 'search') {
+      calls.commonsByName++;
+      return J(commonsNamedBody);
+    }
     return J(commonsBody);
+  }
+  if (u.includes('api.flickr.com')) {
+    calls.flickr++;
+    return J(flickrBody);
+  }
+  if (/^https:\/\/live\.staticflickr\.com\//.test(u)) {
+    calls.thumb++;
+    return new Response(Buffer.from([0xff, 0xd8, 0xff, 0xe0]), { status: 200, headers: { 'Content-Type': 'image/jpeg' } });
   }
   if (u.startsWith('https://upload.wikimedia.org/')) {
     calls.thumb++;
@@ -242,7 +310,10 @@ test('/api/terrain returns a cached DTM grid for a Norwegian tour', async () => 
 test('/api/photos hides upstream URLs; /api/photo proxies only listed thumbnails', async () => {
   await withServer(async (base) => {
     const p = await (await fetch(`${base}/api/photos?tour=rornestinden`)).json();
-    assert.equal(p.photos.length, 2);
+    // Two geotagged near the summit first, then two found by the summit's name.
+    assert.equal(p.photos.length, 4);
+    assert.deepEqual(p.photos.map((x) => x.lat != null), [true, true, false, false]);
+    assert.equal(p.photos[2].from, 'named after Rørnestinden');
     assert.equal(p.photos[0].i, 0);
     assert.ok(!JSON.stringify(p).includes('upload.wikimedia.org'), 'no upstream thumbnail URL leaks');
 
@@ -253,11 +324,15 @@ test('/api/photos hides upstream URLs; /api/photo proxies only listed thumbnails
     await (await fetch(`${base}/api/photo?tour=rornestinden&i=0`)).arrayBuffer();
     assert.equal(calls.thumb, t, 'thumbnail cached');
 
+    assert.equal((await fetch(`${base}/api/photo?tour=rornestinden&i=3`)).status, 200, 'a named photo has a thumbnail too');
     assert.equal((await fetch(`${base}/api/photo?tour=rornestinden&i=7`)).status, 404, 'no such photo');
     assert.notEqual((await fetch(`${base}/api/photo?tour=rornestinden&i=-1`)).status, 200);
     assert.notEqual((await fetch(`${base}/api/photo?tour=rornestinden&i=abc`)).status, 200);
     assert.notEqual((await fetch(`${base}/api/photo?tour=rornestinden&url=https://evil.example/`)).status, 200);
     assert.equal((await fetch(`${base}/api/photos?tour=Matterhorn`)).status, 404);
-    assert.equal(calls.commons, 1, 'Commons asked once per tour');
+    // Geosearch first; the name search follows because two photos is thin.
+    assert.equal(calls.commons, 2, 'Commons asked by coordinates and by name');
+    assert.equal(calls.commonsByName, 1);
+    assert.equal(calls.flickr, 0, 'Flickr is not asked without a key');
   });
 });

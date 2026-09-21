@@ -41,6 +41,7 @@ export const config = {
   resortsEnabled: bool('RESORTS_ENABLED', true),
   // Minimum minutes between refreshes forced from the page's button.
   refreshCooldownMinutes: Math.max(0, num('REFRESH_COOLDOWN_MINUTES', 10)),
+  flickrApiKey: str('FLICKR_API_KEY'),
   dataDir: str('DATA_DIR', new URL('../data', import.meta.url).pathname),
 };
 

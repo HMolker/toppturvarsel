@@ -3,6 +3,24 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v4.6 — more photos, and a drawing when there are none (2026-09-21)
+
+- **Commons, wider:** the search reaches 10 km from the summit instead of 5,
+  and when that is thin it also asks for files *named after* the summit —
+  many Norwegian and Swedish mountain photos are named or categorised but
+  never geotagged. Those are listed after the located ones and labelled
+  "named after …", with no map marker.
+- **Flickr:** with a free `FLICKR_API_KEY`, Creative-Commons and
+  public-domain photos near the summit are added, credited and linked back.
+  Without a key Flickr is not asked. Written against Flickr's documented API
+  and not yet exercised live.
+- **Drawn when nothing exists:** if no photo is found, the panel draws the
+  mountain from the terrain grid — a shaded relief with the fall line on it,
+  and the profile of that line coloured by slope angle. It looks down the
+  tour's descent aspect; where that is "varied" it finds the steepest way
+  down and says so. Labelled as drawn, not photographed, and as too coarse to
+  read real slope angles from.
+
 ## v4.5 — alerts through an ordinary mailbox (2026-09-21)
 
 - The image now installs `nodemailer` (itself dependency-free), so

@@ -43,13 +43,49 @@ export function commonsUrl(lat, lon, radius = 5000) {
   return `${API}?${q}`;
 }
 
-export async function fetchPhotos(summit, { radius = 5000, limit = 8 } = {}) {
-  const res = await fetch(commonsUrl(summit.lat, summit.lon, radius), {
+/**
+ * The second way in: files whose name or description mentions the summit.
+ * Many Norwegian and Swedish mountain photos are named or categorised but
+ * never geotagged, so a search by coordinates alone misses them.
+ */
+export function commonsSearchUrl(name, limit = 12) {
+  const q = new URLSearchParams({
+    action: 'query',
+    format: 'json',
+    formatversion: '2',
+    generator: 'search',
+    gsrsearch: `${name} filetype:bitmap`,
+    gsrnamespace: '6',
+    gsrlimit: String(limit),
+    prop: 'imageinfo|coordinates',
+    iiprop: 'url|extmetadata',
+    iiurlwidth: '480',
+    origin: '*',
+  });
+  return `${API}?${q}`;
+}
+
+const get = async (url) => {
+  const res = await fetch(url, {
     headers: { 'User-Agent': 'toppturvarsel/1.0 (self-hosted ski touring dashboard)' },
     signal: AbortSignal.timeout(20000),
   });
   if (!res.ok) throw new Error(`commons HTTP ${res.status}`);
-  return shapePhotos(await res.json(), summit, { limit });
+  return res.json();
+};
+
+/**
+ * Photos near the summit, and — when that is thin, which it often is — photos
+ * that carry the summit's name. Named photos have no coordinates, so they are
+ * listed after the geotagged ones and labelled as named rather than located.
+ */
+export async function fetchPhotos(summit, { radius = 10000, limit = 8, name = summit.name } = {}) {
+  const near = shapePhotos(await get(commonsUrl(summit.lat, summit.lon, radius)), summit, { limit });
+  if (near.length >= limit || !name) return near;
+
+  const byName = shapePhotos(await get(commonsSearchUrl(name)).catch(() => null), summit, { limit, named: name })
+    .filter((p) => !near.some((q) => q.pageUrl === p.pageUrl));
+  return [...near, ...byName].slice(0, limit);
 }
 
 const stripHtml = (s) =>
@@ -72,7 +108,7 @@ function bearing(from, to) {
   return BEARINGS[Math.round(deg / 45) % 8];
 }
 
-export function shapePhotos(body, summit, { limit = 8 } = {}) {
+export function shapePhotos(body, summit, { limit = 8, named = null } = {}) {
   const raw = body?.query?.pages;
   const pages = Array.isArray(raw) ? raw : raw && typeof raw === 'object' ? Object.values(raw) : [];
 
@@ -80,7 +116,10 @@ export function shapePhotos(body, summit, { limit = 8 } = {}) {
   for (const p of pages) {
     const ii = p?.imageinfo?.[0];
     const c = p?.coordinates?.[0];
-    if (!ii?.thumburl || !c || !Number.isFinite(c.lat) || !Number.isFinite(c.lon)) continue;
+    const located = c && Number.isFinite(c.lat) && Number.isFinite(c.lon);
+    // A geotagged file must be near the summit; a file found by name may have
+    // no coordinates at all, and is then shown for what it is.
+    if (!ii?.thumburl || (!located && !named)) continue;
     // Commons titles use underscores for spaces, and \b treats _ as a word char.
     if (NOT_A_PHOTO.test(String(p.title ?? '').replace(/_/g, ' '))) continue;
     let thumbHost;
@@ -96,8 +135,9 @@ export function shapePhotos(body, summit, { limit = 8 } = {}) {
     // No licence, no photo: we only show what we can credit correctly.
     if (!license) continue;
 
-    const distM = Math.round(haversineKm(summit.lat, summit.lon, c.lat, c.lon) * 1000);
+    const distM = located ? Math.round(haversineKm(summit.lat, summit.lon, c.lat, c.lon) * 1000) : null;
     photos.push({
+      source: 'commons',
       title: stripHtml(String(p.title).replace(/^File:/, '').replace(/\.[a-z]{3,4}$/i, '').replace(/_/g, ' ')).slice(0, 90),
       author: stripHtml(md.Artist?.value).slice(0, 60) || 'Unknown author',
       license,
@@ -105,13 +145,17 @@ export function shapePhotos(body, summit, { limit = 8 } = {}) {
       date: stripHtml(md.DateTimeOriginal?.value).slice(0, 10) || null,
       pageUrl: ii.descriptionurl ?? `https://commons.wikimedia.org/wiki/${encodeURIComponent(p.title)}`,
       thumbUrl: ii.thumburl,
-      lat: +c.lat.toFixed(5),
-      lon: +c.lon.toFixed(5),
+      lat: located ? +c.lat.toFixed(5) : null,
+      lon: located ? +c.lon.toFixed(5) : null,
       distM,
-      from: distM < 150 ? 'at the summit' : `${distM >= 1000 ? `${(distM / 1000).toFixed(1)} km` : `${distM} m`} ${bearing(summit, c)} of the summit`,
+      from: !located
+        ? `named after ${named}`
+        : distM < 150 ? 'at the summit'
+        : `${distM >= 1000 ? `${(distM / 1000).toFixed(1)} km` : `${distM} m`} ${bearing(summit, c)} of the summit`,
     });
   }
-  photos.sort((a, b) => a.distM - b.distM);
+  // Geotagged first, nearest first; named-only photos after them.
+  photos.sort((a, b) => (a.distM ?? Infinity) - (b.distM ?? Infinity));
   return photos.slice(0, limit);
 }
 

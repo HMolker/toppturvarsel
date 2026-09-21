@@ -933,7 +933,10 @@ async function loadTourExtras(t, reg) {
     if (view.route) renderProfile($('#routeProfile'), view.route, mapEl);
     $('#ownPhotosWrap').hidden = !own.length;
     if (own.length) renderOwnPhotos($('#ownPhotos'), own, t, mapEl);
-    if (view.photos) renderPhotos($('#photos'), view.photos, t, mapEl, own.length);
+    if (view.photos) {
+      // The terrain grid goes along, so an empty result can be drawn instead.
+      renderPhotos($('#photos'), { ...view.photos, terrain: view.terrain?.error ? null : view.terrain }, t, mapEl, own.length);
+    }
   };
 
   getJson(`/api/track?tour=${q}`).then((route) => {

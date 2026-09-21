@@ -248,6 +248,19 @@ further; hover for the numbers.
 
 Set `RESORTS_ENABLED=false` to turn the layer and its endpoint off.
 
+## Photos near the summit
+
+The tour panel shows openly licensed photos from **Wikimedia Commons** —
+geotagged within 10 km, then files named after the summit — and, with a free
+`FLICKR_API_KEY` in `.env`, Creative-Commons photos from **Flickr**. All are
+credited and link back to their page. Your own photos (from the tour editor)
+come first.
+
+When none exist, the panel **draws** the mountain from the terrain model: a
+shaded relief with the fall line, and that line's profile coloured by slope
+angle, looking down the tour's descent aspect (or the steepest way down if
+the aspect is not recorded yet).
+
 ## Simulated data, on a button
 
 Out of season the map is mostly empty. **Simulated data**, next to "Refresh

@@ -566,3 +566,10 @@ svg.rose .rosel { font-family: var(--mono); font-size: 9px; font-weight: 600; fi
 
 /* Small button, e.g. the link to the tour editor in a card header. */
 .btn.small { min-height: 32px; padding: 6px 10px; font-size: 13px; }
+
+/* ---------- drawn relief, when no photo exists ---------- */
+svg.relief { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: var(--r-ctl); background: var(--paper); }
+svg.relief + svg.relief { margin-top: 8px; }
+svg.relief .rl { font-family: var(--mono); font-size: 10px; fill: var(--muted); }
+svg.relief.prof .rl { fill: var(--ink-2); }
+svg.relief .lbl { paint-order: stroke; stroke: var(--paper); stroke-width: 3px; fill: var(--ink-2); }

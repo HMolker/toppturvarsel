@@ -4,6 +4,7 @@
  */
 
 import { contours, smooth } from './contours.js';
+import { reliefSvg } from './relief.js';
 
 const esc = (s) =>
   String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -366,9 +367,15 @@ export function renderPhotos(el, data, tour, mapEl, offset = 0) {
   }
   const photos = data.photos ?? [];
   if (data.error || !photos.length) {
-    el.innerHTML =
-      `<p class="note">${data.error ? 'Photos could not be loaded right now.' : 'No openly licensed, geotagged photos near this summit on Wikimedia Commons yet.'}` +
-      ` <a href="https://commons.wikimedia.org/wiki/Special:Nearby#/coord/${tour.lat},${tour.lon}" target="_blank" rel="noopener">Browse Commons nearby</a>.</p>`;
+    // Nothing openly licensed for this summit: draw it instead, from the
+    // terrain model, looking down the side you would ski.
+    const drawn = data.terrain ? reliefSvg(data.terrain, tour) : null;
+    el.innerHTML = drawn
+      ? drawn +
+        `<p class="note"><a href="https://commons.wikimedia.org/wiki/Special:Nearby#/coord/${tour.lat},${tour.lon}" target="_blank" rel="noopener">Browse Commons near this summit</a>` +
+        ` — and your own photos can go in with the tour editor.</p>`
+      : `<p class="note">${data.error ? 'Photos could not be loaded right now.' : 'No openly licensed photo of this summit yet, and no terrain grid to draw one from.'}` +
+        ` <a href="https://commons.wikimedia.org/wiki/Special:Nearby#/coord/${tour.lat},${tour.lon}" target="_blank" rel="noopener">Browse Commons nearby</a>.</p>`;
     return;
   }
   const q = encodeURIComponent(tour.name);
@@ -377,15 +384,16 @@ export function renderPhotos(el, data, tour, mapEl, offset = 0) {
     photos
       .map(
         (p, k) =>
-          `<a class="photo" data-photo="${k + offset}" href="${esc(p.pageUrl)}" target="_blank" rel="noopener" title="Open on Wikimedia Commons">` +
+          `<a class="photo" data-photo="${k + offset}" href="${esc(p.pageUrl)}" target="_blank" rel="noopener" title="Open on ${p.source === 'flickr' ? 'Flickr' : 'Wikimedia Commons'}">` +
           `<span class="photonumtag">${k + offset + 1}</span>` +
           `<img src="/api/photo?tour=${q}&i=${p.i ?? k}" alt="${esc(p.title)}" loading="lazy" onerror="this.closest('.photo').classList.add('noimg')">` +
           `<span class="photocap"><strong>${esc(p.from)}</strong>` +
           `<span>© ${esc(p.author)} · ${esc(p.license)}${p.date ? ` · ${esc(p.date)}` : ''}</span></span></a>`
       )
       .join('') +
-    `</div><p class="note">Openly licensed photos within 5 km of the summit, from Wikimedia Commons. ` +
-    `Numbers match the markers on the map. Photos show the place, not today's conditions.</p>`;
+    `</div><p class="note">Openly licensed photos from Wikimedia Commons${photos.some((p) => p.source === 'flickr') ? ' and Flickr' : ''}, ` +
+    `near the summit or carrying its name. Numbers match the markers on the map; a photo without a position has no marker. ` +
+    `Photos show the place, not today's conditions.</p>`;
 
   linkPhotoHover(el, mapEl);
 }

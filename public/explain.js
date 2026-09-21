@@ -90,11 +90,16 @@ function partDetail(key, r) {
       const x = e.weather;
       if (!x) return '<div>no forecast for this day; counted as 0.50</div>';
       if (x.window !== undefined) {
-        const fit = { fits: 'fits the light', tight: 'tight on the light', no: 'does not fit the light', dark: 'no usable light' }[x.fit] ?? '';
+        const fit = { fits: 'fits the light', tight: 'tight on the light', no: 'does not fit the light', dark: 'no usable light', wet: 'does not fit before the wet snow' }[x.fit] ?? '';
+        const wetLine = x.wetFrom != null
+          ? `<div>Wet snow from <b>${String(x.wetFrom).padStart(2, '0')}:00</b>: ${x.wetReason === 'sun' ? 'spring sun on the descent aspect' : 'above freezing at the tour\'s mid-height'}` +
+            `${x.wetBulletin ? ', and the bulletin names a wet-snow problem, so the window must end before it' : '; later hours count as poor'}.</div>`
+          : '';
         return (
           `<div>Daylight ${esc(x.daylight)}. Tour ~${x.needH} h, ${x.lightH} h usable light: ${fit}.</div>` +
           (x.window ? `<div>Best window <b>${esc(x.window)}</b>: hourly wind, gusts, cloud and snowfall average ${f2(x.windowScore)}.</div>` : '') +
-          `<div class="xmuted">each hour: wind × 0.45 + cloud × 0.35 + snow/rain × 0.20; gusts ≥ 17 m/s cap the hour at 0.30</div>` +
+          wetLine +
+          `<div class="xmuted">each hour: wind × 0.45 + cloud × 0.35 + snow/rain × 0.20; gusts ≥ 17 m/s cap the hour at 0.30; wet-snow hours at 0.25</div>` +
           (x.caps?.length ? `<div>${x.caps.map(esc).join('<br>')}</div>` : '')
         );
       }

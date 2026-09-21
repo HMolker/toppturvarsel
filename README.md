@@ -219,6 +219,17 @@ margin under an hour is flagged "tight on daylight". The tour's forecast
 table shows Daylight, Best window (with a strip of the day's hours) and
 Surface.
 
+**Wet snow and the time of day (v4.10).** Warming makes the afternoon the
+dangerous part, so the window also looks at temperature and sun. An hour is
+a wet-snow hour when the air at the tour's mid-height is above about +1 °C
+(the summit forecast plus 6.5 °C per km down to half the vertical), or in
+March–June when the sun is on an east-to-west descent aspect under little
+cloud (E 8–12, SE 9–14, S 10–15, SW 12–17, W 13–18). From the first wet hour
+the rest of the day counts as wet and scores 0.25. If that day's bulletin
+names a wet-snow or gliding-snow problem, the thaw is a hard limit and the
+planner says "off the slope by 11"; a tour too long to finish before it is
+marked down and says so. The hour strip shows wet hours in blue-grey.
+
 **Snow surface by aspect (v4.8).** `public/snowquality.js` looks at the
 72 hours up to noon, from the two past days Open-Meteo returns: wind of
 7 m/s or more while and after it snowed makes the tour's descent aspect lee

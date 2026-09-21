@@ -24,6 +24,8 @@
  * light is marked down, and the surface is judged by aspect (snowquality.js).
  */
 import { dayWindow, windowText } from './daywindow.js';
+
+const hh = (h) => String(h).padStart(2, '0');
 import { daylightText } from './daylight.js';
 import { snowQuality } from './snowquality.js';
 
@@ -169,7 +171,7 @@ export function haversineKm(a, b) {
 }
 
 /** Step 2 for one tour on forecast day k. */
-export function conditions(tour, fc, k, prefs) {
+export function conditions(tour, fc, k, prefs, { problems = [] } = {}) {
   const days = fc?.days ?? [];
   const today = days[k] ?? null;
   const why = [];
@@ -237,10 +239,13 @@ export function conditions(tour, fc, k, prefs) {
   // an hourly forecast, else from the day's summary.
   let weather = null;
   let wx = null;
-  const win = today?.date && fc?.hourly ? dayWindow(tour, fc.hourly, today.date) : null;
+  const win = today?.date && fc?.hourly ? dayWindow(tour, fc.hourly, today.date, { aspects: asp, problems }) : null;
   if (win) {
     weather = win.score;
-    wx = { window: windowText(win), windowScore: win.score, needH: win.needH, lightH: win.lightH, daylight: daylightText(win.sun), fit: win.fit, caps: [] };
+    wx = {
+      window: windowText(win), windowScore: win.score, needH: win.needH, lightH: win.lightH, daylight: daylightText(win.sun), fit: win.fit, caps: [],
+      wetFrom: win.wet?.from ?? null, wetReason: win.wet?.reason ?? null, wetBulletin: Boolean(win.wet?.bulletin), dryLightH: win.dryLightH ?? null,
+    };
     if (win.fit === 'dark') {
       weather = 0;
       wx.caps.push('no usable daylight: 0');
@@ -249,8 +254,18 @@ export function conditions(tour, fc, k, prefs) {
       weather *= 0.5;
       wx.caps.push(`needs ~${win.needH} h, only ${win.lightH} h of light: × 0.5`);
       why.push(`longer than the daylight (~${win.needH} h, ${win.lightH} h light)`);
+    } else if (win.fit === 'wet') {
+      weather *= 0.6;
+      wx.caps.push(`~${win.needH} h needed, only ${win.dryLightH} h before wet snow at ${hh(win.wet.from)}: × 0.6`);
+      why.push(`too long to finish before wet snow at ${hh(win.wet.from)}`);
     } else if (win.fit === 'tight') {
       why.push(`tight on daylight (~${win.needH} h of ${win.lightH} h)`);
+    }
+    // Warming or sun makes the afternoon the dangerous part: say when to be off.
+    if (win.wet?.from != null && win.start != null && win.fit !== 'wet' && win.end <= win.wet.from) {
+      why.push(`off the slope by ${hh(win.wet.from)}: wet snow after${win.wet.bulletin ? ' (wet-snow problem in the bulletin)' : ''}`);
+    } else if (win.wet?.from != null && win.wetInWindow > 0 && win.fit !== 'wet') {
+      why.push(`wet snow from ${hh(win.wet.from)}`);
     }
     const summit = fc.elevation ?? tour.summit_m;
     if (Number.isFinite(today.freezingLevel) && Number.isFinite(summit) && today.freezingLevel > summit) {
@@ -339,7 +354,7 @@ export function plan({ tours, outlook, prefs = {} }) {
       const fc = fcs[t.name];
       const b = bulletinFor(outlook?.bulletins?.[t.region], date);
       const g = gate(t, b, p);
-      const c = conditions(t, fc, k, p);
+      const c = conditions(t, fc, k, p, { problems: b?.problems ?? [] });
       let confidence = 'low';
       if (g.status === 'unassessed') confidence = 'none';
       else if (b?.noForecast) confidence = 'noforecast';

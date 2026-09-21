@@ -162,10 +162,14 @@ export function simulate({ regions = [], tours = [], resorts = null, now = new D
           latestObservations: `Observers report ${Math.max(2, new48)} cm of new snow in 48 h and moderate drifting.`,
           problems,
           // Two days ahead, easing as the storm moves off.
-          outlook: [1, 2].map((k) => ({
+          // Varsom issues two days ahead; the simulation goes on to day 5 so
+          // the thaw on the last day comes with its wet-snow problem.
+          outlook: [1, 2, 3, 4].map((k) => ({
             validFrom: `${iso(addDays(today, k))}T00:00:00`,
-            danger: region.noForecast ? null : Math.max(1, danger - k),
-            problems: problems.slice(0, Math.max(0, problems.length - k)),
+            danger: region.noForecast ? null : k === 4 ? 2 : Math.max(1, danger - k),
+            problems: k === 4
+              ? [{ type: 'Wet loose snow avalanche', problemType: 'Wet snow', probability: 'Likely', size: '2 - Medium', danger: 2, aspects: ASPECT_BITS.sun, heights: { fill: 2, h1: 1400, h2: 0 } }]
+              : problems.slice(0, Math.max(0, problems.length - k)),
           })),
         };
 
@@ -263,11 +267,14 @@ export function simulate({ regions = [], tours = [], resorts = null, now = new D
         return {
           date: iso(addDays(today, k)),
           label: w.label, icon: w.icon, code: w.code,
-          tMax: Math.round(-3 - k * 1.5 - fr() * 4), tMin: Math.round(-8 - k * 2 - fr() * 5),
+          // Day 5 (k = 4): a thaw. Clear, a frozen night and above zero by
+          // day, so the planner has wet-snow hours to keep you out of.
+          tMax: k === 4 ? Math.round(1 + fr() * 3) : Math.round(-3 - k * 1.5 - fr() * 4),
+          tMin: k === 4 ? Math.round(-6 - fr() * 3) : Math.round(-8 - k * 2 - fr() * 5),
           precipMm: r1(snowCm / 1.2), snowCm,
           windMax: wind, gustMax: Math.round(wind * 1.8),
           windDir: ['W', 'NW', 'SW', 'NE', 'SE'][k], windDeg: [270, 315, 225, 45, 135][k],
-          freezingLevel: Math.max(0, Math.round((350 - k * 120) / 50) * 50),
+          freezingLevel: k === 4 ? 2100 : Math.max(0, Math.round((350 - k * 120) / 50) * 50),
         };
       }),
     };

@@ -360,15 +360,16 @@ function hourStrip(w) {
   if (light) out += `<rect x="${x(light.start).toFixed(1)}" width="${(x(light.end) - x(light.start)).toFixed(1)}" height="${H}" fill="var(--paper)"/>`;
   for (const { h, s } of w.hours ?? []) {
     const b = s >= 0.75 ? 4 : s >= 0.6 ? 3 : s >= 0.45 ? 2 : 1;
-    out += `<rect x="${x(h).toFixed(1)}" y="2" width="${(W / 24 - 0.4).toFixed(1)}" height="${H - 4}" fill="var(--hw${b})"/>`;
+    const fill = w.hours.find((q) => q.h === h)?.wet ? 'var(--wet)' : `var(--hw${b})`;
+    out += `<rect x="${x(h).toFixed(1)}" y="2" width="${(W / 24 - 0.4).toFixed(1)}" height="${H - 4}" fill="${fill}"/>`;
   }
   if (w.start != null) out += `<rect x="${x(w.start).toFixed(1)}" y="0.5" width="${(x(w.end) - x(w.start)).toFixed(1)}" height="${H - 1}" fill="none" stroke="var(--ink)" stroke-width="1"/>`;
   return `${out}</svg>`;
 }
 
-const FIT = { fits: 'fits', tight: 'tight', no: 'too long', dark: 'no light' };
+const FIT = { fits: 'fits', tight: 'tight', no: 'too long', dark: 'no light', wet: 'too long before thaw' };
 
-export function renderForecast(el, fc, tour = null) {
+export function renderForecast(el, fc, tour = null, bulletins = []) {
   if (!fc) {
     el.innerHTML = '<p class="note">Loading forecast…</p>';
     return;
@@ -381,7 +382,13 @@ export function renderForecast(el, fc, tour = null) {
   const maxSnow = Math.max(10, ...days.map((d) => d.snowCm ?? 0));
   const cell = (fn) => days.map((d, i) => `<td>${fn(d, i)}</td>`).join('');
   const hourly = fc.hourly && tour ? fc.hourly : null;
-  const wins = hourly ? days.map((d) => dayWindow(tour, hourly, d.date)) : null;
+  const aspects = tour ? parseAspect(tour.aspect) : [];
+  const problemsOn = (date) => {
+    const exact = (bulletins ?? []).find((b) => b.date === date);
+    const earlier = (bulletins ?? []).filter((b) => b.date && b.date < date).sort((a, b) => (a.date < b.date ? 1 : -1))[0];
+    return (exact ?? earlier)?.problems ?? [];
+  };
+  const wins = hourly ? days.map((d) => dayWindow(tour, hourly, d.date, { aspects, problems: problemsOn(d.date) })) : null;
   const surf = hourly ? days.map((d) => snowQuality(parseAspect(tour.aspect), hourly, d.date)) : null;
 
   el.innerHTML =
@@ -407,10 +414,11 @@ export function renderForecast(el, fc, tour = null) {
     `<tr><th scope="row">0° level</th>${cell((d) => (d.freezingLevel != null ? `${d.freezingLevel} m` : '–'))}</tr>` +
     (wins
       ? `<tr><th scope="row">Daylight</th>${cell((d, i) => `<span class="fcsub">${esc(wins[i] ? daylightText(wins[i].sun) : '–')}</span>`)}</tr>` +
-        `<tr><th scope="row">Best window</th>${cell((d, i) => {
+        `<tr class="fcwin"><th scope="row">Best window</th>${cell((d, i) => {
           const w = wins[i];
           if (!w) return '–';
-          return `${hourStrip(w)}<strong>${esc(windowText(w) ?? '–')}</strong><span class="fcsub fit-${w.fit}">${FIT[w.fit]} · ~${w.needH} h</span>`;
+          const off = w.wet?.from != null && w.start != null && w.end <= w.wet.from ? ` · <b class="fcwet">off by ${String(w.wet.from).padStart(2, '0')}</b>` : '';
+          return `${hourStrip(w)}<strong>${esc(windowText(w) ?? '–')}</strong><span class="fcsub fit-${w.fit}">${FIT[w.fit]} · ~${w.needH} h${off}</span>`;
         })}</tr>` +
         `<tr><th scope="row">Surface</th>${cell((d, i) => {
           const q = surf[i];
@@ -422,8 +430,9 @@ export function renderForecast(el, fc, tour = null) {
     (wins
       ? `<div class="hlegend"><span class="hlk"><svg viewBox="0 0 14 10" width="14" height="10" aria-hidden="true"><rect width="14" height="10" rx="2" fill="var(--night)"/></svg>no usable light</span>` +
         `<span class="hlk">${[1, 2, 3, 4].map((b) => `<i style="background:var(--hw${b})"></i>`).join('')}hours in the light: poor → very good</span>` +
+        `<span class="hlk"><i style="background:var(--wet)"></i>wet-snow hours</span>` +
         `<span class="hlk"><svg viewBox="0 0 14 10" width="14" height="10" aria-hidden="true"><rect x=".5" y=".5" width="13" height="9" fill="none" stroke="var(--ink)"/></svg>best window</span>` +
-        `<span class="hlnote">Strip = one day, midnight to midnight, noon in the middle. Each hour in the light is scored on wind, cloud and snow/rain; gusts ≥ 17 m/s make it poor.</span></div>`
+        `<span class="hlnote">Strip = one day, midnight to midnight, noon in the middle. Each hour in the light is scored on wind, cloud and snow/rain; gusts ≥ 17 m/s make it poor. Wet-snow hours start when it goes above freezing at the tour's mid-height, or in spring when the sun reaches the descent aspect; with a wet-snow problem in the bulletin the window must end before them.</span></div>`
       : '') +
     `<p class="note">Wind in m/s. 0° level is the daytime maximum; above your summit means rain or wet snow on the whole tour.` +
     (wins ? ` Best window: the stretch of daylight, as long as the tour takes (~${wins.find(Boolean)?.needH ?? '?'} h at 400 m/h up), with the best hourly wind, cloud and snowfall. Surface is for the descent aspect (${esc(tour.aspect ?? 'all')}), from the wind while it snowed, warming and the corn cycle; hover for why.` : '') +

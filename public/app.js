@@ -1021,10 +1021,10 @@ async function loadTourExtras(t, reg) {
   });
   if (state.simulated) {
     const fc = state.outlook?.forecasts?.[t.name];
-    renderForecast($('#forecast'), fc ? { ...fc, simulated: true } : { error: 'not part of the simulation' }, t);
+    renderForecast($('#forecast'), fc ? { ...fc, simulated: true } : { error: 'not part of the simulation' }, t, state.outlook?.bulletins?.[t.region]);
   } else {
     getJson(`/api/forecast?tour=${q}`).then((fc) => {
-      if (still()) renderForecast($('#forecast'), fc, t);
+      if (still()) renderForecast($('#forecast'), fc, t, state.outlook?.bulletins?.[t.region]);
     });
   }
 }

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { sunTimes, osloOffset, hhmm, daylightText } from '../public/daylight.js';
-import { dayWindow, tourHours, hourScore } from '../public/daywindow.js';
+import { dayWindow, tourHours, hourScore, wetHours, isWetProblem } from '../public/daywindow.js';
 import { snowQuality, windRelation, CORN_HOURS } from '../public/snowquality.js';
 import { planTrip } from '../public/areaplan.js';
 import * as P from '../public/planner.js';
@@ -165,4 +165,54 @@ test('area trip: one different tour a day, rest days count zero, best area first
   assert.equal(t.areas[1].mean, Math.round(90 / 3), 'one great tour is one day, not three');
   const late = planTrip(p, { start: 2, length: 3 });
   assert.equal(late.length, 1, 'clamped to the forecast');
+});
+
+/* ---------- wet snow: the afternoon thaw ---------- */
+
+// A clear, calm day that goes above zero after lunch (summit temperatures).
+const thawDay = (iso) => hourly([iso], (d, hr) => ({ temp: hr < 11 ? -6 : -1 + (hr - 11) * 0.8, cloud: 5, wind: 2, gust: 4 }));
+const WET = { type: 'Wet loose snow avalanche', problemType: 'Wet snow' };
+
+test('wet snow: thaw at mid-height marks the afternoon, and it stays soft', () => {
+  const t = { ...JOTUN, vertical_m: 800 }; // mid-height ~2.6° warmer than the summit
+  const w = wetHours(t, thawDay('2027-02-10'), '2027-02-10');
+  assert.equal(w.from, 11, 'summit −1° + 2.6° at mid-height ≥ +1°');
+  assert.equal(w.reason, 'thaw');
+  assert.ok(w.hours.has(16) && !w.hours.has(10));
+  assert.equal(isWetProblem(WET), true);
+  assert.equal(isWetProblem({ problemType: 'Wind slab' }), false);
+  assert.equal(isWetProblem({ problemType: 'Gliding snow' }), true);
+});
+
+test('wet snow: a wet-snow problem in the bulletin makes the thaw a hard limit', () => {
+  const t = { ...JOTUN, vertical_m: 800 }; // ~3 h
+  const h = thawDay('2027-02-10');
+  const soft = dayWindow(t, h, '2027-02-10');
+  const hard = dayWindow(t, h, '2027-02-10', { problems: [WET] });
+  assert.ok(hard.end <= hard.wet.from, `off the slope by ${hard.wet.from}, window ${hard.start}–${hard.end}`);
+  assert.equal(hard.wetInWindow, 0);
+  assert.ok(soft.end <= 11, 'even without the bulletin the wet hours score poor, so the window comes earlier');
+  assert.equal(hard.hours.find((x) => x.h === 14).wet, true);
+});
+
+test('wet snow: spring sun on a south face softens it before the air thaws', () => {
+  const iso = '2027-04-12';
+  const h = hourly([iso], (d, hr) => ({ temp: -4, cloud: 5, wind: 2, gust: 4 }));
+  const t = { ...JOTUN, vertical_m: 600 };
+  const south = wetHours(t, h, iso, { aspects: ['S'] });
+  assert.equal(south.from, 10);
+  assert.equal(south.reason, 'sun');
+  assert.equal(wetHours(t, h, iso, { aspects: ['N'] }).from, null, 'north stays cold');
+});
+
+test('wet snow: a tour too long to finish before the thaw is marked down and says so', () => {
+  const dates = ['2027-02-10', '2027-02-11', '2027-02-12', '2027-02-13', '2027-02-14'];
+  const h = hourly(dates, (d, hr) => ({ temp: hr < 10 ? -6 : 0.5, cloud: 5, wind: 2, gust: 4 }));
+  const fc = { elevation: 1800, days: daysFor(dates).map((d) => ({ ...d, windMax: 2, gustMax: 4 })), hourly: h };
+  const short = P.conditions(T({ vertical_m: 500 }), fc, 0, {}, { problems: [WET] });
+  const long = P.conditions(T({ vertical_m: 1500 }), fc, 0, {}, { problems: [WET] });
+  assert.ok(short.why.some((w) => /^off the slope by \d\d: wet snow after \(wet-snow problem in the bulletin\)$/.test(w)), short.why.join(' | '));
+  assert.equal(long.window.fit, 'wet');
+  assert.ok(long.why.some((w) => w.startsWith('too long to finish before wet snow')));
+  assert.ok(long.parts.weather < short.parts.weather);
 });

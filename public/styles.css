@@ -59,6 +59,8 @@
   --night: #4A473F;
   /* Hour quality inside the light, darker = better. */
   --hw1: #FBD6CB; --hw2: #F4A891; --hw3: #E8734F; --hw4: #C2402A;
+  /* Wet-snow hours in the strip: a cold blue-grey, apart from the red scale. */
+  --wet: #7C93A8;
 
   --r-card: 14px;
   --r-ctl: 8px;
@@ -88,6 +90,7 @@
     --own: #E8734F; --own-ink: #1A1A1A;
     --night: #050505;
     --hw1: #3A2420; --hw2: #7A3324; --hw3: #C2402A; --hw4: #F4A891;
+    --wet: #5D7890;
     --ro1: #3A3833; --ro2: #6B675F; --ro3: #B5B1A8; --ro4: #EDEBE5;
     --rg1: #EDEBE5; --rg2: #FFFFFF; --rg3: #1A1A1A; --rg4: #1A1A1A;
     color-scheme: dark;
@@ -97,7 +100,7 @@
   --page: #121211; --paper: #1A1A1A; --ink: #EDEBE5; --ink-2: #C7C4BC; --muted: #A8A49B;
   --steel: #8C8880; --line: #2E2C28; --line-2: #3A3833; --red-ink: #E46A5C;
   --land: #24231F; --coast: #5E5B54; --marker-edge: #EDEBE5; --own: #E8734F; --own-ink: #1A1A1A; --night: #050505;
-  --hw1: #3A2420; --hw2: #7A3324; --hw3: #C2402A; --hw4: #F4A891;
+  --hw1: #3A2420; --hw2: #7A3324; --hw3: #C2402A; --hw4: #F4A891; --wet: #5D7890;
   --ro1: #3A3833; --ro2: #6B675F; --ro3: #B5B1A8; --ro4: #EDEBE5;
   --rg1: #EDEBE5; --rg2: #FFFFFF; --rg3: #1A1A1A; --rg4: #1A1A1A;
   color-scheme: dark;
@@ -663,3 +666,7 @@ svg.avrose .avl, svg.avelev .avl { font: 600 8.5px var(--mono); fill: var(--mute
 .tdays .tdresort small { color: var(--muted); font-family: var(--mono); font-size: 10.5px; }
 .src.version { background: var(--page); }
 .src.version .vnum { font: 600 15px var(--mono); color: var(--ink); }
+.fc .fit-wet { color: var(--red-ink); font-weight: 600; }
+.fc .fcwet { color: var(--ink); font-weight: 600; }
+.hlegend .hlk > i:only-child { margin-right: 2px; }
+.fc tr.fcwin td { vertical-align: top; padding-top: 10px; }

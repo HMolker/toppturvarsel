@@ -3,6 +3,25 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v4.10 — wet snow in the best window (2026-09-22)
+
+- **Wet-snow hours:** the best window now knows that warming makes the
+  afternoon the dangerous part. An hour is a wet-snow hour when the air at
+  the tour's mid-height (summit forecast + 6.5 °C per km down to half the
+  vertical) is above about +1 °C, or in March–June when the sun is on an
+  east-to-west descent aspect with little cloud and it is not too cold.
+  From the first such hour the rest of the day counts as wet.
+- Wet-snow hours score as poor (0.25), so the window moves before them.
+  When that day's bulletin names a wet-snow or gliding-snow problem, the
+  thaw is a hard limit: the window must end before it if the light allows.
+- **Planner:** "off the slope by 11: wet snow after", or "too long to finish
+  before wet snow at 11", which also takes 40 % off the weather part. The
+  explanation box shows when and why the wet snow starts.
+- **Tour forecast:** wet-snow hours in blue-grey in the hour strip, "off by
+  11" under the window, and a legend entry.
+- **Simulated data:** day 5 is a thaw (clear, frozen night, above zero by
+  day) with a wet-snow problem in the bulletin, so all of this shows.
+
 ## v4.9.1 — version box, and a simulation that shows everything (2026-09-21)
 
 - **Data sources & freshness** has a box with the running version and when

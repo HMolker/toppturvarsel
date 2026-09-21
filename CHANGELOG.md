@@ -3,6 +3,29 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v4.13 — the ski area in detail, in the profile's colours (2026-09-22)
+
+- **Runs by difficulty in the Molker ramp:** novice pale (#FBD6CB), easy
+  pink (#F4A891), intermediate red (#C2402A), advanced maroon (#6E1E15),
+  expert black; freeride and ungroomed runs dashed. Runs have a thin dark
+  casing so the pale steps read on the map; floodlit runs carry a line of
+  light dots.
+- **Much more from OpenStreetMap:**
+  - lifts: pylons as dots on the cable, named stations with their height,
+    lift numbers and names along the cable, and per lift the type, seats
+    per chair or cabin, capacity, ride time (minutes, "6:30" or PT4M30S),
+    bubble, heated seats, detachable grip;
+  - runs: numbers and names as badges in the run's colour, grooming
+    (groomed, moguls, not groomed), floodlights, snowmaking, glades;
+  - cross-country trails, sledging runs, snow parks, the resort's own area
+    (landuse=winter_sports), which also keeps a neighbouring resort's
+    lifts out, and restaurants, cafés, bars, ski rental and ski schools.
+- **Resort panel:** fun facts now include floodlit and snowmaking km,
+  off-piste lines, pylons, seats per cycle, cross-country km and what is
+  around the slopes; below them a table of **every lift** (from → to
+  station, type, seats, length, rise and top height, people per hour, ride
+  time, notes), a list of **every run**, and the **places on the mountain**.
+
 ## v4.12 — ski-area maps and fun facts (2026-09-22)
 
 - **Ski-area map** in the resort panel: runs and lifts from OpenStreetMap

@@ -6,7 +6,7 @@ import { layoutResorts, resortSvg, OPEN_BANDS } from './resorts.js';
 import { plan, haversineKm as haversine } from './planner.js';
 import { explainHtml } from './explain.js';
 import { aspectRose } from './aspect.js';
-import { simulate, simulateResorts } from './simulate.js';
+import { simulate, simulateResorts, simulateHuts } from './simulate.js';
 import { dangerChip, problemIcons, problemIcon, problemRose, elevationDiagram, elevationText, initAvalancheTips, problemKey, PROBLEMS } from './avalanche.js';
 import { COUNTRIES, GROUPS, countryName, joinNames, normaliseSelection, fitFrame } from './countries.js';
 
@@ -442,7 +442,7 @@ function hutLegend() {
     `<div class="legend-row"><span class="eyebrow">Huts &amp; cafés</span>` +
     `<span>${icon('open', 'hut')}open in winter</span><span>${icon('unknown', 'hut')}not known, check</span><span>${icon('closed', 'hut')}summer only</span>` +
     `<span>${icon('unknown', 'hut')}cabin</span><span>${icon('unknown', 'shelter')}open hut</span><span>${icon('unknown', 'lodge')}lodge</span><span>${icon('unknown', 'cafe')}café</span><span>${icon('unknown', 'restaurant')}restaurant</span></div>` +
-    `<div class="legend-row note">${state.huts ? (state.huts.error && !n ? 'could not be loaded right now' : `${n} places within 15 km of the tours, from OpenStreetMap`) : 'loading…'}${state.view.k < DETAIL_K ? ' · zoom in to see them' : ''}</div>`
+    `<div class="legend-row note">${state.huts ? (state.huts.simulated ? `${n} simulated places (the real list from OpenStreetMap could not be loaded)` : state.huts.error && !n ? `could not be loaded right now (${esc(state.huts.error)})` : `${n} places within 15 km of the tours, from OpenStreetMap`) : 'loading…'}${state.view.k < DETAIL_K ? ' · zoom in to see them' : ''}</div>`
   );
 }
 
@@ -609,6 +609,8 @@ async function loadHuts() {
   } catch (err) {
     state.huts = { places: [], error: err.message };
   }
+  // Simulated mode shows the layer even when the real list can't be had.
+  if (state.simulated && !state.huts.places?.length) state.huts = simulateHuts(state.snapshot?.tours ?? []);
   state.hutsLoading = false;
   drawMap();
   // A tour panel waiting for its "huts nearby" list gets it now.
@@ -666,11 +668,12 @@ function selectHut(id) {
     (nearReg ? `<dt>Avalanche region</dt><dd>${esc(nearReg.name)} — ${dangerPill(nearReg)}</dd>` : '') +
     `<dt>Position</dt><dd>${h.lat.toFixed(4)}° N, ${h.lon.toFixed(4)}° E</dd>` +
     `</dl>` +
+    (h.simulated ? '<p class="note"><strong>Simulated place</strong>: made up for simulated mode, because the real list could not be loaded.</p>' : '') +
     `<p class="note">From OpenStreetMap. Opening times in the mountains change with the season and the weather: always check with the host before you rely on a bed or a meal.</p>` +
     `<div class="linkrow">` +
     (h.website ? `<a class="btn primary" href="${esc(h.website)}" target="_blank" rel="noopener noreferrer">Website ↗</a>` : '') +
     (h.more ? `<a class="btn${h.website ? '' : ' primary'}" href="${esc(h.more)}" target="_blank" rel="noopener noreferrer">${h.org === 'DNT' ? 'Find on ut.no' : 'Find on STF'} ↗</a>` : '') +
-    `<a class="btn" href="https://www.openstreetmap.org/${esc(h.id)}" target="_blank" rel="noopener noreferrer">OpenStreetMap ↗</a>` +
+    (h.simulated ? '' : `<a class="btn" href="https://www.openstreetmap.org/${esc(h.id)}" target="_blank" rel="noopener noreferrer">OpenStreetMap ↗</a>`) +
     (nearReg ? `<button class="btn" data-region="${esc(nearReg.id)}">Region overview</button>` : '') +
     `</div></div></div>`;
   renderRouteMap($('#routeMap'), { route: null, tour: { name: h.name ?? HUT_KIND[h.kind], lat: h.lat, lon: h.lon }, country });
@@ -1652,6 +1655,7 @@ async function enterSimulation() {
   state.alerts = sim.alerts;
   state.outlook = sim.outlook;
   if (sim.resorts) state.resorts = sim.resorts;
+  if (state.huts && !state.huts.places?.length) state.huts = simulateHuts(sim.snapshot.tours);
   state.sel = null;
   state.selRegion = null;
   $('#simBanner').hidden = false;
@@ -1674,6 +1678,7 @@ async function enterSimulation() {
 function leaveSimulation() {
   state.simulated = false;
   state.resorts = null;
+  if (state.huts?.simulated) state.huts = null;
   $('#simBanner').hidden = true;
   $('#simBtn').classList.remove('on');
   $('#simBtn').textContent = 'Simulated data';

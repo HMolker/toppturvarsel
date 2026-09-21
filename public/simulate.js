@@ -318,3 +318,42 @@ export function simulateResorts(resorts, seed = 'storm') {
     }),
   };
 }
+
+/**
+ * Made-up huts and cafés, for simulated mode when the real list from
+ * OpenStreetMap is not available (Overpass down or refusing): about one
+ * place per tour, a few kilometres off, every kind and every winter status,
+ * all clearly named as simulated.
+ */
+export function simulateHuts(tours, seed = 'huts') {
+  const kinds = ['hut', 'hut', 'shelter', 'lodge', 'cafe', 'restaurant', 'hut'];
+  const winter = [true, null, true, false, true, null, null];
+  const out = [];
+  tours.forEach((t, i) => {
+    if (!Number.isFinite(t.lat)) return;
+    const r = rng(`${seed}:${t.name}`);
+    const km = 1.5 + r() * 4, ang = r() * 2 * Math.PI;
+    const k = i % kinds.length;
+    const kind = kinds[k];
+    const label = { hut: 'cabin', shelter: 'open hut', lodge: 'fjellstue', cafe: 'café', restaurant: 'restaurant' }[kind];
+    out.push({
+      id: `sim/${i}`,
+      kind,
+      name: `${t.name} ${label}`,
+      lat: +(t.lat + (km / 111) * Math.cos(ang)).toFixed(5),
+      lon: +(t.lon + (km / (111 * Math.cos((t.lat * Math.PI) / 180))) * Math.sin(ang)).toFixed(5),
+      ele: Math.round(((t.summit_m ?? 1200) - (t.vertical_m ?? 600) * (0.4 + r() * 0.5)) / 10) * 10,
+      org: kind === 'hut' ? (i % 3 === 0 ? 'STF' : 'DNT') : null,
+      operator: null,
+      beds: kind === 'hut' || kind === 'lodge' ? 10 + Math.round(r() * 60) : null,
+      staffed: kind === 'lodge' ? true : null,
+      opening: winter[k] === true ? 'Feb 15-Apr 30' : winter[k] === false ? 'Jun 20-Sep 10' : null,
+      winter: winter[k],
+      fee: null,
+      website: null,
+      more: null,
+      simulated: true,
+    });
+  });
+  return { places: out, simulated: true, fetchedAt: new Date().toISOString() };
+}

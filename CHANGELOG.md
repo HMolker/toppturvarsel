@@ -3,6 +3,14 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v4.15.2 — huts in simulated mode (2026-09-22)
+
+- Simulated mode shows the huts & cafés layer even when the real list from
+  OpenStreetMap can't be loaded: about one made-up place per tour, of every
+  kind and winter status, marked as simulated in the legend and panel. The
+  real list is used whenever it is available.
+- The legend says why the real list failed, when it does.
+
 ## v4.15.1 — gentle with OpenStreetMap's servers (2026-09-22)
 
 - Every Overpass request (tour routes, ski-area maps, huts, Swedish

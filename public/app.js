@@ -1229,7 +1229,8 @@ function selectResort(id) {
     (tours[0]?.t?.snow?.depthCm != null ? `<dt>Snow nearby</dt><dd><strong>${Math.round(tours[0].t.snow.depthCm)} cm</strong> modelled at ${esc(tours[0].t.name)} (${Math.round(tours[0].d)} km)</dd>` : '') +
     `<dt>Position</dt><dd>${r.lat.toFixed(4)}° N, ${r.lon.toFixed(4)}° E</dd>` +
     `</dl>` +
-    `<h4>Fun facts</h4><div id="rsFacts"><p class="note">Counting runs and lifts in OpenStreetMap…</p></div>` +
+    `<h4>Snow depth this winter</h4><div class="snowhist" id="snowHist"><p class="note">Loading the last winters…</p></div>` +
+    `<h4>Fun facts</h4><div id="rsFacts"><p class="note">Counting runs and lifts in OpenStreetMap… (the first time for a resort this can take up to a minute)</p></div>` +
     `<h4>Next 5 days</h4><div id="forecast"></div>` +
     `<div class="linkrow">` +
     (r.url ? `<a class="btn primary" href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">${esc(r.name)} website ↗</a>` : '') +
@@ -1241,14 +1242,26 @@ function selectResort(id) {
   renderResortMap($('#routeMap'), { resort: r, country: r.country });
   renderForecast($('#forecast'), null);
   const still = () => state.selResort === id && !state.sel;
-  fetch(`/api/resortmap?resort=${encodeURIComponent(id)}`)
-    .then((res) => res.json().then((b) => (res.ok ? b : { error: b.detail ?? b.error ?? `HTTP ${res.status}` })))
-    .catch((err) => ({ error: err.message }))
-    .then((m) => {
+  const getJ = (u) =>
+    fetch(u)
+      .then((res) => res.json().then((b) => (res.ok ? b : { error: b.detail ?? b.error ?? `HTTP ${res.status}` })))
+      .catch((err) => ({ error: err.message }));
+  const loadMap = () =>
+    getJ(`/api/resortmap?resort=${encodeURIComponent(id)}`).then((m) => {
       if (!still()) return;
       if (!m.error) renderResortMap($('#routeMap'), { resort: r, data: m, country: r.country });
-      $('#rsFacts').innerHTML = m.error ? `<p class="note">The runs and lifts could not be loaded from OpenStreetMap right now (${esc(m.error)}).</p>` : factsHtml(m.facts);
+      $('#rsFacts').innerHTML = m.error
+        ? `<p class="note">The runs and lifts could not be loaded from OpenStreetMap right now (${esc(m.error)}). ` +
+          `Its public servers are sometimes busy.</p><button class="btn" id="rsRetry">Try again</button>`
+        : factsHtml(m.facts);
+      $('#rsRetry')?.addEventListener('click', () => {
+        $('#rsFacts').innerHTML = '<p class="note">Trying OpenStreetMap again…</p>';
+        loadMap();
+      });
     });
+  loadMap();
+  // Snow at the resort's point, like a tour's; in simulation the nearest tour's depth sets the winter.
+  getJ(`/api/snowhistory?resort=${encodeURIComponent(id)}`).then((h) => still() && renderSnowHistory($('#snowHist'), h, tours[0]?.t ?? { snow: null }, 'the resort'));
   if (state.simulated) {
     // The simulation has no resort forecasts; the nearest tour's summit stands in, and says so.
     const near = tours[0]?.t;
@@ -1276,7 +1289,7 @@ $('#detail').addEventListener('click', (e) => {
  * Out of season (July–September) the winter just gone is drawn instead, and
  * in simulated mode a made-up winter so far, ending at the simulated depth.
  */
-function renderSnowHistory(el, h, t) {
+function renderSnowHistory(el, h, t, place = "the tour's") {
   if (!el) return;
   if (!h || h.error || !h.seasons) {
     el.innerHTML = `<p class="note">Snow history could not be loaded right now${h?.error ? ` (${esc(h.error)})` : ''}.</p>`;
@@ -1305,7 +1318,7 @@ function renderSnowHistory(el, h, t) {
     return;
   }
   el.innerHTML = snowHistorySvg(m, opts) +
-    `<p class="note">seNorge snow model at the tour's 1 km grid cell${h.altitude ? ` (${h.altitude} m)` : ''}, daily at 06:00. ` +
+    `<p class="note">seNorge snow model at ${place === 'the resort' ? "the resort's" : place} 1 km grid cell${h.altitude ? ` (${h.altitude} m)` : ''}, daily at 06:00. ` +
     `Dashed: the average of the ${m.past.length} winters before; shaded: their lowest to highest.` +
     (opts.lastWinter ? ' The new winter starts on 1 October; until then this shows the last one.' : '') +
     (opts.note ? ' This winter is simulated.' : '') + `</p>`;

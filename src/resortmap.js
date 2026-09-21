@@ -5,6 +5,7 @@ import { gridBox, gridPoints } from './terrain.js';
 import { bestElevations } from './sources/elevation.js';
 import { haversineKm } from './util/utm.js';
 import { log } from './util/log.js';
+import { overpass } from './util/overpass.js';
 
 /**
  * A ski resort from OpenStreetMap: lifts with their stations, pylons and
@@ -36,7 +37,6 @@ import { log } from './util/log.js';
  * Data © OpenStreetMap contributors, ODbL.
  */
 
-const OVERPASS = process.env.OVERPASS_URL || 'https://overpass-api.de/api/interpreter';
 const TTL = 30 * 86400e3;
 const RADIUS_M = 4000;
 
@@ -56,6 +56,7 @@ export function resortQuery(lat, lon, r = RADIUS_M) {
   way${a}[aerialway~"^(${Object.keys(LIFT_KINDS).join('|')})$"];
   node${a}[aerialway~"^(station|pylon)$"];
   way${a}[landuse=winter_sports];
+  relation${a}[landuse=winter_sports];
   nwr${a}[amenity~"^(restaurant|cafe|bar|fast_food|ski_school)$"];
   nwr${a}[shop=ski];
   nwr${a}[tourism=alpine_hut];
@@ -64,20 +65,7 @@ out geom tags;`;
 }
 
 async function fetchOverpass(lat, lon) {
-  const res = await fetch(OVERPASS, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'User-Agent': 'toppturvarsel/1.0 (self-hosted ski touring dashboard)',
-      Accept: 'application/json',
-    },
-    body: `data=${encodeURIComponent(resortQuery(lat, lon))}`,
-    signal: AbortSignal.timeout(120000),
-  });
-  if (!res.ok) throw new Error(`Overpass HTTP ${res.status}`);
-  const body = await res.json();
-  if (!Array.isArray(body?.elements)) throw new Error('Overpass: no elements array');
-  return body.elements;
+  return overpass(resortQuery(lat, lon), { timeoutMs: 120000, what: 'resortmap' });
 }
 
 /* ------------------------------------------------------------------ *
@@ -148,6 +136,16 @@ export function shapeResort(elements, centre = null) {
         const kind = POI[t.amenity] ?? (t.shop === 'ski' ? POI.ski : t.tourism === 'alpine_hut' ? POI.alpine_hut : null);
         if (kind) out.pois.push({ ...p, kind, name: t.name ?? null });
       }
+      continue;
+    }
+    // A resort area mapped as a multipolygon: its biggest closed outer ring.
+    if (e.type === 'relation' && t.landuse === 'winter_sports') {
+      const rings = (e.members ?? [])
+        .filter((m) => m.role !== 'inner' && Array.isArray(m.geometry) && m.geometry.length > 3)
+        .map((m) => m.geometry.map((g) => ({ lat: +g.lat.toFixed(6), lon: +g.lon.toFixed(6) })))
+        .filter(isClosed)
+        .sort((a, b) => b.length - a.length);
+      if (rings[0]) boundaries.push({ name: t.name ?? null, points: rings[0] });
       continue;
     }
     if (!Array.isArray(e.geometry) || e.geometry.length < 2) {

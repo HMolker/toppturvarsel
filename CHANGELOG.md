@@ -3,6 +3,17 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v4.15 — snow history for resorts, sturdier OpenStreetMap requests (2026-09-22)
+
+- **Snow depth this winter** in the resort panel too: the same graph as
+  for tours, at the resort's own point (`/api/snowhistory?resort=<id>`).
+- **OpenStreetMap requests try three public Overpass servers** in turn
+  (overpass-api.de, overpass.kumi.systems, overpass.private.coffee) when
+  one is busy, refuses or cannot be reached; used for the ski-area maps
+  and the huts layer. Errors now say why ("fetch failed" came with no
+  reason) and the resort panel has a "Try again" button.
+- Resort areas mapped as multipolygon relations are recognised too.
+
 ## v4.14.1 — no more stale code after an update (2026-09-22)
 
 - JavaScript and CSS were cached by the browser for an hour. After an

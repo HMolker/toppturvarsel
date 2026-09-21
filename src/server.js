@@ -262,6 +262,18 @@ async function handleApi(req, res, url) {
     }
   }
 
+  // Snow through the winter at a resort: the same seNorge series, at its point.
+  if (route === '/api/snowhistory' && url.searchParams.has('resort')) {
+    const list = (await getResorts().catch(() => null))?.resorts ?? [];
+    const r = list.find((x) => x.id === url.searchParams.get('resort'));
+    if (!r) return json(res, 404, { error: 'unknown resort' });
+    try {
+      return jsonz(req, res, 200, await getSnowHistory({ name: `resort ${r.id}`, lat: r.lat, lon: r.lon }), { 'Cache-Control': 'public, max-age=3600' });
+    } catch (err) {
+      return json(res, 502, { error: 'snow history unavailable', detail: err.message });
+    }
+  }
+
   if (route === '/api/resortmap') {
     const list = (await getResorts().catch(() => null))?.resorts ?? [];
     const r = list.find((x) => x.id === url.searchParams.get('resort'));

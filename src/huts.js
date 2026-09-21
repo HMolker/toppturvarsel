@@ -3,6 +3,7 @@ import path from 'node:path';
 import { config, loadTours } from './config.js';
 import { haversineKm } from './util/utm.js';
 import { log } from './util/log.js';
+import { overpass } from './util/overpass.js';
 
 /**
  * Huts, mountain lodges and remote cafés near the tours, from OpenStreetMap:
@@ -29,7 +30,6 @@ import { log } from './util/log.js';
  * Data © OpenStreetMap contributors, ODbL.
  */
 
-const OVERPASS = process.env.OVERPASS_URL || 'https://overpass-api.de/api/interpreter';
 const TTL = 30 * 86400e3;
 const RADIUS_M = 15000;
 const REMOTE_KM = 3;
@@ -56,20 +56,7 @@ export function clusterPoints(tours, km = 8) {
 }
 
 async function fetchOverpass(points) {
-  const res = await fetch(OVERPASS, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'User-Agent': 'toppturvarsel/1.0 (self-hosted ski touring dashboard)',
-      Accept: 'application/json',
-    },
-    body: `data=${encodeURIComponent(hutsQuery(points))}`,
-    signal: AbortSignal.timeout(200000),
-  });
-  if (!res.ok) throw new Error(`Overpass HTTP ${res.status}`);
-  const body = await res.json();
-  if (!Array.isArray(body?.elements)) throw new Error('Overpass: no elements array');
-  return body.elements;
+  return overpass(hutsQuery(points), { timeoutMs: 200000, what: 'huts' });
 }
 
 /* ------------------------------------------------------------------ *

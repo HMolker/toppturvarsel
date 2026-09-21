@@ -19,7 +19,8 @@ test('Overpass query: every piste type, lifts, stations and pylons, the area, an
   assert.match(q, /way\(around:4000,60\.86,8\.51\)\["piste:type"\]/);
   assert.match(q, /aerialway~"\^\(cable_car\|gondola/);
   assert.match(q, /node\(around:4000,60\.86,8\.51\)\[aerialway~"\^\(station\|pylon\)\$"\]/);
-  assert.match(q, /landuse=winter_sports/);
+  assert.match(q, /way\(around:4000,60\.86,8\.51\)\[landuse=winter_sports\]/);
+  assert.match(q, /relation\(around:4000,60\.86,8\.51\)\[landuse=winter_sports\]/);
   assert.match(q, /amenity~"\^\(restaurant\|cafe\|bar\|fast_food\|ski_school\)\$"/);
   assert.match(q, /shop=ski/);
 });
@@ -99,6 +100,36 @@ test('getResortMap: one Overpass request, elevations for contours and stations, 
     assert.equal(m.source, 'OpenStreetMap contributors (ODbL)');
     await getResortMap(BASE);
     assert.equal(calls.overpass, 1, 'cached for 30 days');
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
+test('shape: a resort area mapped as a multipolygon relation is used too', () => {
+  const ring = [[-500, -500], [500, -500], [500, 500], [-500, 500], [-500, -500]].map(([e, n]) => ({ lat: BASE.lat + n / 111320, lon: BASE.lon + e / 55000 }));
+  const els = [
+    { type: 'relation', id: 1, tags: { landuse: 'winter_sports', type: 'multipolygon', name: 'Relasjonsfjellet' }, members: [{ type: 'way', role: 'outer', geometry: ring }] },
+    { type: 'way', id: 2, tags: { aerialway: 't-bar', name: 'Inne' }, geometry: [{ lat: BASE.lat, lon: BASE.lon }, { lat: BASE.lat + 0.003, lon: BASE.lon }] },
+    { type: 'way', id: 3, tags: { aerialway: 't-bar', name: 'Ute' }, geometry: [{ lat: BASE.lat + 0.05, lon: BASE.lon }, { lat: BASE.lat + 0.053, lon: BASE.lon }] },
+  ];
+  const s = shapeResort(els, BASE);
+  assert.equal(s.boundary.name, 'Relasjonsfjellet');
+  assert.deepEqual(s.lifts.map((l) => l.name), ['Inne']);
+});
+
+test('Overpass: a busy instance is skipped for the next', async () => {
+  const { overpass, OVERPASS_URLS } = await import('../src/util/overpass.js');
+  const realFetch = globalThis.fetch;
+  const hosts = [];
+  globalThis.fetch = async (url) => {
+    hosts.push(new URL(url).host);
+    if (hosts.length === 1) return new Response('busy', { status: 429 });
+    return new Response(JSON.stringify({ elements: [{ type: 'node', id: 1 }] }), { status: 200 });
+  };
+  try {
+    const els = await overpass('[out:json];node(1);out;');
+    assert.equal(els.length, 1);
+    assert.deepEqual(hosts, OVERPASS_URLS.slice(0, 2).map((u) => new URL(u).host));
   } finally {
     globalThis.fetch = realFetch;
   }

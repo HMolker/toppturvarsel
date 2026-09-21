@@ -23,7 +23,11 @@ test('a simulated winter fills every panel with plausible numbers', () => {
   }
   for (const t of sim.snapshot.tours) {
     assert.ok(Number.isFinite(t.snow.depthCm) && t.snow.depthCm > 0, `${t.name}: depth`);
-    assert.equal(sim.outlook.forecasts[t.name].days.length, 5, `${t.name}: 5 forecast days`);
+    const fc = sim.outlook.forecasts[t.name];
+    assert.equal(fc.days.length, 5, `${t.name}: 5 forecast days`);
+    assert.equal(fc.hourly.time.length, 7 * 24, `${t.name}: hourly, two past days + five`);
+    assert.ok(fc.hourly.time.includes(`${fc.days[0].date}T12:00`), `${t.name}: hourly covers today`);
+    for (const k of ['temp', 'wind', 'gust', 'dir', 'cloud', 'snow']) assert.ok(fc.hourly[k].every(Number.isFinite), `${t.name}: hourly ${k}`);
   }
 });
 

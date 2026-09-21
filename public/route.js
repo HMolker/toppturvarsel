@@ -6,6 +6,10 @@
 import { contours, smooth } from './contours.js';
 import { reliefSvg } from './relief.js';
 import { hazardCells } from './avalanche.js';
+import { dayWindow, windowText } from './daywindow.js';
+import { daylightText } from './daylight.js';
+import { snowQuality } from './snowquality.js';
+import { parseAspect } from './planner.js';
 
 const esc = (s) =>
   String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -345,7 +349,26 @@ const WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const dayName = (iso, i) => (i === 0 ? 'Today' : WD[new Date(`${iso}T12:00:00Z`).getUTCDay()]);
 const deg = (v) => (v == null ? '–' : `${v > 0 ? '' : v < 0 ? '−' : ''}${Math.abs(v)}°`);
 
-export function renderForecast(el, fc) {
+/**
+ * A day's hours as a thin strip: dark outside the usable light, shaded by
+ * how good each hour is inside it, the best window outlined.
+ */
+function hourStrip(w) {
+  const W = 96, H = 14, x = (h) => (h / 24) * W;
+  const light = w.sun?.light;
+  let out = `<svg class="hstrip" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" aria-hidden="true"><rect width="${W}" height="${H}" rx="2" fill="var(--night)"/>`;
+  if (light) out += `<rect x="${x(light.start).toFixed(1)}" width="${(x(light.end) - x(light.start)).toFixed(1)}" height="${H}" fill="var(--paper)"/>`;
+  for (const { h, s } of w.hours ?? []) {
+    const b = s >= 0.75 ? 4 : s >= 0.6 ? 3 : s >= 0.45 ? 2 : 1;
+    out += `<rect x="${x(h).toFixed(1)}" y="2" width="${(W / 24 - 0.4).toFixed(1)}" height="${H - 4}" fill="var(--ro${b})"/>`;
+  }
+  if (w.start != null) out += `<rect x="${x(w.start).toFixed(1)}" y="0.5" width="${(x(w.end) - x(w.start)).toFixed(1)}" height="${H - 1}" fill="none" stroke="var(--ink)" stroke-width="1"/>`;
+  return `${out}</svg>`;
+}
+
+const FIT = { fits: 'fits', tight: 'tight', no: 'too long', dark: 'no light' };
+
+export function renderForecast(el, fc, tour = null) {
   if (!fc) {
     el.innerHTML = '<p class="note">Loading forecast…</p>';
     return;
@@ -357,6 +380,9 @@ export function renderForecast(el, fc) {
   const days = fc.days ?? [];
   const maxSnow = Math.max(10, ...days.map((d) => d.snowCm ?? 0));
   const cell = (fn) => days.map((d, i) => `<td>${fn(d, i)}</td>`).join('');
+  const hourly = fc.hourly && tour ? fc.hourly : null;
+  const wins = hourly ? days.map((d) => dayWindow(tour, hourly, d.date)) : null;
+  const surf = hourly ? days.map((d) => snowQuality(parseAspect(tour.aspect), hourly, d.date)) : null;
 
   el.innerHTML =
     `<table class="fc">` +
@@ -379,8 +405,23 @@ export function renderForecast(el, fc) {
           `<span class="fcsub">gust ${d.gustMax ?? '–'} · ${esc(d.windDir ?? '')}</span>`
     )}</tr>` +
     `<tr><th scope="row">0° level</th>${cell((d) => (d.freezingLevel != null ? `${d.freezingLevel} m` : '–'))}</tr>` +
+    (wins
+      ? `<tr><th scope="row">Daylight</th>${cell((d, i) => `<span class="fcsub">${esc(wins[i] ? daylightText(wins[i].sun) : '–')}</span>`)}</tr>` +
+        `<tr><th scope="row">Best window</th>${cell((d, i) => {
+          const w = wins[i];
+          if (!w) return '–';
+          return `${hourStrip(w)}<strong>${esc(windowText(w) ?? '–')}</strong><span class="fcsub fit-${w.fit}">${FIT[w.fit]} · ~${w.needH} h</span>`;
+        })}</tr>` +
+        `<tr><th scope="row">Surface</th>${cell((d, i) => {
+          const q = surf[i];
+          if (!q) return '–';
+          return `<span class="fcsub" title="${esc(q.notes.map((n) => n[0]).join(' · '))}">${esc(q.label)}${q.timing ? ` ${q.timing.start}–${q.timing.end}` : ''}</span>`;
+        })}</tr>`
+      : '') +
     `</tbody></table>` +
-    `<p class="note">Wind in m/s. 0° level is the daytime maximum; above your summit means rain or wet snow on the whole tour.</p>`;
+    `<p class="note">Wind in m/s. 0° level is the daytime maximum; above your summit means rain or wet snow on the whole tour.` +
+    (wins ? ` Best window: the stretch of daylight, as long as the tour takes (~${wins.find(Boolean)?.needH ?? '?'} h at 400 m/h up), with the best hourly wind, cloud and snowfall; the strip shows the day's hours, dark outside usable light. Surface is for the descent aspect (${esc(tour.aspect ?? 'all')}), from the wind while it snowed, warming and the corn cycle; hover for why.` : '') +
+    `</p>`;
 }
 
 /* ------------------------------------------------------------------ *

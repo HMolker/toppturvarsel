@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { routeFromOsm, snapSummit, nameCandidates, overpassQuery } from '../src/sources/osm.js';
 import { resample, profileStats } from '../src/sources/elevation.js';
-import { shapeForecast, describeCode, compass, forecastUrl } from '../src/sources/forecast.js';
+import { shapeForecast, shapeHourly, describeCode, compass, forecastUrl } from '../src/sources/forecast.js';
 import { parseGpx, toGpx, slugify } from '../src/util/gpx.js';
 import { tileAllowed, tileBounds } from '../src/tiles.js';
 
@@ -186,5 +186,36 @@ test('forecast URL asks for summit-downscaled daily values in m/s', () => {
   assert.equal(u.searchParams.get('forecast_days'), '5');
   assert.equal(u.searchParams.get('wind_speed_unit'), 'ms');
   assert.ok(u.searchParams.get('daily').includes('snowfall_sum'));
-  assert.equal(u.searchParams.get('hourly'), 'freezing_level_height');
+  const hourly = u.searchParams.get('hourly').split(',');
+  for (const k of ['freezing_level_height', 'temperature_2m', 'wind_speed_10m', 'wind_gusts_10m', 'cloud_cover', 'snowfall']) assert.ok(hourly.includes(k), k);
+  assert.equal(u.searchParams.get('past_days'), '2');
+});
+
+test('forecast with past days: daily rows start today, hourly keeps the past', () => {
+  const days = ['2027-02-06', '2027-02-07', '2027-02-08', '2027-02-09', '2027-02-10', '2027-02-11', '2027-02-12'];
+  const time = [];
+  for (const d of days) for (let h = 0; h < 24; h++) time.push(`${d}T${String(h).padStart(2, '0')}:00`);
+  const n = time.length;
+  const body = {
+    elevation: 1200,
+    daily: { time: days, weather_code: days.map(() => 3), temperature_2m_max: days.map(() => -2) },
+    hourly: {
+      time,
+      temperature_2m: time.map((_, i) => -5 + (i % 24) / 10),
+      wind_speed_10m: time.map(() => 6.44),
+      wind_gusts_10m: time.map(() => 11.6),
+      wind_direction_10m: time.map(() => 271),
+      cloud_cover: time.map(() => 40),
+      snowfall: time.map((_, i) => (i < 24 ? 0.35 : 0)),
+      precipitation: time.map(() => 0),
+      freezing_level_height: time.map(() => 734),
+    },
+  };
+  const f = shapeForecast(body, { elevation: 1200 }, { pastDays: 2 });
+  assert.equal(f.days.length, 5);
+  assert.equal(f.days[0].date, '2027-02-08', 'first daily row is today');
+  assert.equal(f.hourly.time.length, n, 'hourly keeps the two past days');
+  assert.equal(f.hourly.time[0], '2027-02-06T00:00');
+  assert.deepEqual([f.hourly.wind[0], f.hourly.gust[0], f.hourly.snow[0], f.hourly.fl[0]], [6.4, 12, 0.4, 730]);
+  assert.equal(shapeHourly({ time: ['2027-02-08T00:00'], freezing_level_height: [800] }), null, 'freezing level alone is not an hourly forecast');
 });

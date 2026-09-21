@@ -51,17 +51,18 @@ globalThis.fetch = async (url, opts = {}) => {
   }
   if (u.includes('/v1/forecast')) {
     calls.forecast++;
-    const days = ['2027-02-08', '2027-02-09', '2027-02-10', '2027-02-11', '2027-02-12'];
+    // Open-Meteo with past_days=2: two days before "today" (2027-02-08).
+    const days = ['2027-02-06', '2027-02-07', '2027-02-08', '2027-02-09', '2027-02-10', '2027-02-11', '2027-02-12'];
     return J({
       elevation: 1035,
       daily: {
-        time: days, weather_code: [73, 3, 0, 85, 1],
-        temperature_2m_max: [-4, -6, -9, -3, -5], temperature_2m_min: [-8, -11, -15, -7, -9],
-        precipitation_sum: [6, 0.4, 0, 9, 0], snowfall_sum: [8, 0.2, 0, 12.5, 0],
-        wind_speed_10m_max: [14, 8, 4, 17, 6], wind_gusts_10m_max: [24, 13, 7, 29, 10],
-        wind_direction_10m_dominant: [260, 300, 20, 250, 180],
+        time: days, weather_code: [3, 3, 73, 3, 0, 85, 1],
+        temperature_2m_max: [-2, -2, -4, -6, -9, -3, -5], temperature_2m_min: [-5, -5, -8, -11, -15, -7, -9],
+        precipitation_sum: [0, 0, 6, 0.4, 0, 9, 0], snowfall_sum: [0, 0, 8, 0.2, 0, 12.5, 0],
+        wind_speed_10m_max: [5, 5, 14, 8, 4, 17, 6], wind_gusts_10m_max: [9, 9, 24, 13, 7, 29, 10],
+        wind_direction_10m_dominant: [90, 90, 260, 300, 20, 250, 180],
       },
-      hourly: { time: days.map((d) => `${d}T12:00`), freezing_level_height: [300, 0, 0, 450, 200] },
+      hourly: { time: days.map((d) => `${d}T12:00`), freezing_level_height: [100, 100, 300, 0, 0, 450, 200] },
     });
   }
   // Kartverket's point elevation API (the first choice for Norwegian tours),

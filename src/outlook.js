@@ -63,7 +63,7 @@ export async function getOutlook({ force = false } = {}) {
       const forecasts = {};
       let failed = 0;
       results.forEach((res, i) => {
-        if (res.ok) forecasts[tours[i].name] = { elevation: res.value.elevation, days: res.value.days };
+        if (res.ok) forecasts[tours[i].name] = { elevation: res.value.elevation, days: res.value.days, hourly: res.value.hourly ?? null };
         else {
           failed++;
           forecasts[tours[i].name] = null;

@@ -10,7 +10,13 @@
  *   daily.{time, weather_code, temperature_2m_max, temperature_2m_min,
  *          precipitation_sum (mm), snowfall_sum (cm), wind_speed_10m_max,
  *          wind_gusts_10m_max, wind_direction_10m_dominant}
- *   hourly.{time, freezing_level_height (m)}
+ *   hourly.{time, freezing_level_height (m), temperature_2m, wind_speed_10m,
+ *           wind_gusts_10m, wind_direction_10m, cloud_cover (%),
+ *           snowfall (cm), precipitation (mm)}
+ *
+ * `past_days=2` adds the two days before today, so snow quality can look at
+ * what the wind did while the last snow fell. The daily rows still start
+ * today; the past only shows up in the hourly series.
  *
  * Data: Open-Meteo, CC BY 4.0. Free for non-commercial use.
  */
@@ -28,14 +34,28 @@ const DAILY = [
   'wind_direction_10m_dominant',
 ].join(',');
 
+const HOURLY = [
+  'freezing_level_height',
+  'temperature_2m',
+  'wind_speed_10m',
+  'wind_gusts_10m',
+  'wind_direction_10m',
+  'cloud_cover',
+  'snowfall',
+  'precipitation',
+].join(',');
+
+export const PAST_DAYS = 2;
+
 export function forecastUrl({ lat, lon, elevation }) {
   const q = new URLSearchParams({
     latitude: lat.toFixed(4),
     longitude: lon.toFixed(4),
     daily: DAILY,
-    hourly: 'freezing_level_height',
+    hourly: HOURLY,
     timezone: 'Europe/Oslo',
     forecast_days: '5',
+    past_days: String(PAST_DAYS),
     wind_speed_unit: 'ms',
   });
   if (Number.isFinite(elevation)) q.set('elevation', String(Math.round(elevation)));
@@ -48,7 +68,7 @@ export async function fetchForecast(where) {
     signal: AbortSignal.timeout(20000),
   });
   if (!res.ok) throw new Error(`forecast HTTP ${res.status}`);
-  return shapeForecast(await res.json(), where);
+  return shapeForecast(await res.json(), where, { pastDays: PAST_DAYS });
 }
 
 /** WMO weather code -> short label + icon key. */
@@ -68,7 +88,35 @@ export function describeCode(code) {
 const COMPASS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
 export const compass = (deg) => (Number.isFinite(deg) ? COMPASS[Math.round(((deg % 360) + 360) % 360 / 45) % 8] : null);
 
-export function shapeForecast(body, where = {}) {
+/**
+ * Hourly values as parallel arrays with rounding, because the outlook ships
+ * one of these per tour (~90) to the browser. `start` is the first hour's
+ * local time ("2027-02-08T00:00"); hour i is start + i hours.
+ */
+export function shapeHourly(h) {
+  if (!h || !Array.isArray(h.time) || !h.time.length) return null;
+  const col = (k, p = 0) =>
+    h.time.map((_, i) => {
+      const v = Array.isArray(h[k]) ? h[k][i] : null;
+      return Number.isFinite(v) ? Math.round(v * 10 ** p) / 10 ** p : null;
+    });
+  const out = {
+    time: h.time.map(String),
+    temp: col('temperature_2m', 1),
+    wind: col('wind_speed_10m', 1),
+    gust: col('wind_gusts_10m'),
+    dir: col('wind_direction_10m'),
+    cloud: col('cloud_cover'),
+    snow: col('snowfall', 1),
+    precip: col('precipitation', 1),
+    fl: col('freezing_level_height', -1),
+  };
+  // Only the freezing level was asked for (an older cache): no usable hours.
+  if (out.temp.every((v) => v === null) && out.wind.every((v) => v === null)) return null;
+  return out;
+}
+
+export function shapeForecast(body, where = {}, { pastDays = 0 } = {}) {
   const d = body?.daily;
   if (!d || !Array.isArray(d.time)) throw new Error('forecast: no daily block');
 
@@ -93,7 +141,7 @@ export function shapeForecast(body, where = {}) {
     source: 'open-meteo',
     elevation: Number.isFinite(body.elevation) ? Math.round(body.elevation) : where.elevation ?? null,
     requestedElevation: where.elevation ?? null,
-    days: d.time.slice(0, 5).map((date, i) => ({
+    days: d.time.map((date, i) => ({
       date,
       ...describeCode(val('weather_code', i)),
       code: val('weather_code', i),
@@ -106,6 +154,7 @@ export function shapeForecast(body, where = {}) {
       windDir: compass(val('wind_direction_10m_dominant', i)),
       windDeg: val('wind_direction_10m_dominant', i),
       freezingLevel: Number.isFinite(fl[date]) ? Math.round(fl[date] / 50) * 50 : null,
-    })),
+    })).slice(pastDays, pastDays + 5),
+    hourly: shapeHourly(h),
   };
 }

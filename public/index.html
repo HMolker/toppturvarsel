@@ -68,7 +68,18 @@
         <div id="planList"><div class="skeleton">loading…</div></div>
         <div id="planMatrix"></div>
       </div>
-      <p class="note plannote">How it ranks: first an avalanche filter. Danger level is weighed against the tour's steepness (its difficulty rating), and against whether its aspect and elevation fall inside a problem the bulletin names. Tours that fail are excluded, not marked down. Then a score out of 100: fresh snow and surface 25 %, base 20 % (full marks from 100 cm), weather that day 25 %, tour quality 20 %, fit 10 %. Days after the last bulletin reuse it and say so. This sorts what the bulletin says; read the bulletin before you go.</p>
+      <div class="trip" id="tripPlan">
+        <div class="triphd">
+          <h3>A few days in one area</h3>
+          <label>Trip length
+            <select id="pTripLen">
+              <option value="2">2 days</option><option value="3">3 days</option><option value="4">4 days</option><option value="5">5 days</option>
+            </select></label>
+          <span class="note" id="tripMeta"></span>
+        </div>
+        <div id="tripAreas"></div>
+      </div>
+      <p class="note plannote">How it ranks: first an avalanche filter. Danger level is weighed against the tour's steepness (its difficulty rating), and against whether its aspect and elevation fall inside a problem the bulletin names. Tours that fail are excluded, not marked down. Then a score out of 100: fresh snow and surface 25 %, base 20 % (full marks from 100 cm), weather that day 25 % (with the hourly forecast: the best window inside the daylight, for as long as the tour takes), tour quality 20 %, fit 10 %. Fresh snow and surface are judged by the descent aspect: wind while it snowed, warming and the spring corn cycle. Days after the last bulletin reuse it and say so. This sorts what the bulletin says; read the bulletin before you go.</p>
     </div>
   </section>
 
@@ -144,6 +155,23 @@
   <section class="card full">
     <div class="hd"><h2>Data sources &amp; freshness</h2></div>
     <div class="bd"><div class="srcgrid" id="sources"></div></div>
+  </section>
+
+  <section class="card full" id="ideasCard">
+    <div class="hd">
+      <h2>Proposals — ideas for later</h2>
+      <span class="note">Not built yet. Kept here so they are not forgotten.</span>
+    </div>
+    <div class="bd">
+      <ol class="ideas">
+        <li><strong>Travel time and road status.</strong> Real driving time from where you start instead of distance as the crow flies (openrouteservice, free key), and mountain passes and winter closures from Statens vegvesen (Datex II, needs registration) and Trafikverket (open API, needs a key). A tour behind a closed pass would then drop out of the plan by itself.</li>
+        <li><strong>Ground truth.</strong> Recent Regobs observations near each tour (snow surface, cracking, avalanche activity; check the licence and crediting again in December), webcams near the trailheads, and a trip log where you rate the day you actually had, so the score can be tuned against reality.</li>
+        <li><strong>Personal alerts.</strong> A push or email when a tour you would rate 75+ turns up within, say, four hours' drive, for a day you have marked as free. Builds on the planner score and, once it exists, on travel time.</li>
+        <li><strong>More mountains.</strong> The Pyrenees (Spain, France, Andorra) and North Macedonia, each with its own avalanche service and snow data. The country selector is already built for it.</li>
+        <li><strong>Tour editor that saves.</strong> The editor preview on this server, with a password, writing tracks, descriptions and photos straight into the data folder instead of a downloaded zip.</li>
+        <li><strong>Official EAWS pictograms.</strong> Swap the drawn problem icons for the EAWS originals if permission to use them is given.</li>
+      </ol>
+    </div>
   </section>
 
 </div>

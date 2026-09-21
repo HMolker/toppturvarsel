@@ -1,4 +1,5 @@
 import { COAST, BORDER } from './geo.js';
+import { planTrip } from './areaplan.js';
 import { renderRouteMap, renderProfile, routeSummary, renderForecast, renderPhotos, renderOwnPhotos } from './route.js';
 import { layoutResorts, resortSvg, OPEN_BANDS } from './resorts.js';
 import { plan } from './planner.js';
@@ -990,10 +991,10 @@ async function loadTourExtras(t, reg) {
   });
   if (state.simulated) {
     const fc = state.outlook?.forecasts?.[t.name];
-    renderForecast($('#forecast'), fc ? { ...fc, simulated: true } : { error: 'not part of the simulation' });
+    renderForecast($('#forecast'), fc ? { ...fc, simulated: true } : { error: 'not part of the simulation' }, t);
   } else {
     getJson(`/api/forecast?tour=${q}`).then((fc) => {
-      if (still()) renderForecast($('#forecast'), fc);
+      if (still()) renderForecast($('#forecast'), fc, t);
     });
   }
 }
@@ -1297,13 +1298,24 @@ const PLACES = [
   ['63.43,10.39', 'Trondheim'], ['62.47,6.15', 'Ålesund'], ['63.40,13.08', 'Åre'], ['63.18,14.64', 'Östersund'],
   ['60.39,5.32', 'Bergen'], ['59.91,10.75', 'Oslo'], ['63.83,20.26', 'Umeå'], ['59.33,18.07', 'Stockholm'], ['57.71,11.97', 'Göteborg'],
 ];
-const planPrefs = { maxDifficulty: 3, maxDanger: 3, from: '', ...readStore(PLAN_KEY, {}) };
+const planPrefs = { maxDifficulty: 3, maxDanger: 3, from: '', tripLen: 3, ...readStore(PLAN_KEY, {}) };
 
 function initPlanner() {
   $('#pFrom').innerHTML = PLACES.map(([v, l]) => `<option value="${v}">${esc(l)}</option>`).join('');
   $('#pMaxDiff').value = String(planPrefs.maxDifficulty);
   $('#pMaxDanger').value = String(planPrefs.maxDanger);
   $('#pFrom').value = planPrefs.from;
+  $('#pTripLen').value = String(planPrefs.tripLen);
+  $('#pTripLen').addEventListener('change', () => {
+    planPrefs.tripLen = +$('#pTripLen').value;
+    writeStore(PLAN_KEY, planPrefs);
+    renderPlanner();
+  });
+  $('#tripAreas').addEventListener('click', (e) => {
+    if (e.target.closest('[data-av]')) return;
+    const r = e.target.closest('[data-tour]');
+    if (r) selectTour(r.dataset.tour);
+  });
   const save = () => {
     planPrefs.maxDifficulty = +$('#pMaxDiff').value;
     planPrefs.maxDanger = +$('#pMaxDanger').value;
@@ -1468,6 +1480,46 @@ function renderPlanner() {
     `<div class="mlegend"><span><span class="cell" style="background:var(--ro4);color:var(--rg4)">80</span>score (darker = better)</span>` +
     `<span><span class="cell caution" style="background:var(--ro2)">55</span>caution</span>` +
     `<span><span class="cell excluded">✕</span>excluded</span><span><span class="cell low" style="background:var(--ro3);color:var(--rg3)">70</span>weather only</span></div>`;
+  renderTrip(p, k, regionName);
+}
+
+/** "A few days in one area": the best regions for a trip starting on the selected day. */
+function renderTrip(p, k, regionName) {
+  const t = planTrip(p, { start: k, length: planPrefs.tripLen, top: 3 });
+  const end = t.dates[t.dates.length - 1];
+  $('#tripMeta').textContent = t.length
+    ? `${dayName(t.dates[0], k)} ${shortDate(t.dates[0])}${t.length > 1 ? ` – ${shortDate(end)}` : ''}` +
+      (t.length < planPrefs.tripLen ? ` (the forecast only reaches ${t.length} day${t.length > 1 ? 's' : ''} from here)` : '') +
+      ' · one different tour per day, best area first'
+    : '';
+  if (!t.areas.length) {
+    $('#tripAreas').innerHTML = '<p class="pempty">No area has a tour that passes the avalanche filter in these days.</p>';
+    return;
+  }
+  $('#tripAreas').innerHTML = t.areas
+    .map((a, i) => {
+      const b = scoreBand(a.mean);
+      const days = a.days
+        .map((d) => {
+          const r = d.row;
+          const label = `<span class="tdday">${dayName(d.date, d.k).slice(0, 3)} ${shortDate(d.date)}</span>`;
+          if (!r) return `<li class="tdrest">${label}<span class="tdtour">rest day: nothing passes</span></li>`;
+          const extra = [r.window?.text && r.window.fit !== 'no' ? r.window.text : null, r.surface && r.surface !== 'old snow' ? r.surface : null].filter(Boolean).join(' · ');
+          return (
+            `<li data-tour="${esc(r.tour)}" tabindex="0">${label}<span class="tdtour">${esc(r.tour)}` +
+            `${r.status === 'caution' ? ' <span class="ptag caution">caution</span>' : ''}</span>` +
+            `<span class="tdx">${esc(extra)}</span><span class="tdscore">${r.score}</span></li>`
+          );
+        })
+        .join('');
+      return (
+        `<div class="tarea"><div class="tahd"><span class="prank">${i + 1}</span><strong>${esc(regionName(a.region))}</strong>` +
+        `<span class="cell" style="background:var(--ro${b});color:var(--rg${b})" title="Mean score over the trip, rest days count 0">${a.mean}</span>` +
+        `<span class="note">${a.tourDays} of ${a.days.length} days${a.restDays ? `, ${a.restDays} rest` : ''} · ${a.tours} tour${a.tours === 1 ? '' : 's'} in the area</span></div>` +
+        `<ol class="tdays">${days}</ol></div>`
+      );
+    })
+    .join('');
 }
 
 initPlanner();

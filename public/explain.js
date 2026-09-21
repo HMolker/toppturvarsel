@@ -69,6 +69,7 @@ function partDetail(key, r) {
       const x = e.fresh;
       if (!x) return '';
       const lines = [
+        ...(x.surface ? [`surface: <b>${esc(x.surface.label)}</b>${x.surface.windFrom ? ` (wind from ${esc(x.surface.windFrom)}, ${x.surface.windMean} m/s)` : ''}`] : []),
         `${x.observedNew72 != null ? `${Math.round(x.observedNew72)} cm new in the last 72 h (seNorge), weighted ${x.age} for its age` : 'no observed new snow'}` +
           `${x.forecastCm ? ` + ${x.forecastCm} cm forecast` : ''} = <b>${x.cm} cm</b> → ${f2(x.curve)} on the curve`,
         ...x.mods.map(([what, how]) => `${esc(what)} ${esc(how)}`),
@@ -88,6 +89,15 @@ function partDetail(key, r) {
     case 'weather': {
       const x = e.weather;
       if (!x) return '<div>no forecast for this day; counted as 0.50</div>';
+      if (x.window !== undefined) {
+        const fit = { fits: 'fits the light', tight: 'tight on the light', no: 'does not fit the light', dark: 'no usable light' }[x.fit] ?? '';
+        return (
+          `<div>Daylight ${esc(x.daylight)}. Tour ~${x.needH} h, ${x.lightH} h usable light: ${fit}.</div>` +
+          (x.window ? `<div>Best window <b>${esc(x.window)}</b>: hourly wind, gusts, cloud and snowfall average ${f2(x.windowScore)}.</div>` : '') +
+          `<div class="xmuted">each hour: wind × 0.45 + cloud × 0.35 + snow/rain × 0.20; gusts ≥ 17 m/s cap the hour at 0.30</div>` +
+          (x.caps?.length ? `<div>${x.caps.map(esc).join('<br>')}</div>` : '')
+        );
+      }
       return (
         `<div>${esc(x.label ?? '')}, wind ${Math.round(x.windMax ?? 0)} m/s (gusts ${Math.round(x.gustMax ?? 0)}), ${x.precipMm ?? 0} mm.</div>` +
         `<div class="xmuted">wind ${f2(x.wind)} × 0.40 + sky ${f2(x.sky)} × 0.35 + precipitation ${f2(x.precip)} × 0.25</div>` +
@@ -146,7 +156,7 @@ export function explainHtml(r, { dayLabel = '', tourName = r.tour } = {}) {
     `<div class="xstep"><span class="xn">3</span><div><b>Confidence.</b> ${CONF[r.confidence] ?? ''}</div></div>` +
 
     `<div class="xgeneral"><b>In general.</b> The avalanche filter comes first and is never averaged in. Danger level is weighed against steepness (difficulty) and against the bulletin's problem aspects and elevations. ` +
-    `Tours that pass get 25 % fresh snow and surface, 20 % base, 25 % weather, 20 % quality and 10 % fit. ` +
+    `Tours that pass get 25 % fresh snow and surface, 20 % base, 25 % weather, 20 % quality and 10 % fit. With an hourly forecast, weather is the best window inside the daylight for as long as the tour takes, and the surface is judged by the descent aspect: wind while it snowed, warming, corn. ` +
     `Base counts nothing at 20 cm or less and in full from 100 cm, so 100 and 300 cm are equal. Each part is 0–1, times its weight.</div>`
   );
 }

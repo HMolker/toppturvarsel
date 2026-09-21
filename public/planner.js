@@ -18,7 +18,14 @@
  *
  * Pure functions, no DOM: app.js renders, the tests run this in Node.
  * This sorts what the bulletin says. It is not a substitute for reading it.
+ *
+ * With an hourly forecast (v4.8) the weather part is the best window inside
+ * the daylight rather than the day's summary, a tour that does not fit the
+ * light is marked down, and the surface is judged by aspect (snowquality.js).
  */
+import { dayWindow, windowText } from './daywindow.js';
+import { daylightText } from './daylight.js';
+import { snowQuality } from './snowquality.js';
 
 /** Curves, exported so the explanation box can draw them. */
 export const FRESH_CURVE = [[0, 0.15], [5, 0.45], [15, 0.85], [20, 1], [40, 1], [60, 0.85], [90, 0.7]];
@@ -179,27 +186,40 @@ export function conditions(tour, fc, k, prefs) {
   const freshMods = [];
   if (freshCm >= 5) why.push(`~${Math.round(freshCm)} cm fresh`);
 
-  const upTo = days.slice(0, k + 1);
-  const warm = upTo.some((d) => Number.isFinite(d?.tMax) && d.tMax > 0.5);
-  if (warm && freshCm >= 3) {
-    fresh *= 0.6;
-    freshMods.push(['warming above 0° after the snow', '× 0.6']);
-    why.push('warming: crust or wet snow likely');
-  }
-  const windy = upTo.some((d) => Number.isFinite(d?.windMax) && d.windMax >= 12);
-  if (windy && freshCm >= 5) {
-    fresh *= 0.7;
-    freshMods.push(['wind ≥ 12 m/s on the new snow', '× 0.7']);
-    why.push('wind-affected snow');
-  }
   const month = today?.date ? Number(today.date.slice(5, 7)) : 0;
   const asp = parseAspect(tour.aspect);
-  if (month >= 3 && month <= 6 && freshCm < 5 && today && today.tMin <= -2 && today.tMax >= 1 && asp.some((a) => SUNNY.includes(a))) {
-    if (0.8 > fresh) {
-      why.push('corn cycle: frozen night, sunny slopes soften');
-      freshMods.push(['spring corn cycle on sunny aspects', 'at least 0.80']);
+  // With hourly data: surface by aspect (wind, warming, corn). Without it,
+  // the older day-level rules below.
+  const sq = today?.date && fc?.hourly ? snowQuality(asp, fc.hourly, today.date, { freshCm }) : null;
+  if (sq) {
+    fresh *= sq.factor;
+    if (sq.floor != null && sq.floor > fresh) fresh = sq.floor;
+    for (const n of sq.notes) freshMods.push(n);
+    const short = { 'wind-loaded': 'wind-loaded, slab-prone', 'wind-packed': 'wind-packed', scoured: 'wind-scoured', 'wind-affected': 'wind-affected snow', 'sun crust': 'crust likely', crust: 'crust likely', moist: 'heavy by midday' };
+    if (sq.label === 'corn' && sq.timing) why.push(`corn ${sq.timing.start}–${sq.timing.end}`);
+    else if (short[sq.label]) why.push(short[sq.label]);
+    else if (sq.label === 'powder' && freshCm >= 5 && sq.notes.some((n) => n[0].startsWith('cold and calm'))) why.push('cold and calm: powder holds');
+  } else {
+    const upTo = days.slice(0, k + 1);
+    const warm = upTo.some((d) => Number.isFinite(d?.tMax) && d.tMax > 0.5);
+    if (warm && freshCm >= 3) {
+      fresh *= 0.6;
+      freshMods.push(['warming above 0° after the snow', '× 0.6']);
+      why.push('warming: crust or wet snow likely');
     }
-    fresh = Math.max(fresh, 0.8);
+    const windy = upTo.some((d) => Number.isFinite(d?.windMax) && d.windMax >= 12);
+    if (windy && freshCm >= 5) {
+      fresh *= 0.7;
+      freshMods.push(['wind ≥ 12 m/s on the new snow', '× 0.7']);
+      why.push('wind-affected snow');
+    }
+    if (month >= 3 && month <= 6 && freshCm < 5 && today && today.tMin <= -2 && today.tMax >= 1 && asp.some((a) => SUNNY.includes(a))) {
+      if (0.8 > fresh) {
+        why.push('corn cycle: frozen night, sunny slopes soften');
+        freshMods.push(['spring corn cycle on sunny aspects', 'at least 0.80']);
+      }
+      fresh = Math.max(fresh, 0.8);
+    }
   }
 
   // Base, capped at 100 cm; thin-cover and start-of-route notes.
@@ -213,10 +233,37 @@ export function conditions(tour, fc, k, prefs) {
   const startCm = tour.snowStart?.depthCm;
   const startNote = !Number.isFinite(startCm) ? null : startCm < 20 ? `carry skis from the car (≈${Math.round(startCm)} cm at the start)` : startCm >= 40 ? 'skiable from the car' : null;
 
-  // Weather on the day.
+  // Weather on the day: from the best window in the daylight when there is
+  // an hourly forecast, else from the day's summary.
   let weather = null;
   let wx = null;
-  if (today) {
+  const win = today?.date && fc?.hourly ? dayWindow(tour, fc.hourly, today.date) : null;
+  if (win) {
+    weather = win.score;
+    wx = { window: windowText(win), windowScore: win.score, needH: win.needH, lightH: win.lightH, daylight: daylightText(win.sun), fit: win.fit, caps: [] };
+    if (win.fit === 'dark') {
+      weather = 0;
+      wx.caps.push('no usable daylight: 0');
+      why.push('no daylight');
+    } else if (win.fit === 'no') {
+      weather *= 0.5;
+      wx.caps.push(`needs ~${win.needH} h, only ${win.lightH} h of light: × 0.5`);
+      why.push(`longer than the daylight (~${win.needH} h, ${win.lightH} h light)`);
+    } else if (win.fit === 'tight') {
+      why.push(`tight on daylight (~${win.needH} h of ${win.lightH} h)`);
+    }
+    const summit = fc.elevation ?? tour.summit_m;
+    if (Number.isFinite(today.freezingLevel) && Number.isFinite(summit) && today.freezingLevel > summit) {
+      weather = Math.min(weather, 0.35);
+      wx.caps.push(`0° level ${today.freezingLevel} m above the ${Math.round(summit)} m summit: capped at 0.35`);
+      why.push('0° level above the summit');
+    }
+    if (win.start != null && win.fit !== 'no') {
+      if (weather >= 0.7) why.push(`go ${windowText(win)}`);
+      else if (weather < 0.45) why.push(`poor weather even at best (${windowText(win)})`);
+      else why.push(`best ${windowText(win)}`);
+    }
+  } else if (today) {
     const wind = Number.isFinite(today.windMax) ? clamp01((15 - today.windMax) / 9) : 0.6;
     const sky = skyScore(today.code);
     const precip = Number.isFinite(today.precipMm) ? Math.max(0.2, 1 - today.precipMm / 10) : 0.7;
@@ -256,13 +303,13 @@ export function conditions(tour, fc, k, prefs) {
   const score = Math.round(100 * Object.entries(WEIGHTS).reduce((s, [k2, w]) => s + w * parts[k2], 0));
   // Everything the explanation box needs to show its working.
   const explain = {
-    fresh: { observedCm: Math.round(observed), observedNew72: tour.snow?.new72 ?? null, age: AGE[k] ?? 0.3, forecastCm: Math.round(forecastCm), cm: Math.round(freshCm), curve: freshCurveValue, mods: freshMods },
+    fresh: { surface: sq ? { label: sq.label, windFrom: sq.windFrom, windMean: sq.windMean } : null, observedCm: Math.round(observed), observedNew72: tour.snow?.new72 ?? null, age: AGE[k] ?? 0.3, forecastCm: Math.round(forecastCm), cm: Math.round(freshCm), curve: freshCurveValue, mods: freshMods },
     base: { depth, minBase, estimated: base == null },
     weather: today ? { label: today.label, windMax: today.windMax, gustMax: today.gustMax, precipMm: today.precipMm, freezingLevel: today.freezingLevel, ...wx } : null,
     quality: { stars: tour.quality ?? 3 },
     fit: { difficulty: tour.difficulty ?? 3, maxDifficulty: maxD, level: fitLevel, dist: fitDist, km: km == null ? null : Math.round(km) },
   };
-  return { score, parts, why, explain, freshCm: Math.round(freshCm), depth, startNote, km: km == null ? null : Math.round(km), hasForecast: Boolean(today), hasBase: base != null };
+  return { score, parts, why, explain, surface: sq?.label ?? null, window: win ? { text: windowText(win), fit: win.fit, needH: win.needH, lightH: win.lightH } : null, freshCm: Math.round(freshCm), depth, startNote, km: km == null ? null : Math.round(km), hasForecast: Boolean(today), hasBase: base != null };
 }
 
 /** Bulletin for a date: that day's, else the latest earlier one (marked assumed). */

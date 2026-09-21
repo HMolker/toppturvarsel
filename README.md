@@ -207,6 +207,33 @@ method in general. The same box opens on the week table's cells, including
 excluded ones: there it shows what the tour would have scored, and why
 that doesn't count.
 
+**When in the day, and does it fit (v4.8).** With the hourly summit
+forecast, "weather that day" is the best stretch of *daylight*, as long as
+the tour takes (400 m/h up, 1500 m/h down, plus half an hour), scored hour
+by hour: wind × 0.45, cloud × 0.35, snowfall/rain × 0.20, and any hour with
+gusts ≥ 17 m/s capped at 0.30. Daylight is civil dawn to civil dusk
+(`public/daylight.js`, NOAA's solar equations), so polar-night twilight in
+Tromsø counts and midnight sun is kept to 05–23. The planner says "go
+08–12"; a tour longer than the light gets half the weather part, and a
+margin under an hour is flagged "tight on daylight". The tour's forecast
+table shows Daylight, Best window (with a strip of the day's hours) and
+Surface.
+
+**Snow surface by aspect (v4.8).** `public/snowquality.js` looks at the
+72 hours up to noon, from the two past days Open-Meteo returns: wind of
+7 m/s or more while and after it snowed makes the tour's descent aspect lee
+(loaded, denser, slab-prone, × 0.85), windward (scoured, × 0.5) or cross
+(× 0.75); above 0° after the snow gives crust (× 0.55); a spring day with a
+frozen night and a thaw gives corn on sunny aspects, at least 0.8, with its
+hours (E 9–12, SE 10–13, S 11–14, SW 12–15, W 13–16); cold and calm keeps
+the powder. Without hourly data the older day-level rules apply.
+
+**A few days in one area (v4.8).** Under the planner: the three best
+regions for a 2–5 day trip starting on the selected day, one different
+tour per day (`public/areaplan.js`). Days where nothing in the region
+passes are rest days and count zero, so an area with one great tour does
+not beat an area with three good ones.
+
 Also shown: "thin cover" where the base is below what the tour's terrain
 needs, and "skiable from the car" / "carry skis" from the modelled snow at
 the start of the route (where a route is known).
@@ -405,7 +432,7 @@ curl -X POST localhost:8080/api/test-alert   # dry run, records nothing
 | `GET /api/terrain?tour=` | Elevation grid for contours. |
 | `GET /api/photos?tour=` · `/api/photo?tour=&i=` | Commons photos near the summit, and their thumbnails. |
 | `GET /api/forecast?tour=` | 5-day summit forecast. |
-| `GET /api/outlook` | Trip planner inputs: bulletins per day and every tour's 5-day summit forecast. |
+| `GET /api/outlook` | Trip planner inputs: bulletins per day and every tour's 5-day summit forecast with hourly values (gzipped). |
 | `GET /api/resorts` | Ski resorts: Norway with live lift/slope status (Fnugg), Sweden location only (OSM). |
 
 The healthcheck deliberately fails on **stale data**, not just on a dead

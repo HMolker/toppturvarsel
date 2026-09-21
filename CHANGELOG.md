@@ -3,6 +3,34 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v4.8 — when to go, what the snow is like, and a few days in one area (2026-09-21)
+
+- **Hourly summit forecast:** Open-Meteo is now asked for hourly wind, gusts,
+  cloud, temperature, snowfall and precipitation, including the two days
+  before today (`past_days=2`). The daily rows still start today.
+  `/api/outlook` is gzipped, since it now carries ~90 hourly series.
+- **Daylight and the best window:** sunrise, sunset and civil twilight per
+  tour and day (polar night and midnight sun included). The planner's
+  weather part is the best stretch of daylight, as long as the tour takes
+  (400 m/h up, 1500 m/h down, +30 min), scored hour by hour. It says
+  "go 08–12", and marks a tour down when it does not fit the light.
+  The tour forecast gets Daylight, Best window (with an hour strip) and
+  Surface rows.
+- **Snow surface by aspect:** wind while and after it snowed gives lee
+  (loaded, slab-prone), windward (scoured) or cross; warming after the snow
+  gives crust; spring corn on sunny aspects with its best hours (E 9–12
+  through W 13–16); cold and calm keeps the powder. Replaces the old
+  day-level warm/windy/corn rules whenever hourly data exists (they remain
+  as the fallback).
+- **A few days in one area:** under the planner, the three best regions for
+  a 2–5 day trip from the selected day, one different tour per day; days
+  with nothing passing are rest days and count zero.
+- **Proposals section** at the bottom of the page: travel time and road
+  status, ground truth (Regobs, webcams, trip log), personal alerts, more
+  mountains, an editor that saves, official EAWS icons.
+- Simulated data now includes hourly forecasts, so all of the above shows in
+  simulation mode (on today's real dates, so the daylight is September's).
+
 ## v4.7 — avalanche problems drawn, explained and put on the map (2026-09-21)
 
 - **Region panel:** each avalanche problem gets a pictogram, a compass rose of

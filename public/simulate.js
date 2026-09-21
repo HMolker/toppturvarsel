@@ -54,6 +54,56 @@ const WEAK = [
 const ASPECT_BITS = { lee: '11100011', sun: '00011100', all: '11111111' };
 
 /**
+ * Hour by hour for the two days before today and the five forecast days, so
+ * the daylight window and snow-surface rules have something to work on.
+ * The storm in the past two days blows from the south-west (loading the
+ * north-east, as the wind-slab problem says); after that each day follows its
+ * daily numbers: coldest at dawn, warmest mid-afternoon, and the wind easing
+ * or rising through the day so the best window moves.
+ */
+function simulateHourly(days, tour, fr) {
+  const d0 = new Date(`${days[0].date}T00:00:00Z`);
+  const out = { time: [], temp: [], wind: [], gust: [], dir: [], cloud: [], snow: [], precip: [], fl: [] };
+  const CLOUD = { 73: 100, 85: 85, 3: 90, 1: 20, 0: 5 };
+  const storm = Math.max(0.2, (tour.snow?.new48 ?? 10) / 48);
+  for (let k = -2; k < days.length; k++) {
+    const date = iso(addDays(d0, k));
+    const day = k >= 0 ? days[k] : null;
+    for (let h = 0; h < 24; h++) {
+      out.time.push(`${date}T${String(h).padStart(2, '0')}:00`);
+      if (!day) {
+        // The storm: snowing, windy from the south-west, cold.
+        out.temp.push(r1(-6 + 2 * Math.sin(((h - 8) / 24) * 2 * Math.PI)));
+        const w = r1(9 + 5 * fr());
+        out.wind.push(w);
+        out.gust.push(Math.round(w * 1.6));
+        out.dir.push(Math.round(200 + (fr() - 0.5) * 30));
+        out.cloud.push(100);
+        out.snow.push(r1(storm * (0.4 + fr() * 0.8)));
+        out.precip.push(r1(storm * 0.6));
+        out.fl.push(0);
+        continue;
+      }
+      // Diurnal temperature: tMin near 05, tMax near 14.
+      const phase = Math.cos(((h - 14) / 24) * 2 * Math.PI);
+      out.temp.push(r1(day.tMin + (day.tMax - day.tMin) * (phase + 1) / 2));
+      // Day 0 eases through the day; day 1 picks up in the afternoon; the rest are gentle.
+      const shape = k === 0 ? 1 - h / 30 : k === 1 ? 0.45 + 0.55 * Math.max(0, (h - 10) / 14) : 0.6 + 0.4 * Math.sin((h / 24) * Math.PI);
+      const w = r1(Math.max(1, day.windMax * shape));
+      out.wind.push(w);
+      out.gust.push(Math.round(w * 1.7));
+      out.dir.push(day.windDeg ?? 270);
+      out.cloud.push(clamp(Math.round((CLOUD[day.code] ?? 60) + (fr() - 0.5) * 20), 0, 100));
+      const sn = day.snowCm > 0 && (k > 0 || h < 12) ? r1((day.snowCm / (k === 0 ? 12 : 24)) * (0.5 + fr())) : 0;
+      out.snow.push(sn);
+      out.precip.push(r1(sn / 1.2));
+      out.fl.push(day.freezingLevel ?? 0);
+    }
+  }
+  return out;
+}
+
+/**
  * @param regions  from /api/meta (or the current snapshot): id, name, country, lat, lon
  * @param tours    from /api/meta: name, region, lat, lon, summit_m, …
  * @param resorts  the real resort list, if it has been loaded; open counts are invented
@@ -217,6 +267,7 @@ export function simulate({ regions = [], tours = [], resorts = null, now = new D
         };
       }),
     };
+    forecasts[t.name].hourly = simulateHourly(forecasts[t.name].days, t, fr);
   }
 
   const bulletins = {};

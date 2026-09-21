@@ -1,4 +1,5 @@
 import http from 'node:http';
+import { gzipSync } from 'node:zlib';
 import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -57,6 +58,21 @@ function json(res, status, body, extraHeaders = {}) {
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
     'Content-Length': Buffer.byteLength(payload),
+    'Cache-Control': 'no-store',
+    ...extraHeaders,
+  });
+  res.end(payload);
+}
+
+/** Same as json(), gzipped when the client accepts it (the outlook is big). */
+function jsonz(req, res, status, body, extraHeaders = {}) {
+  if (!/\bgzip\b/.test(req.headers['accept-encoding'] ?? '')) return json(res, status, body, extraHeaders);
+  const payload = gzipSync(JSON.stringify(body));
+  res.writeHead(status, {
+    'Content-Type': 'application/json; charset=utf-8',
+    'Content-Encoding': 'gzip',
+    Vary: 'Accept-Encoding',
+    'Content-Length': payload.length,
     'Cache-Control': 'no-store',
     ...extraHeaders,
   });
@@ -176,7 +192,7 @@ async function handleApi(req, res, url) {
 
   if (route === '/api/outlook') {
     try {
-      return json(res, 200, await getOutlook(), { 'Cache-Control': 'public, max-age=300' });
+      return jsonz(req, res, 200, await getOutlook(), { 'Cache-Control': 'public, max-age=300' });
     } catch (err) {
       return json(res, 502, { error: 'outlook unavailable', detail: err.message });
     }

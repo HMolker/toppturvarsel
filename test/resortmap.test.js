@@ -117,20 +117,37 @@ test('shape: a resort area mapped as a multipolygon relation is used too', () =>
   assert.deepEqual(s.lifts.map((l) => l.name), ['Inne']);
 });
 
-test('Overpass: a busy instance is skipped for the next', async () => {
-  const { overpass, OVERPASS_URLS } = await import('../src/util/overpass.js');
+test('Overpass: a busy instance gets one wait and retry, then the next; a refusing one is rested', async () => {
+  const { overpass, OVERPASS_URLS, _resetOverpass } = await import('../src/util/overpass.js');
+  _resetOverpass();
   const realFetch = globalThis.fetch;
-  const hosts = [];
+  const [a, b, c] = OVERPASS_URLS.map((u) => new URL(u).host);
+  let hosts = [];
+  let refuse = null;
   globalThis.fetch = async (url) => {
-    hosts.push(new URL(url).host);
-    if (hosts.length === 1) return new Response('busy', { status: 429 });
+    const h = new URL(url).host;
+    hosts.push(h);
+    if (h === refuse) throw Object.assign(new TypeError('fetch failed'), { cause: { code: 'ECONNREFUSED', message: 'connect ECONNREFUSED' } });
+    if (h === a) return new Response('busy', { status: 429 });
     return new Response(JSON.stringify({ elements: [{ type: 'node', id: 1 }] }), { status: 200 });
   };
   try {
-    const els = await overpass('[out:json];node(1);out;');
-    assert.equal(els.length, 1);
-    assert.deepEqual(hosts, OVERPASS_URLS.slice(0, 2).map((u) => new URL(u).host));
+    assert.equal((await overpass('[out:json];node(1);out;')).length, 1);
+    assert.deepEqual(hosts, [a, a, b], '429, wait, 429 again, then the next instance');
+    _resetOverpass();
+    hosts = [];
+    refuse = a;
+    await overpass('q');
+    assert.deepEqual(hosts, [a, b]);
+    hosts = [];
+    await overpass('q');
+    assert.equal(hosts[0], b, 'the refusing instance is rested and tried last');
+    refuse = 'none';
+    globalThis.fetch = async () => { throw Object.assign(new TypeError('fetch failed'), { cause: { code: 'ECONNREFUSED' } }); };
+    await assert.rejects(overpass('q'), /Overpass\) unavailable: .*ECONNREFUSED/);
+    void c;
   } finally {
     globalThis.fetch = realFetch;
+    _resetOverpass();
   }
 });

@@ -3,6 +3,18 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v4.15.1 — gentle with OpenStreetMap's servers (2026-09-22)
+
+- Every Overpass request (tour routes, ski-area maps, huts, Swedish
+  resorts) now goes through one queue: one request at a time, at least
+  3 s apart. A 429 "too many requests" or 503/504 gets one wait (the
+  server's Retry-After, else 15 s) and a retry before the next instance;
+  an instance that refuses connections is rested for 30 minutes (tried
+  last). overpass-api.de refusing the Pi (ECONNREFUSED) after bursts of
+  route lookups at each restart was the likely reason ski-area maps did
+  not load.
+- A proper User-Agent with a contact link on every request.
+
 ## v4.15 — snow history for resorts, sturdier OpenStreetMap requests (2026-09-22)
 
 - **Snow depth this winter** in the resort panel too: the same graph as

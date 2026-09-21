@@ -1,4 +1,5 @@
 import { haversineKm } from '../util/utm.js';
+import { overpass } from '../util/overpass.js';
 
 /**
  * Swedish ski resorts from OpenStreetMap: where they are, what they are
@@ -13,7 +14,6 @@ import { haversineKm } from '../util/utm.js';
  * bounds and tags.
  */
 
-const OVERPASS = process.env.OVERPASS_URL || 'https://overpass-api.de/api/interpreter';
 
 const LIFTS = 'chair_lift|gondola|cable_car|mixed_lift|drag_lift|t-bar|j-bar|platter|rope_tow|magic_carpet';
 
@@ -30,17 +30,8 @@ out tags center bb;`;
 }
 
 export async function fetchOsmResorts(iso = 'SE') {
-  const res = await fetch(OVERPASS, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'User-Agent': 'fjallskred/1.0 (self-hosted ski touring dashboard; monthly)',
-    },
-    body: `data=${encodeURIComponent(resortsQuery(iso))}`,
-    signal: AbortSignal.timeout(200000),
-  });
-  if (!res.ok) throw new Error(`overpass HTTP ${res.status}`);
-  return shapeOsmResorts(await res.json(), iso);
+  const elements = await overpass(resortsQuery(iso), { timeoutMs: 200000, what: 'osm-resorts' });
+  return shapeOsmResorts({ elements }, iso);
 }
 
 const safeUrl = (u) => {

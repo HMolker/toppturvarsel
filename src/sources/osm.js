@@ -1,5 +1,6 @@
 import { haversineKm } from '../util/utm.js';
 import { log } from '../util/log.js';
+import { overpass } from '../util/overpass.js';
 
 /**
  * Tour routes derived from OpenStreetMap.
@@ -26,7 +27,6 @@ import { log } from '../util/log.js';
  * Data © OpenStreetMap contributors, ODbL. Derived GPX carries the licence.
  */
 
-const OVERPASS = process.env.OVERPASS_URL || 'https://overpass-api.de/api/interpreter';
 const SEARCH_RADIUS_M = 7000;
 const PEAK_RADIUS_M = 4000;
 const SUMMIT_SNAP_M = 600;
@@ -50,20 +50,7 @@ out geom;`;
 }
 
 export async function fetchOsm(lat, lon) {
-  const res = await fetch(OVERPASS, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'User-Agent': 'toppturvarsel/1.0 (self-hosted ski touring dashboard)',
-      Accept: 'application/json',
-    },
-    body: `data=${encodeURIComponent(overpassQuery(lat, lon))}`,
-    signal: AbortSignal.timeout(90000),
-  });
-  if (!res.ok) throw new Error(`Overpass HTTP ${res.status}`);
-  const body = await res.json();
-  if (!Array.isArray(body?.elements)) throw new Error('Overpass: no elements array');
-  return body.elements;
+  return overpass(overpassQuery(lat, lon), { timeoutMs: 90000, what: 'routes' });
 }
 
 /* ------------------------------------------------------------------ *

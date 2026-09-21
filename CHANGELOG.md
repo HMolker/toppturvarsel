@@ -3,6 +3,18 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v4.9.1 — version box, and a simulation that shows everything (2026-09-21)
+
+- **Data sources & freshness** has a box with the running version and when
+  it started, from the new `GET /api/version`.
+- **Simulated data:** day 3 of the simulated week brings a short second
+  front, so the planner shows "poor weather even at best" and the trip plan
+  suggests a resort day, before cold, clear powder days. Checked in the
+  browser, starting from an off-season snapshot like September's: problem
+  icons, rose and height band in the region panel, icons in the planner and
+  powder alerts, the best-window rows and hour strips, the area trip and its
+  resort hints all appear once "Simulated data" is pressed.
+
 ## v4.9 — resort days in the trip plan, and an advert (2026-09-21)
 
 - **A few days in one area:** a day with poor touring weather (or nothing

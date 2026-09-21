@@ -253,16 +253,20 @@ export function simulate({ regions = [], tours = [], resorts = null, now = new D
     forecasts[t.name] = {
       elevation: t.summit_m ?? null,
       days: [0, 1, 2, 3, 4].map((k) => {
-        const w = WEATHER[Math.min(4, k + (fr() > 0.6 ? 1 : 0))];
-        const snowCm = r1(Math.max(0, (t.snow.new48 / 3) * (1 - k / 3) * (0.5 + fr())));
-        const wind = Math.round(clamp(16 - k * 3 + fr() * 6, 2, 26));
+        // Day 3 (k = 2) brings a short second front: a poor touring day
+        // everywhere, so the planner's "poor weather" and resort-day hints
+        // show in the simulation; after it, cold and clear on fresh snow.
+        const front = k === 2;
+        const w = front ? WEATHER[0] : WEATHER[Math.min(4, k + (fr() > 0.6 ? 1 : 0))];
+        const snowCm = front ? r1(6 + fr() * 8) : r1(Math.max(0, (t.snow.new48 / 3) * (1 - k / 3) * (0.5 + fr())));
+        const wind = front ? Math.round(17 + fr() * 4) : Math.round(clamp(16 - k * 3 + fr() * 6, 2, 26));
         return {
           date: iso(addDays(today, k)),
           label: w.label, icon: w.icon, code: w.code,
           tMax: Math.round(-3 - k * 1.5 - fr() * 4), tMin: Math.round(-8 - k * 2 - fr() * 5),
           precipMm: r1(snowCm / 1.2), snowCm,
           windMax: wind, gustMax: Math.round(wind * 1.8),
-          windDir: ['W', 'NW', 'N', 'NE', 'SE'][k], windDeg: [270, 315, 0, 45, 135][k],
+          windDir: ['W', 'NW', 'SW', 'NE', 'SE'][k], windDeg: [270, 315, 225, 45, 135][k],
           freezingLevel: Math.max(0, Math.round((350 - k * 120) / 50) * 50),
         };
       }),

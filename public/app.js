@@ -1159,14 +1159,34 @@ function renderSources() {
 
   // Which countries each source serves (seNorge's grid covers both).
   const COUNTRY_OF = [['NO'], ['SE'], ['NO', 'SE'], ['NO']];
-  $('#sources').innerHTML = cards
-    .filter((c, i) => COUNTRY_OF[i].some(inSel))
-    .map(
-      ([name, ok, detail]) =>
-        `<div class="src${ok === false ? ' bad' : ''}"><h4>${esc(name)}</h4><div class="note">${esc(detail)}</div></div>`
-    )
-    .join('');
+  const v = state.version;
+  const since = v?.startedAt ? new Date(v.startedAt) : null;
+  const versionCard =
+    `<div class="src version"><h4>Fjällskred version</h4><div class="note">` +
+    (v?.version
+      ? `<b class="vnum">v${esc(v.version)}</b>` +
+        (v.image && v.image !== 'latest' ? ` · image ${esc(v.image)}` : '') +
+        (since ? `<br>running since ${esc(since.toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}` : '')
+      : v === undefined ? 'checking…' : 'unknown (server older than v4.9)') +
+    `</div></div>`;
+  $('#sources').innerHTML =
+    cards
+      .filter((c, i) => COUNTRY_OF[i].some(inSel))
+      .map(
+        ([name, ok, detail]) =>
+          `<div class="src${ok === false ? ' bad' : ''}"><h4>${esc(name)}</h4><div class="note">${esc(detail)}</div></div>`
+      )
+      .join('') + versionCard;
 }
+
+// The running version, for the sources box: asked once per page load.
+fetch('/api/version')
+  .then((r) => (r.ok ? r.json() : null))
+  .catch(() => null)
+  .then((v) => {
+    state.version = v;
+    if (state.snapshot) renderSources();
+  });
 
 /* ------------------------------------------------------------------ *
  * controls

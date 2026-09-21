@@ -432,6 +432,7 @@ curl -X POST localhost:8080/api/test-alert   # dry run, records nothing
 | `GET /api/terrain?tour=` | Elevation grid for contours. |
 | `GET /api/photos?tour=` · `/api/photo?tour=&i=` | Commons photos near the summit, and their thumbnails. |
 | `GET /api/forecast?tour=` | 5-day summit forecast. |
+| `GET /api/version` | The running version (from package.json) and when the server started. |
 | `GET /api/outlook` | Trip planner inputs: bulletins per day and every tour's 5-day summit forecast with hourly values (gzipped). |
 | `GET /api/resorts` | Ski resorts: Norway with live lift/slope status (Fnugg), Sweden location only (OSM). |
 

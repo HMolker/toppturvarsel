@@ -64,6 +64,22 @@ function json(res, status, body, extraHeaders = {}) {
   res.end(payload);
 }
 
+/** Which version is running: package.json, read once, and when it started. */
+const STARTED = new Date().toISOString();
+let versionMemo = null;
+async function versionInfo() {
+  if (!versionMemo) {
+    let version = null;
+    try {
+      version = JSON.parse(await readFile(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'package.json'), 'utf8')).version ?? null;
+    } catch {
+      /* no package.json next to src: leave it unknown */
+    }
+    versionMemo = { version, image: process.env.FJALLSKRED_VERSION || null, node: process.version, startedAt: STARTED };
+  }
+  return versionMemo;
+}
+
 /** Same as json(), gzipped when the client accepts it (the outlook is big). */
 function jsonz(req, res, status, body, extraHeaders = {}) {
   if (!/\bgzip\b/.test(req.headers['accept-encoding'] ?? '')) return json(res, status, body, extraHeaders);
@@ -205,6 +221,10 @@ async function handleApi(req, res, url) {
 
   if (route === '/api/tracks') {
     return json(res, 200, { tours: await trackStatuses() }, { 'Cache-Control': 'public, max-age=60' });
+  }
+
+  if (route === '/api/version') {
+    return json(res, 200, await versionInfo());
   }
 
   if (route === '/api/meta') {

@@ -166,3 +166,13 @@ test('GET on an API route that requires POST is not silently accepted', async ()
     assert.equal(res.status, 404);
   });
 });
+
+test('GET /api/version reports the package version and when it started', async () => {
+  const { version } = JSON.parse(await (await import('node:fs/promises')).readFile(new URL('../package.json', import.meta.url), 'utf8'));
+  await withServer(async (base) => {
+    const v = await (await fetch(`${base}/api/version`)).json();
+    assert.equal(v.version, version);
+    assert.ok(!Number.isNaN(Date.parse(v.startedAt)));
+    assert.match(v.node, /^v\d+/);
+  });
+});

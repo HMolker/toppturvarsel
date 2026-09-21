@@ -3,6 +3,22 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v4.12 — ski-area maps and fun facts (2026-09-22)
+
+- **Ski-area map** in the resort panel: runs and lifts from OpenStreetMap
+  over the same grey topo map and contours as a tour. Runs in muted piste
+  colours (novice green, easy blue, intermediate red, advanced/expert
+  black, freeride dashed brown), lifts as thin ink lines with cross ticks
+  and their stations (drag lifts dashed). Hover for name, type, length and
+  capacity. The map zooms to fill the frame with the ski area.
+- **Fun facts** from the same data: runs by difficulty and km of piste,
+  lifts by type, uphill capacity (from the lifts that have it mapped),
+  vertical and top station, longest run, longest lift, the biggest climb
+  in one lift. Labelled as OpenStreetMap's figures.
+- **Website** link at the top of the resort panel as well as the button.
+- `GET /api/resortmap?resort=<id>`: one Overpass request per resort,
+  elevations for the contours and lift stations, cached for 30 days.
+
 ## v4.11 — snow through the winter, and a panel for each ski resort (2026-09-22)
 
 - **Snow depth this winter** in every tour panel: this winter's modelled

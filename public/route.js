@@ -440,6 +440,126 @@ export function renderForecast(el, fc, tour = null, bulletins = []) {
 }
 
 /* ------------------------------------------------------------------ *
+ * a ski resort's runs and lifts
+ * ------------------------------------------------------------------ */
+
+const DIFF_LABEL = { novice: 'novice', easy: 'easy', intermediate: 'intermediate', advanced: 'advanced', expert: 'expert', freeride: 'freeride' };
+const diffVar = (d) => `var(--pd-${d ?? 'unknown'})`;
+
+/**
+ * Runs from OpenStreetMap in muted piste colours over the same grey topo
+ * map and contours as a tour, lifts as thin ink lines with their stations
+ * (dashed for drag lifts). Hover any of them for the name and length.
+ */
+export function renderResortMap(el, { resort, data = null, country }) {
+  const W = 560, H = 380;
+  const geo = data ? [...(data.runs ?? []), ...(data.lifts ?? []), ...(data.areas ?? [])].flatMap((x) => x.points) : [];
+  const base = { lat: resort.lat, lon: resort.lon };
+  // Fill the frame with the ski area: a fractional zoom, with the tiles of
+  // the zoom level below scaled up to it (a tour map snaps to whole levels).
+  const f0 = frame([...geo, base], W, H, 26);
+  const pts = [...geo, base];
+  const xs = pts.map((p) => mx(p.lon)), ys = pts.map((p) => my(p.lat));
+  const spanX = Math.max(...xs) - Math.min(...xs), spanY = Math.max(...ys) - Math.min(...ys);
+  const zf = geo.length ? Math.max(9, Math.min(16, Math.min(Math.log2((W - 52) / (spanX * TILE)), Math.log2((H - 52) / (spanY * TILE))))) : f0.z;
+  const z = Math.min(15, Math.floor(zf));
+  const scale = TILE * 2 ** zf;
+  const cx = ((Math.min(...xs) + Math.max(...xs)) / 2) * scale, cy = ((Math.min(...ys) + Math.max(...ys)) / 2) * scale;
+  const f = { z: zf, scale, x0: cx - W / 2, y0: cy - H / 2, W, H };
+  const TS = TILE * 2 ** (zf - z);
+  const src = country === 'SE' ? 'se' : 'no';
+
+  const tiles = [];
+  for (let tx = Math.floor(f.x0 / TS); tx <= Math.floor((f.x0 + W) / TS); tx++) {
+    for (let ty = Math.floor(f.y0 / TS); ty <= Math.floor((f.y0 + H) / TS); ty++) {
+      tiles.push(
+        `<image href="/tiles/${src}/${z}/${tx}/${ty}.png" x="${(tx * TS - f.x0).toFixed(1)}" y="${(ty * TS - f.y0).toFixed(1)}" ` +
+          `width="${TS.toFixed(1)}" height="${TS.toFixed(1)}" preserveAspectRatio="none" onerror="this.remove()"/>`
+      );
+    }
+  }
+  const contourSvg = [];
+  if (data?.terrain?.z?.length) {
+    for (const c of contours(data.terrain)) {
+      for (const lineGeo of c.lines) {
+        const pix = smooth(lineGeo.map((g) => px(f, g)));
+        if (pix.length < 2) continue;
+        contourSvg.push(`<polyline points="${pix.map((q) => q.map((v) => v.toFixed(1)).join(',')).join(' ')}" fill="none" stroke="var(--coast)" stroke-width="${c.index ? 1.2 : 0.6}" opacity="${c.index ? 0.8 : 0.5}"/>`);
+      }
+    }
+  }
+  const pl = (pts) => pts.map((p) => px(f, p).map((v) => v.toFixed(1)).join(',')).join(' ');
+  const km = (m) => (m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m / 10) * 10} m`);
+
+  const areas = (data?.areas ?? []).map((a) =>
+    `<polygon points="${pl(a.points)}" fill="${diffVar(a.difficulty)}" fill-opacity=".13" stroke="none"><title>${esc(a.name ?? 'Piste area')}</title></polygon>`).join('');
+  const runs = (data?.runs ?? [])
+    .map((r) => {
+      const title = `<title>${esc(r.name ?? 'Unnamed run')} · ${esc(DIFF_LABEL[r.difficulty] ?? 'difficulty not mapped')} · ${km(r.lengthM)}</title>`;
+      return `<g class="rmrun">${title}<polyline points="${pl(r.points)}" class="rmhalo"/>` +
+        `<polyline points="${pl(r.points)}" fill="none" stroke="${diffVar(r.difficulty)}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"${r.difficulty === 'freeride' ? ' stroke-dasharray="4 3"' : ''}/></g>`;
+    })
+    .join('');
+  const lifts = (data?.lifts ?? [])
+    .map((l) => {
+      const a = px(f, l.points[0]), b = px(f, l.points[l.points.length - 1]);
+      const title = `<title>${esc(l.name ?? 'Lift')} · ${esc(l.kindName)} · ${km(l.lengthM)}${l.capacity ? ` · ${l.capacity.toLocaleString('en-GB')} people/h` : ''}</title>`;
+      const st = (p) => `<rect x="${(p[0] - 2.5).toFixed(1)}" y="${(p[1] - 2.5).toFixed(1)}" width="5" height="5" class="rmstation"/>`;
+      // Cross ticks along the cable, the usual lift symbol, so a lift never reads as a black run.
+      const pix = l.points.map((p) => px(f, p));
+      let ticks = '';
+      for (let k = 1; k < pix.length; k++) {
+        const [x1, y1] = pix[k - 1], [x2, y2] = pix[k];
+        const len = Math.hypot(x2 - x1, y2 - y1);
+        const n = Math.floor(len / 18);
+        const ux = (x2 - x1) / (len || 1), uy = (y2 - y1) / (len || 1);
+        for (let j = 1; j <= n; j++) {
+          if (j * 18 > len - 6) break;
+          const cx = x1 + ux * j * 18, cy = y1 + uy * j * 18;
+          ticks += `M${(cx - uy * 3.5).toFixed(1)} ${(cy + ux * 3.5).toFixed(1)}L${(cx + uy * 3.5).toFixed(1)} ${(cy - ux * 3.5).toFixed(1)}`;
+        }
+      }
+      return `<g class="rmlift">${title}<polyline points="${pl(l.points)}" class="rmhalo thin"/>` +
+        `<polyline points="${pl(l.points)}" fill="none" stroke="var(--ink)" stroke-width="1.3"${l.drag ? ' stroke-dasharray="5 3"' : ''}/>` +
+        (ticks && !l.drag ? `<path d="${ticks}" stroke="var(--ink)" stroke-width="1.1"/>` : '') + `${st(a)}${st(b)}</g>`;
+    })
+    .join('');
+
+  // Legend: only what is on the map.
+  const present = [...new Set([...(data?.runs ?? []), ...(data?.areas ?? [])].map((r) => (r.difficulty === 'expert' ? 'advanced' : r.difficulty ?? 'unknown')))];
+  const order = [...Object.keys(DIFF_LABEL), 'unknown'].filter((d) => present.includes(d));
+  const both = (data?.runs ?? []).some((r) => r.difficulty === 'expert') && (data?.runs ?? []).some((r) => r.difficulty === 'advanced');
+  const hasDrag = (data?.lifts ?? []).some((l) => l.drag), hasAerial = (data?.lifts ?? []).some((l) => !l.drag);
+  const items = [
+    ...order.map((d) => [`<line x1="0" x2="16" y1="0" y2="0" stroke="${diffVar(d)}" stroke-width="2.5"${d === 'freeride' ? ' stroke-dasharray="4 3"' : ''}/>`, d === 'unknown' ? 'run' : d === 'advanced' && both ? 'advanced, expert' : DIFF_LABEL[d]]),
+    ...(hasAerial ? [['<line x1="0" x2="16" y1="0" y2="0" stroke="var(--ink)" stroke-width="1.3"/><path d="M6 -3.5 V3.5 M12 -3.5 V3.5" stroke="var(--ink)" stroke-width="1.1"/><rect x="-2" y="-2" width="4" height="4" class="rmstation"/>', 'lift']] : []),
+    ...(hasDrag ? [['<line x1="0" x2="16" y1="0" y2="0" stroke="var(--ink)" stroke-width="1.4" stroke-dasharray="5 3"/>', 'drag lift']] : []),
+  ];
+  // Under the map rather than on it: the base area, where everything meets, is usually in a corner.
+  const legend = items.length
+    ? `<div class="rmlegend">${items.map(([sym, label]) => `<span><svg width="20" height="8" aria-hidden="true"><g transform="translate(2 4)">${sym}</g></svg>${esc(label)}</span>`).join('')}</div>`
+    : '';
+  const [bx, by] = px(f, base);
+  const sb = scaleBar(f, base.lat);
+
+  el.innerHTML =
+    `<svg class="routesvg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Map of the runs and lifts at ${esc(resort.name)}">` +
+    `<rect width="${W}" height="${H}" fill="var(--page)"/>` +
+    `<g class="contours">${contourSvg.join('')}</g>` +
+    `<g class="tiles">${tiles.join('')}</g>` +
+    `<g class="rmareas">${areas}</g><g class="rmruns">${runs}</g><g class="rmlifts">${lifts}</g>` +
+    (geo.length ? '' : `<path d="M${bx.toFixed(1)} ${(by - 9).toFixed(1)} l7.5 12.5 h-15 Z" fill="var(--ink)" stroke="var(--paper)" stroke-width="1.5"/>` +
+      `<text x="${bx.toFixed(1)}" y="${(by - 15).toFixed(1)}" text-anchor="middle" class="maplabel">${esc(resort.name)}</text>`) +
+    `<g transform="translate(14 ${H - 18})"><rect x="-6" y="-16" width="${(sb.px + 58).toFixed(0)}" height="26" rx="4" fill="var(--paper)" opacity=".92"/>` +
+    `<line x1="0" x2="${sb.px.toFixed(1)}" y1="0" y2="0" stroke="var(--ink)" stroke-width="2"/>` +
+    `<line x1="0" x2="0" y1="-4" y2="4" stroke="var(--ink)" stroke-width="2"/><line x1="${sb.px.toFixed(1)}" x2="${sb.px.toFixed(1)}" y1="-4" y2="4" stroke="var(--ink)" stroke-width="2"/>` +
+    `<text x="${(sb.px + 8).toFixed(1)}" y="4" class="maplabel">${sb.label}</text></g>` +
+    `<g transform="translate(${W - 24} 28)"><path d="M0 -12 L6 4 L0 0 L-6 4 Z" fill="var(--ink)"/><text y="18" text-anchor="middle" class="maplabel">N</text></g>` +
+    `</svg>` +
+    legend;
+}
+
+/* ------------------------------------------------------------------ *
  * photos near the summit
  * ------------------------------------------------------------------ */
 

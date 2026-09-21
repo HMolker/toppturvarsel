@@ -716,3 +716,24 @@ svg.avrose .avl, svg.avelev .avl { font: 600 8.5px var(--mono); fill: var(--mute
 .rstours .rsscore { grid-area: s; align-self: center; font: 600 13px var(--mono); }
 .rstours .rsscore.off { color: var(--steel); }
 .resort, .resortdot { cursor: pointer; }
+
+/* resort map: muted piste colours (Nordic convention), thin lifts */
+:root { --pd-novice: #6E9A72; --pd-easy: #4F78A8; --pd-intermediate: #B85A45; --pd-advanced: #1A1A1A; --pd-expert: #1A1A1A; --pd-freeride: #8A6A3C; --pd-unknown: #8C8880; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --pd-novice: #8DBB91; --pd-easy: #7FA3D1; --pd-intermediate: #E08A74; --pd-advanced: #EDEBE5; --pd-expert: #EDEBE5; --pd-freeride: #C9A26A; --pd-unknown: #A8A49B; } }
+:root[data-theme="dark"] { --pd-novice: #8DBB91; --pd-easy: #7FA3D1; --pd-intermediate: #E08A74; --pd-advanced: #EDEBE5; --pd-expert: #EDEBE5; --pd-freeride: #C9A26A; --pd-unknown: #A8A49B; }
+.rmhalo { fill: none; stroke: var(--paper); stroke-width: 4.6; stroke-opacity: .75; stroke-linecap: round; stroke-linejoin: round; }
+.rmhalo.thin { stroke-width: 3.6; }
+.rmstation { fill: var(--paper); stroke: var(--ink); stroke-width: 1.2; }
+.rmrun:hover polyline:last-child, .rmlift:hover polyline:nth-of-type(2) { stroke-width: 3.4; }
+.maplabel.sm { font-size: 10.5px; }
+.rsfacts { list-style: none; margin: 0 0 6px; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+.rsfacts li { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; background: var(--paper); }
+.rsfacts b { display: block; font: 600 18px var(--sans); color: var(--ink); }
+.rsfacts span { font-size: 11.5px; color: var(--ink-2); }
+.rsfacts li.wide { grid-column: 1 / -1; }
+.rsfacts .rschips { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 6px; }
+.rsfacts .rschip { display: inline-flex; align-items: center; gap: 6px; font: 11.5px var(--mono); color: var(--ink-2); }
+.rsfacts .rschip i { width: 14px; height: 3px; border-radius: 2px; display: inline-block; }
+.rsweb { font-weight: 600; }
+.rmlegend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 11.5px; color: var(--ink-2); margin: 6px 2px 0; }
+.rmlegend span { display: inline-flex; align-items: center; gap: 5px; }

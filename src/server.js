@@ -14,6 +14,7 @@ import { getOwnPhotos, getOwnPhotoFile } from './own-photos.js';
 import { getResorts } from './resorts.js';
 import { getOutlook } from './outlook.js';
 import { getSnowHistory } from './snowhistory.js';
+import { getResortMap } from './resortmap.js';
 import { fetchForecast } from './sources/forecast.js';
 
 const resortFc = new Map();
@@ -240,6 +241,16 @@ async function handleApi(req, res, url) {
   // or slug: never arbitrary coordinates (see src/tracks.js for why).
   // A resort's forecast: only resorts from the resort list, by id, never
   // arbitrary coordinates (same reason as for tours).
+  if (route === '/api/resortmap') {
+    const list = (await getResorts().catch(() => null))?.resorts ?? [];
+    const r = list.find((x) => x.id === url.searchParams.get('resort'));
+    if (!r) return json(res, 404, { error: 'unknown resort' });
+    try {
+      return jsonz(req, res, 200, await getResortMap(r), { 'Cache-Control': 'public, max-age=3600' });
+    } catch (err) {
+      return json(res, 502, { error: 'resort map unavailable', detail: err.message });
+    }
+  }
   if (route === '/api/forecast' && url.searchParams.has('resort')) {
     const id = url.searchParams.get('resort');
     const list = (await getResorts().catch(() => null))?.resorts ?? [];

@@ -1,7 +1,7 @@
 import { COAST, BORDER } from './geo.js';
 import { planTrip } from './areaplan.js';
 import { snowHistoryModel, snowHistorySvg, linkSnowHistoryHover } from './snowhistory.js';
-import { renderRouteMap, renderProfile, routeSummary, renderForecast, renderPhotos, renderOwnPhotos } from './route.js';
+import { renderRouteMap, renderProfile, routeSummary, renderForecast, renderPhotos, renderOwnPhotos, renderResortMap } from './route.js';
 import { layoutResorts, resortSvg, OPEN_BANDS } from './resorts.js';
 import { plan, haversineKm as haversine } from './planner.js';
 import { explainHtml } from './explain.js';
@@ -972,6 +972,31 @@ function openBar(c) {
   );
 }
 
+const DIFF_NAMES = { novice: 'novice', easy: 'easy', intermediate: 'intermediate', advanced: 'advanced', expert: 'expert', freeride: 'freeride', unknown: 'not graded' };
+const LIFT_PLURAL = { cable_car: 'cable cars', gondola: 'gondolas', mixed_lift: 'mixed lifts', chair_lift: 'chairlifts', drag_lift: 'drag lifts', 't-bar': 'T-bars', 'j-bar': 'J-bars', platter: 'platter lifts', rope_tow: 'rope tows', magic_carpet: 'magic carpets' };
+
+/** A resort's figures from OpenStreetMap, as a row of small cards. */
+function factsHtml(x) {
+  if (!x || (!x.runCount && !x.liftCount)) return '<p class="note">No runs or lifts are mapped in OpenStreetMap here yet.</p>';
+  const nf = (n) => Math.round(n).toLocaleString('en-GB');
+  const km = (m) => (m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m)} m`);
+  const cards = [];
+  if (x.runCount) {
+    const chips = Object.entries(x.runsByDifficulty).filter(([, n]) => n).map(([d, n]) => `<span class="rschip"><i style="background:var(--pd-${d})"></i>${n} ${DIFF_NAMES[d]}</span>`).join('');
+    cards.push(`<li class="wide"><b>${x.runCount} runs · ${x.runKm} km</b><span>of mapped piste</span><div class="rschips">${chips}</div></li>`);
+  }
+  if (x.liftCount) {
+    const kinds = Object.entries(x.liftsByKind).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${n} ${n === 1 ? (LIFT_PLURAL[k] ?? k).replace(/s$/, '') : LIFT_PLURAL[k] ?? k}`).join(', ');
+    cards.push(`<li><b>${x.liftCount} lifts</b><span>${esc(kinds)}</span></li>`);
+  }
+  if (x.capacity) cards.push(`<li><b>${nf(x.capacity)} per hour</b><span>uphill capacity${x.capacityFrom < x.liftCount ? `, from the ${x.capacityFrom} of ${x.liftCount} lifts that have it mapped` : ''}</span></li>`);
+  if (x.vertical) cards.push(`<li><b>${nf(x.vertical)} m vertical</b><span>${nf(x.bottom)} m to ${nf(x.top)} m at the top lift station</span></li>`);
+  if (x.longestRun) cards.push(`<li><b>${km(x.longestRun.lengthM)}</b><span>longest run: ${esc(x.longestRun.name)}${x.longestRun.difficulty ? ` (${DIFF_NAMES[x.longestRun.difficulty]})` : ''}</span></li>`);
+  if (x.longestLift) cards.push(`<li><b>${km(x.longestLift.lengthM)}</b><span>longest lift: ${esc(x.longestLift.name ?? 'unnamed')} (${esc(x.longestLift.kind)})</span></li>`);
+  if (x.biggestLift?.rise) cards.push(`<li><b>${nf(x.biggestLift.rise)} m up</b><span>biggest climb in one lift: ${esc(x.biggestLift.name ?? 'unnamed')}</span></li>`);
+  return `<ul class="rsfacts">${cards.join('')}</ul><p class="note">From OpenStreetMap (© OpenStreetMap contributors): what is mapped, which can differ from the resort's own figures. Runs split into pieces count once by name.</p>`;
+}
+
 function selectResort(id) {
   const r = (state.resorts?.resorts ?? []).find((x) => x.id === id);
   if (!r) return;
@@ -1013,6 +1038,7 @@ function selectResort(id) {
     `</div>` +
     `<div class="tourcol">` +
     `<dl>` +
+    (r.url ? `<dt>Website</dt><dd><a class="rsweb" href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">${esc(r.url.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, ''))} ↗</a></dd>` : '') +
     `<dt>Status</dt><dd>${status}</dd>` +
     `<dt>Lifts</dt><dd>${openBar(r.lifts)}</dd>` +
     `<dt>Slopes</dt><dd>${openBar(r.slopes)}</dd>` +
@@ -1023,6 +1049,7 @@ function selectResort(id) {
     (tours[0]?.t?.snow?.depthCm != null ? `<dt>Snow nearby</dt><dd><strong>${Math.round(tours[0].t.snow.depthCm)} cm</strong> modelled at ${esc(tours[0].t.name)} (${Math.round(tours[0].d)} km)</dd>` : '') +
     `<dt>Position</dt><dd>${r.lat.toFixed(4)}° N, ${r.lon.toFixed(4)}° E</dd>` +
     `</dl>` +
+    `<h4>Fun facts</h4><div id="rsFacts"><p class="note">Counting runs and lifts in OpenStreetMap…</p></div>` +
     `<h4>Next 5 days</h4><div id="forecast"></div>` +
     `<div class="linkrow">` +
     (r.url ? `<a class="btn primary" href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">${esc(r.name)} website ↗</a>` : '') +
@@ -1031,9 +1058,17 @@ function selectResort(id) {
     `</div>` +
     `</div></div>`;
 
-  renderRouteMap($('#routeMap'), { route: null, tour: { name: r.name, lat: r.lat, lon: r.lon }, country: r.country });
+  renderResortMap($('#routeMap'), { resort: r, country: r.country });
   renderForecast($('#forecast'), null);
   const still = () => state.selResort === id && !state.sel;
+  fetch(`/api/resortmap?resort=${encodeURIComponent(id)}`)
+    .then((res) => res.json().then((b) => (res.ok ? b : { error: b.detail ?? b.error ?? `HTTP ${res.status}` })))
+    .catch((err) => ({ error: err.message }))
+    .then((m) => {
+      if (!still()) return;
+      if (!m.error) renderResortMap($('#routeMap'), { resort: r, data: m, country: r.country });
+      $('#rsFacts').innerHTML = m.error ? `<p class="note">The runs and lifts could not be loaded from OpenStreetMap right now (${esc(m.error)}).</p>` : factsHtml(m.facts);
+    });
   if (state.simulated) {
     // The simulation has no resort forecasts; the nearest tour's summit stands in, and says so.
     const near = tours[0]?.t;

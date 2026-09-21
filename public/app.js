@@ -2,7 +2,7 @@ import { COAST, BORDER } from './geo.js';
 import { planTrip } from './areaplan.js';
 import { renderRouteMap, renderProfile, routeSummary, renderForecast, renderPhotos, renderOwnPhotos } from './route.js';
 import { layoutResorts, resortSvg, OPEN_BANDS } from './resorts.js';
-import { plan } from './planner.js';
+import { plan, haversineKm as haversine } from './planner.js';
 import { explainHtml } from './explain.js';
 import { aspectRose } from './aspect.js';
 import { simulate, simulateResorts } from './simulate.js';
@@ -93,8 +93,9 @@ async function load() {
   state.alerts = alertRes.status === 'fulfilled' ? alertRes.value : null;
   initCountries();
   loadTracks();
-  // A refresh refreshes the resort status too, when that layer is on.
-  if (state.showResorts) loadResorts();
+  // A refresh refreshes the resort status too, when it has been loaded
+  // (for the layer, or for the trip planner's resort-day hint).
+  if (state.showResorts || state.resorts) loadResorts();
   loadOutlook();
 
   renderFreshness();
@@ -520,7 +521,36 @@ async function loadResorts() {
   // In a simulated winter the real list is kept (the resorts exist) but the
   // open counts are invented, so the layer is not a row of closed resorts.
   if (state.simulated) state.resorts = simulateResorts(state.resorts) ?? state.resorts;
+  state.resortsLoading = false;
   drawMap();
+  if (state.lastPlan) renderPlanner();
+}
+
+/** Turn the resort layer on and zoom the map to one resort. */
+function focusResort(lat, lon) {
+  const cb = $('#showResorts');
+  if (!cb.checked) {
+    cb.checked = true;
+    cb.dispatchEvent(new Event('change'));
+  }
+  const b = baseProj(lat, lon);
+  Object.assign(state.view, { k: 6, cx: b.x, cy: b.y });
+  drawMap();
+  $('.mapbox')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/** Resorts within reach of a set of tours, nearest first. */
+function resortsNear(tourNames, { km = 45, max = 2 } = {}) {
+  const list = state.resorts?.resorts;
+  if (!list?.length) return [];
+  const ts = (state.snapshot?.tours ?? []).filter((t) => tourNames.includes(t.name));
+  if (!ts.length) return [];
+  const c = { lat: ts.reduce((a, t) => a + t.lat, 0) / ts.length, lon: ts.reduce((a, t) => a + t.lon, 0) / ts.length };
+  return list
+    .map((r) => ({ r, d: haversine(c, r) }))
+    .filter((x) => x.d <= km)
+    .sort((a, b) => (b.r.lifts?.count ?? 0) - (a.r.lifts?.count ?? 0) || a.d - b.d)
+    .slice(0, max);
 }
 
 $('#map').addEventListener('click', (e) => {
@@ -1313,6 +1343,11 @@ function initPlanner() {
   });
   $('#tripAreas').addEventListener('click', (e) => {
     if (e.target.closest('[data-av]')) return;
+    const rs = e.target.closest('[data-rlat]');
+    if (rs) {
+      e.preventDefault();
+      return focusResort(+rs.dataset.rlat, +rs.dataset.rlon);
+    }
     const r = e.target.closest('[data-tour]');
     if (r) selectTour(r.dataset.tour);
   });
@@ -1486,6 +1521,10 @@ function renderPlanner() {
 /** "A few days in one area": the best regions for a trip starting on the selected day. */
 function renderTrip(p, k, regionName) {
   const t = planTrip(p, { start: k, length: planPrefs.tripLen, top: 3 });
+  if (!state.resorts && !state.resortsLoading) {
+    state.resortsLoading = true;
+    loadResorts();
+  }
   const end = t.dates[t.dates.length - 1];
   $('#tripMeta').textContent = t.length
     ? `${dayName(t.dates[0], k)} ${shortDate(t.dates[0])}${t.length > 1 ? ` – ${shortDate(end)}` : ''}` +
@@ -1503,12 +1542,20 @@ function renderTrip(p, k, regionName) {
         .map((d) => {
           const r = d.row;
           const label = `<span class="tdday">${dayName(d.date, d.k).slice(0, 3)} ${shortDate(d.date)}</span>`;
-          if (!r) return `<li class="tdrest">${label}<span class="tdtour">rest day: nothing passes</span></li>`;
+          // A poor touring day (or none): point to the lifts nearby.
+          const poor = !r || r.score < 50 || (r.parts?.weather ?? 1) < 0.4;
+          const near = poor ? resortsNear(a.days.map((x) => x.row?.tour).filter(Boolean)) : [];
+          const resortHint = near.length
+            ? `<span class="tdresort">${!r ? 'Nothing passes' : 'Poor touring weather'}: a resort day? ${near
+                .map(({ r: rs, d: km }) => `<a href="#" data-rlat="${rs.lat}" data-rlon="${rs.lon}">${esc(rs.name)}</a> <small>${Math.round(km)} km</small>`)
+                .join(' · ')}</span>`
+            : '';
+          if (!r) return `<li class="tdrest">${label}<span class="tdtour">rest day: nothing passes</span>${resortHint}</li>`;
           const extra = [r.window?.text && r.window.fit !== 'no' ? r.window.text : null, r.surface && r.surface !== 'old snow' ? r.surface : null].filter(Boolean).join(' · ');
           return (
             `<li data-tour="${esc(r.tour)}" tabindex="0">${label}<span class="tdtour">${esc(r.tour)}` +
             `${r.status === 'caution' ? ' <span class="ptag caution">caution</span>' : ''}</span>` +
-            `<span class="tdx">${esc(extra)}</span><span class="tdscore">${r.score}</span></li>`
+            `<span class="tdx">${esc(extra)}</span><span class="tdscore">${r.score}</span>${resortHint}</li>`
           );
         })
         .join('');

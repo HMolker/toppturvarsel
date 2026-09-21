@@ -3,6 +3,21 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v4.9 — resort days in the trip plan, and an advert (2026-09-21)
+
+- **A few days in one area:** a day with poor touring weather (or nothing
+  that passes) now suggests the biggest ski resorts within ~45 km of the
+  area's tours. Click one and the map turns on the resort layer and zooms
+  to it. Resort status now reloads on every refresh once it has been loaded.
+- **Advert:** `demo/record-advert.mjs` records a ~2.5 minute film of one
+  made-up week in Hallingdal: your own GPX in the tour editor, the trip
+  plan for Tuesday to Thursday, a storm day pointing to Hemsedal's lifts,
+  and a powder day. Weather, snow, bulletins and lift status come from
+  `demo/advert/scenario.mjs`; the terrain is a made-up model
+  (`demo/advert/terrain.mjs`) that the real server code profiles, contours
+  and shades. The music (`demo/advert/music.py`) is an original après-ski
+  style track, synthesised from scratch and timed to the scenes.
+
 ## v4.8.1 — hour strip legend (2026-09-21)
 
 - The best-window strip shades the hours in the light on a red scale

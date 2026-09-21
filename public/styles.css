@@ -639,7 +639,7 @@ svg.avrose .avl, svg.avelev .avl { font: 600 8.5px var(--mono); fill: var(--mute
 .tahd .cell { display: inline-block; width: 32px; cursor: default; }
 .tahd .note { flex-basis: 100%; font-size: 11.5px; }
 .tdays { list-style: none; margin: 0; padding: 0; }
-.tdays li { display: grid; grid-template-columns: 72px minmax(0, 1fr) auto; grid-template-areas: "day tour score" "day x score"; column-gap: 8px; padding: 6px 0; border-top: 1px solid var(--line); cursor: pointer; }
+.tdays li { display: grid; grid-template-columns: 72px minmax(0, 1fr) auto; grid-template-areas: "day tour score" "day x score" "day rs rs"; column-gap: 8px; padding: 6px 0; border-top: 1px solid var(--line); cursor: pointer; }
 .tdays li:first-child { border-top: 0; }
 .tdays li:hover .tdtour, .tdays li:focus .tdtour { text-decoration: underline; }
 .tdays .tdday { grid-area: day; font: 12px var(--mono); color: var(--muted); padding-top: 1px; }
@@ -658,3 +658,6 @@ svg.avrose .avl, svg.avelev .avl { font: 600 8.5px var(--mono); fill: var(--mute
 .hlegend .hlk i { display: inline-block; width: 10px; height: 10px; margin-right: -3px; border: 1px solid var(--line-2); }
 .hlegend .hlk i:last-of-type { margin-right: 2px; }
 .hlegend .hlnote { flex-basis: 100%; }
+.tdays .tdresort { grid-area: rs; font-size: 11.5px; color: var(--ink-2); margin-top: 3px; padding: 4px 7px; background: var(--page); border-radius: 6px; }
+.tdays .tdresort a { color: var(--ink); font-weight: 600; white-space: nowrap; }
+.tdays .tdresort small { color: var(--muted); font-family: var(--mono); font-size: 10.5px; }

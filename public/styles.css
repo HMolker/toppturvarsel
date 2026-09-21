@@ -765,3 +765,26 @@ svg.avrose .avl, svg.avelev .avl { font: 600 8.5px var(--mono); fill: var(--mute
 .rsruns li i { width: 12px; height: 4px; border-radius: 2px; margin-top: 7px; box-shadow: 0 0 0 .6px var(--ink-2); }
 .rsruns li .note { grid-column: 2; font-size: 11px; }
 .rsplaces li { font-size: 12.5px; padding: 2px 0; break-inside: avoid; }
+
+/* huts, lodges and remote cafés: open in winter in the profile's red, not known in paper, summer-only faded */
+.hut { cursor: pointer; }
+.hut circle { fill: var(--paper); stroke: var(--ink); stroke-width: 1.2; }
+.hut path { fill: none; stroke: var(--ink); stroke-width: 1.2; stroke-linecap: round; stroke-linejoin: round; }
+.hut.open circle { fill: var(--own); stroke: var(--paper); stroke-width: 1.6; }
+.hut.open path { stroke: var(--own-ink); }
+.hut.closed { opacity: .55; }
+.hut.closed circle { stroke: var(--steel); stroke-dasharray: 2 1.5; }
+.hut:hover circle { stroke-width: 2.2; }
+.hutname { font: 600 9.5px var(--sans); fill: var(--ink); paint-order: stroke; stroke: var(--paper); stroke-width: 3px; stroke-linejoin: round; }
+.hutlist { list-style: none; margin: 0 0 6px; padding: 0; }
+.hutlist li { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: center; column-gap: 8px; padding: 5px 0; border-top: 1px solid var(--line); cursor: pointer; }
+.hutlist li:first-child { border-top: 0; }
+.hutlist li:hover .hutn, .hutlist li:focus .hutn { text-decoration: underline; }
+.hutlist .hutn { font-size: 13px; }
+.hutlist .hutn .note { font-size: 11.5px; }
+.hutw { font: 600 11px var(--mono); white-space: nowrap; }
+.hutw.open { color: var(--own); }
+.hutw.closed { color: var(--muted); font-weight: 400; }
+.hutw.unknown { color: var(--ink-2); font-weight: 400; }
+.maphint { font: 11px var(--mono); fill: var(--ink-2); paint-order: stroke; stroke: var(--paper); stroke-width: 3px; }
+.legend-row span svg.hut { vertical-align: -3px; margin-right: 4px; }

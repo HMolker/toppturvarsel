@@ -20,6 +20,8 @@ const state = {
   layer: 'depth',
   showTours: true,
   showResorts: false,
+  showHuts: false,
+  huts: null,
   outlook: null,
   planDay: 0,
   resorts: null,
@@ -360,6 +362,35 @@ function drawMap() {
     parts.push(`<g class="resorts">${resortSvg(layout)}</g>`);
   }
 
+  // Huts, lodges and remote cafés: only zoomed in, where they can be told apart.
+  if (state.showHuts && state.huts?.places && state.view.k >= DETAIL_K) {
+    const named = state.view.k >= 6;
+    const marks = state.huts.places
+      .map((h) => ({ h, ...proj(h.lat, h.lon) }))
+      .filter((p) => p.x > -10 && p.y > -10 && p.x < MAP_W + 10 && p.y < MAP_H + 10);
+    // Names only where they fit: open-in-winter places first, then the rest.
+    const boxes = [];
+    const rank = { open: 0, unknown: 1, closed: 2 };
+    marks.sort((a, b) => rank[hutWinter(a.h)] - rank[hutWinter(b.h)]);
+    const svg = marks.map(({ h, x, y }) => {
+      let label = null;
+      if (named && h.name) {
+        const w = h.name.length * 5.6;
+        const nx = Math.max(w / 2 + 3, Math.min(MAP_W - w / 2 - 3, x));
+        const box = [nx - w / 2, y + 9, nx + w / 2, y + 21];
+        if (!boxes.some((b) => box[0] < b[2] && b[0] < box[2] && box[1] < b[3] && b[1] < box[3])) {
+          boxes.push(box);
+          label = nx - x;
+        }
+      }
+      return hutMark(h, x, y, label);
+    });
+    // Drawn in reverse so the open-in-winter places sit on top.
+    parts.push(`<g class="huts">${svg.reverse().join('')}</g>`);
+  } else if (state.showHuts) {
+    parts.push(`<text x="${MAP_W / 2}" y="${MAP_H - 14}" text-anchor="middle" class="maphint">${state.huts?.error ? 'Huts and cafés could not be loaded' : 'Zoom in to see huts and cafés'}</text>`);
+  }
+
   // The selected tour gets a name callout, drawn last so nothing covers it.
   const selTour = state.showTours && state.sel ? visibleTours().find((t) => t.name === state.sel) : null;
   if (selTour) {
@@ -400,7 +431,19 @@ function drawLegend() {
       ? `<span><i class="sw sw-alert"></i>over alert threshold</span>`
       : '') +
     `<span class="legend-key">▲ tour · ● forecast region${state.showResorts ? ' · ■ resort' : ''}</span>` +
-    (state.showResorts ? resortLegend() : '');
+    (state.showResorts ? resortLegend() : '') +
+    (state.showHuts ? hutLegend() : '');
+}
+
+function hutLegend() {
+  const icon = (w, k) => `<svg width="16" height="16" viewBox="-9 -9 18 18" class="hut ${w}" aria-hidden="true"><circle r="8"/>${HUT_GLYPH[k]}</svg>`;
+  const n = state.huts?.places?.length;
+  return (
+    `<div class="legend-row"><span class="eyebrow">Huts &amp; cafés</span>` +
+    `<span>${icon('open', 'hut')}open in winter</span><span>${icon('unknown', 'hut')}not known, check</span><span>${icon('closed', 'hut')}summer only</span>` +
+    `<span>${icon('unknown', 'hut')}cabin</span><span>${icon('unknown', 'shelter')}open hut</span><span>${icon('unknown', 'lodge')}lodge</span><span>${icon('unknown', 'cafe')}café</span><span>${icon('unknown', 'restaurant')}restaurant</span></div>` +
+    `<div class="legend-row note">${state.huts ? (state.huts.error && !n ? 'could not be loaded right now' : `${n} places within 15 km of the tours, from OpenStreetMap`) : 'loading…'}${state.view.k < DETAIL_K ? ' · zoom in to see them' : ''}</div>`
+  );
 }
 
 function resortLegend() {
@@ -416,7 +459,7 @@ function resortLegend() {
     `<div class="legend-row"><span class="eyebrow">Resorts — share open</span>` +
     OPEN_BANDS.map(([, bg, , l], i) => `<span><i class="sw"${i === 0 ? ' style="border-color:var(--steel)"' : ` style="background:${bg}"`}></i>${l}</span>`).join('') +
     `<span><i class="sw sw-none"></i>no status</span>` +
-    `<span class="legend-key">left icon slopes · right icon lifts · name links to the resort</span></div>` +
+    `<span class="legend-key">left icon slopes · right icon lifts · click for the resort's map and facts</span></div>` +
     `<div class="legend-row note">${status}${state.view.k < DETAIL_K ? ' · zoom in for icons and names' : ''}</div>`
   );
 }
@@ -527,6 +570,114 @@ async function loadResorts() {
   if (state.lastPlan) renderPlanner();
 }
 
+/* ------------------------------------------------------------------ *
+ * huts, mountain lodges and remote cafés
+ * ------------------------------------------------------------------ */
+
+const HUT_KIND = { hut: 'cabin', shelter: 'open hut / shelter', lodge: 'mountain lodge', cafe: 'café', restaurant: 'restaurant' };
+const HUT_GLYPH = {
+  // a cabin: roof and walls
+  hut: '<path d="M-4.2 0.2 L0 -4.2 L4.2 0.2 M-3 -0.9 V4 H3 V-0.9"/>',
+  // an open shelter: a lean-to
+  shelter: '<path d="M-4.2 4 L0 -4 L4.2 4 M-1.6 4 L0 1 L1.6 4"/>',
+  // a lodge: bigger house with a door
+  lodge: '<path d="M-4.5 0 L0 -4.5 L4.5 0 M-3.4 -1 V4 H3.4 V-1 M-0.9 4 V1.4 H0.9 V4"/>',
+  cafe: '<path d="M-3.4 -1.6 H2 V1.4 C2 3.4 -3.4 3.4 -3.4 1.4 Z M2 -0.8 C3.9 -0.8 3.9 1.5 2 1.5 M-1.7 -4 V-2.6 M0.3 -4 V-2.6"/>',
+  restaurant: '<path d="M-2.2 -4 V4 M-3.5 -4 V-0.8 H-0.9 V-4 M2.2 -4 C3.8 -2.8 3.8 -0.1 2.2 0.6 V4"/>',
+};
+const hutWinter = (h) => (h.winter === true ? 'open' : h.winter === false ? 'closed' : 'unknown');
+
+function hutMark(h, x, y, labelDx = null) {
+  const w = hutWinter(h);
+  const tip = `${h.name ?? HUT_KIND[h.kind]} · ${HUT_KIND[h.kind]}${h.org ? ` · ${h.org}` : ''}${h.ele ? ` · ${h.ele} m` : ''} · ` +
+    (w === 'open' ? 'open in winter' : w === 'closed' ? 'closed in winter' : 'winter opening not known — check');
+  return (
+    `<g class="hut ${w}" data-hut="${esc(h.id)}" transform="translate(${x.toFixed(1)} ${y.toFixed(1)})"><title>${esc(tip)}</title>` +
+    `<circle r="8"/>${HUT_GLYPH[h.kind] ?? ''}` +
+    (labelDx !== null && h.name ? `<text x="${labelDx.toFixed(1)}" y="18" text-anchor="middle" class="hutname">${esc(h.name)}</text>` : '') +
+    `</g>`
+  );
+}
+
+async function loadHuts() {
+  if (state.hutsLoading) return;
+  state.hutsLoading = true;
+  try {
+    const r = await fetch('/api/huts');
+    const b = await r.json();
+    state.huts = r.ok ? b : { places: [], error: b.detail ?? b.error ?? `HTTP ${r.status}` };
+  } catch (err) {
+    state.huts = { places: [], error: err.message };
+  }
+  state.hutsLoading = false;
+  drawMap();
+  // A tour panel waiting for its "huts nearby" list gets it now.
+  const el = $('#hutsNear');
+  if (el && state.sel) el.outerHTML = hutsNearHtml(state.sel);
+}
+
+/** Huts and cafés within 8 km of a tour, nearest first. */
+function hutsNearHtml(tourName) {
+  const t = (state.snapshot?.tours ?? []).find((x) => x.name === tourName);
+  if (!t) return '';
+  if (!state.huts) return `<div id="hutsNear"><p class="note">Looking for huts and cafés nearby…</p></div>`;
+  if (state.huts.error && !state.huts.places?.length) return `<div id="hutsNear"><p class="note">Huts and cafés could not be loaded right now.</p></div>`;
+  const near = state.huts.places.map((h) => ({ h, d: haversine(t, h) })).filter((x) => x.d <= 8).sort((a, b) => a.d - b.d).slice(0, 6);
+  if (!near.length) return `<div id="hutsNear"><p class="note">No cabins, lodges or remote cafés mapped within 8 km.</p></div>`;
+  return `<div id="hutsNear"><ul class="hutlist">${near.map(({ h, d }) => {
+    const w = hutWinter(h);
+    return `<li data-hut="${esc(h.id)}" tabindex="0"><svg width="18" height="18" viewBox="-9 -9 18 18" class="hut ${w}" aria-hidden="true"><circle r="8"/>${HUT_GLYPH[h.kind] ?? ''}</svg>` +
+      `<span class="hutn">${esc(h.name ?? HUT_KIND[h.kind])}<span class="note"> ${esc(HUT_KIND[h.kind])}${h.org ? ` · ${h.org}` : ''} · ${d.toFixed(1)} km</span></span>` +
+      `<span class="hutw ${w}">${w === 'open' ? 'winter ✓' : w === 'closed' ? 'summer only' : 'check'}</span></li>`;
+  }).join('')}</ul></div>`;
+}
+
+function selectHut(id) {
+  const h = (state.huts?.places ?? []).find((x) => x.id === id);
+  if (!h) return;
+  state.sel = null;
+  state.selResort = null;
+  const w = hutWinter(h);
+  const regs = (state.snapshot?.regions ?? []).filter((g) => !g.offMap);
+  const nearReg = regs.map((g) => ({ g, d: haversine(h, g) })).sort((a, b) => a.d - b.d)[0]?.g ?? null;
+  const tours = (state.snapshot?.tours ?? []).map((t) => ({ t, d: haversine(h, t) })).filter((x) => x.d <= 15).sort((a, b) => a.d - b.d).slice(0, 8);
+  const todayRows = new Map((state.lastPlan?.days?.[0]?.rows ?? []).map((row) => [row.tour, row]));
+  const country = nearReg?.country ?? 'NO';
+  $('#detailTitle').textContent = h.name ?? HUT_KIND[h.kind];
+  $('#detail').innerHTML =
+    `<div class="tourgrid"><div class="tourcol"><div class="routemap" id="routeMap"></div>` +
+    `<h4>Tours from here</h4>` +
+    (tours.length
+      ? `<ul class="rstours">${tours.map(({ t, d }) => {
+          const row = todayRows.get(t.name);
+          const score = row && (row.status === 'ok' || row.status === 'caution') ? `<span class="rsscore">${row.score}</span>` : row?.status === 'excluded' ? '<span class="rsscore off">✕</span>' : '';
+          return `<li data-tour="${esc(t.name)}" tabindex="0"><span class="rsname">${esc(t.name)}</span><span class="note">${d.toFixed(1)} km · ${t.summit_m} m · diff ${t.difficulty}/5</span>${score}</li>`;
+        }).join('')}</ul><p class="note">Distance as the crow flies; today's planner score where the tour passes the avalanche filter.</p>`
+      : '<p class="note">No listed tours within 15 km.</p>') +
+    `<p class="attrib">Map © ${country === 'SE' ? 'OpenTopoMap, © OpenStreetMap contributors' : 'Kartverket'} · Place: © OpenStreetMap contributors</p>` +
+    `</div><div class="tourcol"><dl>` +
+    `<dt>Type</dt><dd>${esc(HUT_KIND[h.kind])}${h.staffed ? ', staffed' : ''}</dd>` +
+    (h.org || h.operator ? `<dt>Run by</dt><dd>${esc(h.operator ?? (h.org === 'DNT' ? 'Den Norske Turistforening' : 'Svenska Turistföreningen'))}</dd>` : '') +
+    `<dt>Winter</dt><dd><span class="hutw ${w}">${w === 'open' ? 'Open in winter' : w === 'closed' ? 'Closed in winter' : 'Not known — check before you go'}</span>` +
+    (h.opening ? `<br><span class="note">opening hours: ${esc(h.opening)}</span>` : '') + `</dd>` +
+    (h.ele ? `<dt>Height</dt><dd>${h.ele} m</dd>` : '') +
+    (h.beds ? `<dt>Beds</dt><dd>${h.beds}</dd>` : '') +
+    (h.fee ? `<dt>Fee</dt><dd>${esc(h.fee === 'yes' ? 'yes' : h.fee === 'no' ? 'free' : h.fee)}</dd>` : '') +
+    (nearReg ? `<dt>Avalanche region</dt><dd>${esc(nearReg.name)} — ${dangerPill(nearReg)}</dd>` : '') +
+    `<dt>Position</dt><dd>${h.lat.toFixed(4)}° N, ${h.lon.toFixed(4)}° E</dd>` +
+    `</dl>` +
+    `<p class="note">From OpenStreetMap. Opening times in the mountains change with the season and the weather: always check with the host before you rely on a bed or a meal.</p>` +
+    `<div class="linkrow">` +
+    (h.website ? `<a class="btn primary" href="${esc(h.website)}" target="_blank" rel="noopener noreferrer">Website ↗</a>` : '') +
+    (h.more ? `<a class="btn${h.website ? '' : ' primary'}" href="${esc(h.more)}" target="_blank" rel="noopener noreferrer">${h.org === 'DNT' ? 'Find on ut.no' : 'Find on STF'} ↗</a>` : '') +
+    `<a class="btn" href="https://www.openstreetmap.org/${esc(h.id)}" target="_blank" rel="noopener noreferrer">OpenStreetMap ↗</a>` +
+    (nearReg ? `<button class="btn" data-region="${esc(nearReg.id)}">Region overview</button>` : '') +
+    `</div></div></div>`;
+  renderRouteMap($('#routeMap'), { route: null, tour: { name: h.name ?? HUT_KIND[h.kind], lat: h.lat, lon: h.lon }, country });
+  drawMap();
+  $('#detailCard').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
 /** Turn the resort layer on and zoom the map to one resort. */
 function focusResort(lat, lon) {
   const cb = $('#showResorts');
@@ -563,6 +714,8 @@ $('#map').addEventListener('click', (e) => {
   if (tour) return selectTour(tour.dataset.tour);
   const resort = e.target.closest('[data-resort]');
   if (resort) return selectResort(resort.dataset.resort);
+  const hut = e.target.closest('[data-hut]');
+  if (hut) return selectHut(hut.dataset.hut);
   const reg = e.target.closest('g.reg');
   if (reg) selectRegion(reg.dataset.region);
 });
@@ -931,6 +1084,7 @@ function selectTour(name) {
     snowBlock(t.snow, 'At this tour') +
     `<h4 id="snowHistH">Snow depth this winter</h4><div class="snowhist" id="snowHist"><p class="note">Loading the last winters…</p></div>` +
     `<h4>Next 5 days</h4><div id="forecast"></div>` +
+    `<h4>Huts and cafés nearby</h4>` + hutsNearHtml(t.name) +
     bulletinBlock(reg) +
     `<div class="linkrow">` +
     (reg.bulletinUrl
@@ -1112,7 +1266,9 @@ function selectResort(id) {
 
 $('#detail').addEventListener('click', (e) => {
   const li = e.target.closest('.rstours [data-tour]');
-  if (li) selectTour(li.dataset.tour);
+  if (li) return selectTour(li.dataset.tour);
+  const hut = e.target.closest('.hutlist [data-hut]');
+  if (hut) selectHut(hut.dataset.hut);
 });
 
 /**
@@ -1166,6 +1322,7 @@ async function loadTourExtras(t, reg) {
       .catch((e) => ({ error: e.message }));
 
   getJson(`/api/snowhistory?tour=${q}`).then((h) => still() && renderSnowHistory($('#snowHist'), h, t));
+  if (!state.huts) loadHuts();
 
   // Route, terrain and photos all feed the one map; repaint as each arrives.
   const paint = () => {
@@ -1418,6 +1575,11 @@ $$('.seg button').forEach((b) =>
 );
 $('#showTours').addEventListener('change', (e) => {
   state.showTours = e.target.checked;
+  drawMap();
+});
+$('#showHuts').addEventListener('change', (e) => {
+  state.showHuts = e.target.checked;
+  if (state.showHuts && !state.huts) loadHuts();
   drawMap();
 });
 $('#showResorts').addEventListener('change', (e) => {

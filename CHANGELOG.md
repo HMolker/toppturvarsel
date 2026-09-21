@@ -3,6 +3,27 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v4.14 — huts, mountain lodges and remote cafés (2026-09-22)
+
+- **New map layer "huts & cafés"**, shown when zoomed in: from
+  OpenStreetMap, within 15 km of the tours:
+  - DNT, STF and other cabins (tourism=alpine_hut), open huts and shelters
+    (wilderness_hut), mountain lodges by name (fjellstue, fjellstove,
+    fjellhotell, turisthytte, fjällstation, fjällstuga, seter …);
+  - cafés and restaurants only when remote: at least 3 km from any
+    village, town or city. Bars, pubs and fast food never.
+  Places open in winter are highlighted in the profile's red; unknown ones
+  are plain ("check"), summer-only ones faded. "Open in winter" is read
+  from OSM's opening_hours and seasonal tags; most places don't say, and
+  the panel says so.
+- **Click a place** for a panel like a tour's: type, who runs it (DNT /
+  STF), winter opening and hours, height, beds, fee, avalanche region,
+  tours within 15 km with today's score, and links (website, a search on
+  ut.no or STF's site, OpenStreetMap).
+- **Tour panels** list the huts and cafés within 8 km.
+- `GET /api/huts`: one Overpass request for all tours (clustered), cached
+  30 days; the last good list is kept if Overpass is down.
+
 ## v4.13 — the ski area in detail, in the profile's colours (2026-09-22)
 
 - **Runs by difficulty in the Molker ramp:** novice pale (#FBD6CB), easy

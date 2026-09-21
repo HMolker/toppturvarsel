@@ -58,7 +58,8 @@ export function evaluateAlerts(
         indicative: Boolean(r.snow?.fallback),
         danger: r.bulletin?.danger ?? null,
         dangerKnown: r.bulletin?.danger !== null && r.bulletin?.danger !== undefined,
-        problems: (r.bulletin?.problems ?? []).map((p) => p.type).filter(Boolean),
+        // The problem ("Wind slab"), not the avalanche type ("Dry slab avalanche").
+        problems: (r.bulletin?.problems ?? []).map((p) => p.problemType ?? p.type).filter(Boolean),
         bulletinUrl: r.bulletinUrl,
         observedAt: r.snow?.observedAt ?? null,
         day: (snapshot.fetchedAt ?? new Date().toISOString()).slice(0, 10),

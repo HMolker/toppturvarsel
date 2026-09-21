@@ -8,7 +8,7 @@ import { refresh } from './refresh.js';
 import { evaluateAlerts, runAlerts } from './alerts.js';
 import { startScheduler } from './scheduler.js';
 import { findTour, getRoute, routeGpx, getForecast, warmRoutes, getPhotos, getPhotoThumb, trackStatuses } from './tracks.js';
-import { getTerrain } from './terrain.js';
+import { getTerrain, getSlopeGrid } from './terrain.js';
 import { getOwnPhotos, getOwnPhotoFile } from './own-photos.js';
 import { getResorts } from './resorts.js';
 import { getOutlook } from './outlook.js';
@@ -198,10 +198,17 @@ async function handleApi(req, res, url) {
 
   // Per-tour routes and forecasts. Only tours from data/tours.json, by name
   // or slug: never arbitrary coordinates (see src/tracks.js for why).
-  if (['/api/track', '/api/track.gpx', '/api/forecast', '/api/terrain', '/api/photos', '/api/photo', '/api/own-photos', '/api/own-photo'].includes(route)) {
+  if (['/api/track', '/api/track.gpx', '/api/forecast', '/api/terrain', '/api/photos', '/api/photo', '/api/own-photos', '/api/own-photo', '/api/slopes'].includes(route)) {
     const tour = await findTour(url.searchParams.get('tour') ?? '');
     if (!tour) return json(res, 404, { error: 'unknown tour' });
 
+    if (route === '/api/slopes') {
+      try {
+        return json(res, 200, await getSlopeGrid(tour), { 'Cache-Control': 'public, max-age=3600' });
+      } catch (err) {
+        return json(res, 502, { error: 'slope grid unavailable', detail: err.message });
+      }
+    }
     if (route === '/api/terrain') {
       try {
         return json(res, 200, await getTerrain(tour));

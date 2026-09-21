@@ -76,3 +76,56 @@ export async function getTerrain(tour) {
   await rename(`${file}.tmp`, file);
   return terrain;
 }
+
+/* ------------------------------------------------------------------ *
+ * a finer grid, for slope angles
+ * ------------------------------------------------------------------ */
+
+const SLOPE_TTL = 30 * 86400e3;
+// Cells of 200-400 m (the contour grid) average a 40° face down to about
+// 22°, so steep slopes vanish. This grid covers the same map area at ~50 m
+// where it can, capped so one tour never costs more than 60 x 60 points.
+const SLOPE_SPACING_M = 50;
+const SLOPE_MAX_SIDE = 60;
+
+export function slopeGridSize(box) {
+  const lat0 = (box.north + box.south) / 2;
+  const ew = (box.east - box.west) * 111320 * Math.cos((lat0 * Math.PI) / 180);
+  const ns = (box.north - box.south) * 111320;
+  const spacing = Math.max(SLOPE_SPACING_M, Math.max(ew, ns) / (SLOPE_MAX_SIDE - 1));
+  return {
+    nx: Math.min(SLOPE_MAX_SIDE, Math.max(2, Math.round(ew / spacing) + 1)),
+    ny: Math.min(SLOPE_MAX_SIDE, Math.max(2, Math.round(ns / spacing) + 1)),
+    spacingM: Math.round(spacing),
+  };
+}
+
+/**
+ * Elevation grid for steepness: same frame as the route map, finer than the
+ * contour grid. Up to 3600 points, so the first look at a tour costs about
+ * 70 Kartverket requests (sent one after another), then nothing for 30 days.
+ */
+export async function getSlopeGrid(tour) {
+  const slug = slugify(tour.name);
+  const file = path.resolve(config.dataDir, 'cache', 'slopes', `${slug}.json`);
+  try {
+    const cached = JSON.parse(await readFile(file, 'utf8'));
+    if (Date.now() - new Date(cached.fetchedAt).getTime() < SLOPE_TTL) return cached;
+  } catch {
+    /* not cached */
+  }
+  const route = await getRoute(tour);
+  const summit = route?.summit ?? { lat: tour.lat, lon: tour.lon };
+  const box = gridBox(route?.found ? route.points : [], summit);
+  const { nx, ny, spacingM } = slopeGridSize(box);
+  const { values, source } = await bestElevations(gridPoints(box, nx, ny), await countryOf(tour));
+  const grid = {
+    tour: tour.name, box, nx, ny, spacingM,
+    z: values.map((v) => (Number.isFinite(v) ? Math.round(v * 10) / 10 : null)),
+    source, fetchedAt: new Date().toISOString(),
+  };
+  await mkdir(path.dirname(file), { recursive: true });
+  await writeFile(`${file}.tmp`, JSON.stringify(grid));
+  await rename(`${file}.tmp`, file);
+  return grid;
+}

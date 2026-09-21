@@ -3,6 +3,26 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v4.7 — avalanche problems drawn, explained and put on the map (2026-09-21)
+
+- **Region panel:** each avalanche problem gets a pictogram, a compass rose of
+  the aspects it applies to, and a mountain with its height band shaded.
+  Black and white below danger 3, in colour from 3.
+- **Explanations on hover (tap on a phone):** each problem type and each
+  danger level says in two or three sentences what it means, after the EAWS
+  avalanche-problem standard and the European Avalanche Danger Scale.
+- **Trip planner and powder alerts:** danger level and problem icons after the
+  tour or region name; the text is unchanged, and no directions here.
+- **Route map:** slopes steeper than 25° that face the way today's problems
+  face, at their heights, are shaded red. Computed from a new ~50 m slope grid
+  (`/api/slopes`, up to 60 × 60 points, cached 30 days), since the contour
+  grid's 200–400 m cells average steep faces down to ~20°.
+- Problems are now matched on Varsom's problem type ("Wind-drifted snow")
+  rather than the avalanche type ("Dry slab avalanche"); alert messages name
+  the problem too.
+- The pictograms are this tool's own drawings: the EAWS icon downloads state
+  no licence for reuse.
+
 ## v4.6 — more photos, and a drawing when there are none (2026-09-21)
 
 - **Commons, wider:** the search reaches 10 km from the summit instead of 5,

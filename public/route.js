@@ -5,6 +5,7 @@
 
 import { contours, smooth } from './contours.js';
 import { reliefSvg } from './relief.js';
+import { hazardCells } from './avalanche.js';
 
 const esc = (s) =>
   String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -55,7 +56,7 @@ function scaleBar(f, lat) {
  * route map
  * ------------------------------------------------------------------ */
 
-export function renderRouteMap(el, { route, tour, country, terrain = null, photos = [] }) {
+export function renderRouteMap(el, { route, tour, country, terrain = null, photos = [], problems = [], danger = null, slopes = null }) {
   const W = 560, H = 380;
   const pts = route?.found ? route.points : [];
   const summit = route?.summit ?? { lat: tour.lat, lon: tour.lon, name: tour.name };
@@ -118,6 +119,26 @@ export function renderRouteMap(el, { route, tour, country, terrain = null, photo
     })
     .join('');
 
+  // Slopes over 25° that face the way today's avalanche problems face, at
+  // their heights: shaded red over the map. Drawn from the terrain grid,
+  // so it follows the bulletin, not a slope-angle survey.
+  // The fine slope grid when it has arrived; the coarse contour grid meanwhile
+  // (which rarely shows anything over 25°, since its cells average the slope).
+  const hazard = hazardCells(slopes ?? terrain, problems, { minAngle: 25 });
+  // One path for all cells: painted once, so neighbouring cells merge into
+  // one area instead of showing the grid's seams.
+  const hazardPath = hazard
+    .map((c) => {
+      const q = c.corners.map((g) => px(f, g));
+      return `M${q.map((v) => v.map((n) => n.toFixed(1)).join(' ')).join(' L')} Z`;
+    })
+    .join(' ');
+  const steepest = hazard.reduce((m, c) => Math.max(m, c.angle), 0);
+  const hazardSvg = hazardPath
+    ? `<path d="${hazardPath}" class="hazarea"><title>Steeper than 25° (up to about ${steepest}°), facing where today’s avalanche problems are, at their heights</title></path>`
+    : '';
+  el.dataset.hazard = String(hazard.length);
+
   const line = pts.map((p) => px(f, p).map((v) => v.toFixed(1)).join(',')).join(' ');
   const [sx, sy] = px(f, summit);
   const start = pts.length ? px(f, pts[0]) : null;
@@ -129,6 +150,7 @@ export function renderRouteMap(el, { route, tour, country, terrain = null, photo
     `<rect width="${W}" height="${H}" fill="var(--page)"/>` +
     `<g class="contours">${contourSvg.join('')}${contourLabels.join('')}</g>` +
     `<g class="tiles">${tiles.join('')}</g>` +
+    (hazardSvg ? `<g class="hazard">${hazardSvg}</g>` : '') +
     (pts.length
       ? `<polyline points="${line}" fill="none" stroke="var(--paper)" stroke-width="7" stroke-linejoin="round" stroke-linecap="round" opacity=".9"/>` +
         `<polyline points="${line}" fill="none" stroke="var(--ink)" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>` +
@@ -151,6 +173,11 @@ export function renderRouteMap(el, { route, tour, country, terrain = null, photo
     `<line x1="0" x2="0" y1="-4" y2="4" stroke="var(--ink)" stroke-width="2"/><line x1="${sb.px.toFixed(1)}" x2="${sb.px.toFixed(1)}" y1="-4" y2="4" stroke="var(--ink)" stroke-width="2"/>` +
     `<text x="${(sb.px + 8).toFixed(1)}" y="4" class="maplabel">${sb.label}</text></g>` +
     `<g transform="translate(${W - 24} 28)"><path d="M0 -12 L6 4 L0 0 L-6 4 Z" fill="var(--ink)"/><text y="18" text-anchor="middle" class="maplabel">N</text></g>` +
+    (hazard.length
+      ? `<g transform="translate(${W - 10} ${H - 18})"><rect x="-276" y="-16" width="272" height="26" rx="4" fill="var(--paper)" opacity=".92"/>` +
+        `<rect x="-268" y="-9" width="12" height="12" class="hazarea"/>` +
+        `<text x="-250" y="1" class="maplabel">over 25° where today’s problems are</text></g>`
+      : '') +
     `</svg>`;
 
   el._frame = f;

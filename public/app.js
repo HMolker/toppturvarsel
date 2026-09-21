@@ -5,6 +5,7 @@ import { plan } from './planner.js';
 import { explainHtml } from './explain.js';
 import { aspectRose } from './aspect.js';
 import { simulate, simulateResorts } from './simulate.js';
+import { dangerChip, problemIcons, problemIcon, problemRose, elevationDiagram, elevationText, initAvalancheTips, problemKey, PROBLEMS } from './avalanche.js';
 import { COUNTRIES, GROUPS, countryName, joinNames, normaliseSelection, fitFrame } from './countries.js';
 
 /* ------------------------------------------------------------------ *
@@ -765,7 +766,7 @@ function dangerPill(region) {
         : 'not assessed';
     return `<span class="note">danger ${why}</span>`;
   }
-  return `${pill(d)} <span class="note">${DANGER_NAME[d]}</span>`;
+  return dangerChip(d);
 }
 
 function bulletinBlock(region) {
@@ -778,15 +779,30 @@ function bulletinBlock(region) {
   if (b.headline) bits.push(`<p class="bulletintext">${esc(b.headline)}</p>`);
 
   if (b.problems?.length) {
+    // Colour from danger 3 up, black and white below: a raised level is
+    // visible before any text is read.
+    const colour = (b.danger ?? 0) >= 3;
     bits.push(
-      `<h4>Avalanche problems</h4><div>` +
+      `<h4>Avalanche problems</h4><div class="avprobs">` +
         b.problems
-          .map(
-            (p) =>
-              `<span class="problem">${esc(p.type)}${p.probability ? ` · ${esc(p.probability)}` : ''}${p.size ? ` · ${esc(p.size)}` : ''}</span>`
-          )
+          .map((p) => {
+            const key = (problemKey(p.problemType) ?? problemKey(p.type));
+            return (
+              `<div class="avrow">` +
+              `<span class="avprob big" ${key ? `data-av="problem" data-key="${key}" tabindex="0"` : ''}` +
+              `${p.probability ? ` data-extra="${esc([p.probability, p.size].filter(Boolean).join(' · '))}"` : ''}>` +
+              `${key ? problemIcon(key, { colour, size: 46, title: false }) : ''}</span>` +
+              `<div class="avwhat"><strong>${esc(key ? PROBLEMS[key].name : p.type)}</strong>` +
+              `<span class="note">${esc([p.probability, p.size].filter(Boolean).join(' · '))}</span></div>` +
+              `<figure class="avfig">${problemRose(p.aspects, { colour })}<figcaption>aspects</figcaption></figure>` +
+              `<figure class="avfig">${elevationDiagram(p.heights, { colour })}<figcaption>${esc(elevationText(p.heights))}</figcaption></figure>` +
+              `</div>`
+            );
+          })
           .join('') +
-        `</div>`
+        `</div><p class="note avsrc">Hover or tap a symbol for what it means. Problem types and danger scale after the ` +
+        `<a href="https://www.avalanches.org/standards/avalanche-problems/" target="_blank" rel="noopener">EAWS standards</a> and the ` +
+        `<a href="https://www.avalanches.org/wp-content/uploads/2022/09/European_Avalanche_Danger_Scale-EAWS.pdf" target="_blank" rel="noopener">European Avalanche Danger Scale</a>, in short.</p>`
     );
   }
 
@@ -891,7 +907,7 @@ function selectTour(name) {
     (reg.offMap ? '' : `<button class="btn" data-region="${esc(reg.id)}">Region overview</button>`) + `</div>` +
     `</div></div>`;
 
-  state.tourView = { route: null, terrain: null, photos: null, own: null };
+  state.tourView = { route: null, terrain: null, photos: null, own: null, slopes: null };
   renderRouteMap($('#routeMap'), { route: null, tour: t, country: reg.country });
   renderForecast($('#forecast'), null);
   renderPhotos($('#photos'), null, t, null);
@@ -929,6 +945,11 @@ async function loadTourExtras(t, reg) {
       country: reg.country,
       terrain: view.terrain?.error ? null : view.terrain,
       photos: [...own, ...(view.photos?.photos ?? [])],
+      // Today's problems: steep slopes they cover are shaded on the map,
+      // from the fine slope grid once it has arrived.
+      problems: reg.bulletin?.problems ?? [],
+      slopes: view.slopes?.error ? null : view.slopes,
+      danger: reg.bulletin?.danger ?? null,
     });
     if (view.route) renderProfile($('#routeProfile'), view.route, mapEl);
     $('#ownPhotosWrap').hidden = !own.length;
@@ -955,6 +976,14 @@ async function loadTourExtras(t, reg) {
     view.photos = photos;
     paint();
   });
+  // The fine grid for steepness is only worth fetching when there is a
+  // bulletin with problems to shade.
+  if (reg.bulletin?.problems?.length) {
+    getJson(`/api/slopes?tour=${q}`).then((slopes) => {
+      view.slopes = slopes;
+      paint();
+    });
+  }
   getJson(`/api/own-photos?tour=${q}`).then((own) => {
     view.own = own?.error ? null : own;
     paint();
@@ -1048,7 +1077,7 @@ function renderAlerts() {
     a.firing
       .map((f) => {
         const danger = f.dangerKnown
-          ? `${pill(f.danger)} ${DANGER_NAME[f.danger]}`
+          ? `${dangerChip(f.danger)}<span class="pav">${problemIcons(f.problems, { danger: f.danger, size: 20 })}</span>`
           : '<span class="note">danger level not available — read the bulletin</span>';
         return (
           `<div class="fired"><div class="big">+${cm(f.new48)}<span style="font-size:12px"> cm</span></div>` +
@@ -1251,6 +1280,7 @@ $('#refreshBtn').addEventListener('click', async (e) => {
   }
 });
 
+initAvalancheTips();
 load();
 // Pick up server-side refreshes without a reload; cheap, and the server
 // coalesces so this cannot stampede upstream.
@@ -1289,6 +1319,8 @@ function initPlanner() {
     renderPlanner();
   });
   $('#planList').addEventListener('click', (e) => {
+    // A tap on a danger or problem symbol explains it; it does not open the tour.
+    if (e.target.closest('[data-av]')) return;
     const r = e.target.closest('[data-tour]');
     if (r) selectTour(r.dataset.tour);
   });
@@ -1355,6 +1387,14 @@ function renderPlanner() {
   const unassessed = day.rows.filter((r) => r.status === 'unassessed');
   const regionName = (id) => regionById()[id]?.name ?? id;
 
+  // That day's bulletin for a region: danger and problems, no directions.
+  const dayBulletin = (regionId) => (o.bulletins?.[regionId] ?? []).find((b) => b.date === day.date) ?? null;
+  const avChips = (r) => {
+    const b = dayBulletin(r.region);
+    const d = b?.danger ?? r.danger;
+    if (!d) return '';
+    return `<span class="pav">${dangerChip(d, { small: true })}${problemIcons(b?.problems, { danger: d, size: 20 })}</span>`;
+  };
   const row = (r, i) => {
     const why = [...r.why];
     if (r.startNote) why.push(r.startNote);
@@ -1362,7 +1402,7 @@ function renderPlanner() {
     return (
       `<div class="prow" data-tour="${esc(r.tour)}" data-explain="${k}" tabindex="0">` +
       `<span class="prank">${i + 1}</span>` +
-      `<span class="pname">${esc(r.tour)}<span class="preg">${esc(regionName(r.region))}</span></span>` +
+      `<span class="pname">${esc(r.tour)}<span class="preg">${esc(regionName(r.region))}</span>${avChips(r)}</span>` +
       `<span class="pscore" title="How this score is calculated">${r.score}<small>/ 100 ⓘ</small></span>` +
       `<span class="pbar"><i style="width:${r.score}%"></i></span>` +
       `<span class="pwhy"><span class="av">${esc(r.avalanche)}.</span> ${esc(why.join(' · '))}</span>` +
@@ -1443,6 +1483,8 @@ tip.hidden = true;
 document.body.appendChild(tip);
 
 function explainTarget(el) {
+  // The avalanche symbols have their own explanation; don't stack two boxes.
+  if (el?.closest?.('[data-av]')) return null;
   const t = el?.closest?.('[data-explain]');
   if (!t || !state.lastPlan) return null;
   const k = +t.dataset.explain;

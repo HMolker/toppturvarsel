@@ -294,6 +294,22 @@ async function withServer(fn) {
   }
 }
 
+test('slope grid: fine enough to see steep ground, and capped', async () => {
+  const { slopeGridSize } = await import('../src/terrain.js');
+  const small = slopeGridSize({ south: 69.64, north: 69.67, west: 20.0, east: 20.09 });
+  assert.ok(small.spacingM >= 50 && small.spacingM <= 60, `small area ~50 m: ${small.spacingM}`);
+  const big = slopeGridSize({ south: 69.5, north: 69.8, west: 19.8, east: 20.4 });
+  assert.ok(big.nx <= 60 && big.ny <= 60, 'never more than 60 x 60 points');
+  await withServer(async (base) => {
+    const g = await (await fetch(`${base}/api/slopes?tour=rornestinden`)).json();
+    assert.ok(g.nx * g.ny <= 3600 && g.z.length === g.nx * g.ny, `${g.nx} x ${g.ny}`);
+    assert.equal(g.source, 'kartverket-dtm');
+    const kv = calls.kv;
+    await (await fetch(`${base}/api/slopes?tour=rornestinden`)).json();
+    assert.equal(calls.kv, kv, 'cached: no second round of requests');
+  });
+});
+
 test('/api/terrain returns a cached DTM grid for a Norwegian tour', async () => {
   await withServer(async (base) => {
     const t = await (await fetch(`${base}/api/terrain?tour=rornestinden`)).json();

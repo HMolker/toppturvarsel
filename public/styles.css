@@ -573,3 +573,44 @@ svg.relief + svg.relief { margin-top: 8px; }
 svg.relief .rl { font-family: var(--mono); font-size: 10px; fill: var(--muted); }
 svg.relief.prof .rl { fill: var(--ink-2); }
 svg.relief .lbl { paint-order: stroke; stroke: var(--paper); stroke-width: 3px; fill: var(--ink-2); }
+
+/* ---------- avalanche problems, danger scale ---------- */
+:root { --hazard: rgba(194, 64, 42, .32); --hazard-edge: rgba(194, 64, 42, .55); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --hazard: rgba(232, 115, 79, .38); --hazard-edge: rgba(232, 115, 79, .7); } }
+:root[data-theme="dark"] { --hazard: rgba(232, 115, 79, .38); --hazard-edge: rgba(232, 115, 79, .7); }
+.hazcell { fill: var(--hazard); stroke: var(--hazard-edge); stroke-width: .5; }
+
+.avdanger {
+  display: inline-flex; align-items: center; gap: 6px; font: 600 13px/1 var(--mono);
+  padding: 4px 8px; border-radius: 5px; cursor: help; vertical-align: middle;
+}
+.avdanger.sm { padding: 3px 6px; font-size: 11.5px; }
+.avdanger .avdname { font-family: var(--sans); font-weight: 600; }
+.avprob { display: inline-flex; cursor: help; vertical-align: middle; border-radius: 6px; }
+.avprob:focus-visible, .avdanger:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.pav { display: inline-flex; gap: 4px; align-items: center; margin-left: 8px; vertical-align: middle; }
+svg.avicon { display: block; }
+.avprobs { display: grid; gap: 10px; }
+.avrow {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 14px; align-items: center;
+  border: 1px solid var(--line); border-radius: var(--r-ctl); padding: 10px 12px;
+}
+.avwhat { display: grid; gap: 2px; }
+.avfig { margin: 0; display: grid; justify-items: center; gap: 2px; }
+.avfig figcaption { font: 11px var(--mono); color: var(--muted); max-width: 110px; text-align: center; }
+svg.avrose .avl, svg.avelev .avl { font: 600 8.5px var(--mono); fill: var(--muted); }
+.avsrc { margin-top: 8px; }
+@media (max-width: 560px) {
+  .avrow { grid-template-columns: auto minmax(0, 1fr); }
+  .avrow .avfig { grid-row: 2; }
+}
+#avTip {
+  position: fixed; z-index: 40; max-width: 320px; background: var(--paper); color: var(--ink);
+  border: 1px solid var(--line-2); border-radius: var(--r-ctl); padding: 10px 12px;
+  box-shadow: 0 8px 24px rgba(26, 26, 26, .16); font-size: 13.5px; line-height: 1.45; pointer-events: none;
+}
+#avTip .avt-h { display: flex; align-items: center; gap: 8px; font-weight: 700; margin-bottom: 4px; }
+#avTip .avt-x { font: 12px var(--mono); color: var(--ink-2); margin-bottom: 4px; }
+#avTip p { margin: 0 0 6px; }
+#avTip .avt-src { margin: 0; font-size: 11.5px; color: var(--muted); }
+.hazarea { fill: var(--hazard); stroke: none; }

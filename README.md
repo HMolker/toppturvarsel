@@ -248,6 +248,20 @@ further; hover for the numbers.
 
 Set `RESORTS_ENABLED=false` to turn the layer and its endpoint off.
 
+## Avalanche problems, drawn
+
+Each region's problems are shown as a pictogram, a compass rose of the
+aspects they apply to and a mountain with the height band shaded — in black
+and white, or in colour from danger 3. Hover (or tap) any problem or danger
+symbol for a short explanation after the EAWS standards. The planner and the
+powder alerts show the danger level and problem icons next to each name.
+
+On a tour's route map, slopes steeper than 25° that face the way today's
+problems face, at their heights, are shaded red. This comes from a ~50 m
+elevation grid fetched once per tour (about 70 Kartverket requests, cached
+for 30 days). It follows the bulletin and the terrain model; it is not a
+slope-angle survey, and short steep rolls finer than 50 m do not show.
+
 ## Photos near the summit
 
 The tour panel shows openly licensed photos from **Wikimedia Commons** —

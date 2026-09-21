@@ -77,20 +77,20 @@ export function simulate({ regions = [], tours = [], resorts = null, now = new D
     const problems = [];
     if (danger >= 2) {
       problems.push({
-        type: 'Wind slab', problemType: 'Wind slab', probability: danger >= 4 ? 'Very likely' : danger === 3 ? 'Likely' : 'Possible',
+        type: 'Dry slab avalanche', problemType: 'Wind slab', probability: danger >= 4 ? 'Very likely' : danger === 3 ? 'Likely' : 'Possible',
         size: danger >= 4 ? '3 - Large' : '2 - Medium', danger,
         aspects: ASPECT_BITS.lee, heights: { fill: 1, h1: Math.round((600 + rr() * 300) / 50) * 50, h2: 0 },
       });
     }
     if (danger >= 3) {
       problems.push({
-        type: 'New snow', problemType: 'Dry slab avalanche', probability: 'Likely', size: '2 - Medium', danger,
+        type: 'Dry slab avalanche', problemType: 'New snow', probability: 'Likely', size: '2 - Medium', danger,
         aspects: ASPECT_BITS.all, heights: { fill: 1, h1: 400, h2: 0 },
       });
     }
     if (danger >= 2 && rr() > 0.6) {
       problems.push({
-        type: 'Persistent weak layer', problemType: 'Persistent slab', probability: 'Possible', size: '3 - Large', danger,
+        type: 'Dry slab avalanche', problemType: 'Persistent weak layers', probability: 'Possible', size: '3 - Large', danger,
         aspects: ASPECT_BITS.lee, heights: { fill: 1, h1: 900, h2: 0 },
       });
     }
@@ -180,7 +180,7 @@ export function simulate({ regions = [], tours = [], resorts = null, now = new D
       new48: r.snow.new48, new24: r.snow.new24, depthCm: r.snow.depthCm,
       topTour: r.snow.topTour, indicative: false,
       danger: r.bulletin.danger, dangerKnown: r.bulletin.danger != null,
-      problems: (r.bulletin.problems ?? []).map((p) => p.type),
+      problems: (r.bulletin.problems ?? []).map((p) => p.problemType ?? p.type),
       bulletinUrl: r.bulletinUrl, observedAt: r.snow.observedAt, day: iso(today), simulated: true,
     }));
 

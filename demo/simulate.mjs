@@ -180,13 +180,13 @@ function bulletin(regionId, d) {
   const lee = { ValidExpositions: '01110000', ExposedHeightFill: 1, ExposedHeight1: 600, ExposedHeight2: 600 };
   const problems = fresh
     ? [
-        { AvalancheExtName: 'Dry slab avalanche', AvalProbabilityName: lvl >= 4 ? 'Very likely' : 'Likely', DestructiveSizeExtName: lvl >= 4 ? '3 - Large' : '2 - Medium',
+        { AvalancheExtName: 'Dry slab avalanche', AvalancheProblemTypeName: 'New snow', AvalProbabilityName: lvl >= 4 ? 'Very likely' : 'Likely', DestructiveSizeExtName: lvl >= 4 ? '3 - Large' : '2 - Medium',
           ValidExpositions: '11111111', ExposedHeightFill: 1, ExposedHeight1: 500, ExposedHeight2: 500 },
-        { AvalancheExtName: 'Wind slab', AvalProbabilityName: 'Likely', DestructiveSizeExtName: '2 - Medium', ...lee },
+        { AvalancheExtName: 'Dry slab avalanche', AvalancheProblemTypeName: 'Wind-drifted snow', AvalProbabilityName: 'Likely', DestructiveSizeExtName: '2 - Medium', ...lee },
       ]
     : lvl >= 3
-      ? [{ AvalancheExtName: 'Dry slab avalanche', AvalProbabilityName: 'Possible', DestructiveSizeExtName: '2 - Medium', ...lee }]
-      : [{ AvalancheExtName: 'Wind slab', AvalProbabilityName: 'Possible', DestructiveSizeExtName: '1 - Small',
+      ? [{ AvalancheExtName: 'Dry slab avalanche', AvalancheProblemTypeName: 'Wind-drifted snow', AvalProbabilityName: 'Possible', DestructiveSizeExtName: '2 - Medium', ...lee }]
+      : [{ AvalancheExtName: 'Dry slab avalanche', AvalancheProblemTypeName: 'Wind-drifted snow', AvalProbabilityName: 'Possible', DestructiveSizeExtName: '1 - Small',
           ValidExpositions: '11100000', ExposedHeightFill: 1, ExposedHeight1: 900, ExposedHeight2: 900 }];
 
   return {

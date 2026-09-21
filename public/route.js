@@ -360,7 +360,7 @@ function hourStrip(w) {
   if (light) out += `<rect x="${x(light.start).toFixed(1)}" width="${(x(light.end) - x(light.start)).toFixed(1)}" height="${H}" fill="var(--paper)"/>`;
   for (const { h, s } of w.hours ?? []) {
     const b = s >= 0.75 ? 4 : s >= 0.6 ? 3 : s >= 0.45 ? 2 : 1;
-    out += `<rect x="${x(h).toFixed(1)}" y="2" width="${(W / 24 - 0.4).toFixed(1)}" height="${H - 4}" fill="var(--ro${b})"/>`;
+    out += `<rect x="${x(h).toFixed(1)}" y="2" width="${(W / 24 - 0.4).toFixed(1)}" height="${H - 4}" fill="var(--hw${b})"/>`;
   }
   if (w.start != null) out += `<rect x="${x(w.start).toFixed(1)}" y="0.5" width="${(x(w.end) - x(w.start)).toFixed(1)}" height="${H - 1}" fill="none" stroke="var(--ink)" stroke-width="1"/>`;
   return `${out}</svg>`;
@@ -419,8 +419,14 @@ export function renderForecast(el, fc, tour = null) {
         })}</tr>`
       : '') +
     `</tbody></table>` +
+    (wins
+      ? `<div class="hlegend"><span class="hlk"><svg viewBox="0 0 14 10" width="14" height="10" aria-hidden="true"><rect width="14" height="10" rx="2" fill="var(--night)"/></svg>no usable light</span>` +
+        `<span class="hlk">${[1, 2, 3, 4].map((b) => `<i style="background:var(--hw${b})"></i>`).join('')}hours in the light: poor → very good</span>` +
+        `<span class="hlk"><svg viewBox="0 0 14 10" width="14" height="10" aria-hidden="true"><rect x=".5" y=".5" width="13" height="9" fill="none" stroke="var(--ink)"/></svg>best window</span>` +
+        `<span class="hlnote">Strip = one day, midnight to midnight, noon in the middle. Each hour in the light is scored on wind, cloud and snow/rain; gusts ≥ 17 m/s make it poor.</span></div>`
+      : '') +
     `<p class="note">Wind in m/s. 0° level is the daytime maximum; above your summit means rain or wet snow on the whole tour.` +
-    (wins ? ` Best window: the stretch of daylight, as long as the tour takes (~${wins.find(Boolean)?.needH ?? '?'} h at 400 m/h up), with the best hourly wind, cloud and snowfall; the strip shows the day's hours, dark outside usable light. Surface is for the descent aspect (${esc(tour.aspect ?? 'all')}), from the wind while it snowed, warming and the corn cycle; hover for why.` : '') +
+    (wins ? ` Best window: the stretch of daylight, as long as the tour takes (~${wins.find(Boolean)?.needH ?? '?'} h at 400 m/h up), with the best hourly wind, cloud and snowfall. Surface is for the descent aspect (${esc(tour.aspect ?? 'all')}), from the wind while it snowed, warming and the corn cycle; hover for why.` : '') +
     `</p>`;
 }
 

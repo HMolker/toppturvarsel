@@ -3,6 +3,12 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v4.8.1 — hour strip legend (2026-09-21)
+
+- The best-window strip shades the hours in the light on a red scale
+  (darker = better), so they stand apart from the dark no-light hours, and
+  a small legend under the forecast table explains the strip.
+
 ## v4.8 — when to go, what the snow is like, and a few days in one area (2026-09-21)
 
 - **Hourly summit forecast:** Open-Meteo is now asked for hourly wind, gusts,

@@ -57,6 +57,8 @@
   --own: #C2402A; --own-ink: #FFFFFF;
   /* Hours outside usable light in the forecast's hour strip. */
   --night: #4A473F;
+  /* Hour quality inside the light, darker = better. */
+  --hw1: #FBD6CB; --hw2: #F4A891; --hw3: #E8734F; --hw4: #C2402A;
 
   --r-card: 14px;
   --r-ctl: 8px;
@@ -85,6 +87,7 @@
     --marker-edge: #EDEBE5;
     --own: #E8734F; --own-ink: #1A1A1A;
     --night: #050505;
+    --hw1: #3A2420; --hw2: #7A3324; --hw3: #C2402A; --hw4: #F4A891;
     --ro1: #3A3833; --ro2: #6B675F; --ro3: #B5B1A8; --ro4: #EDEBE5;
     --rg1: #EDEBE5; --rg2: #FFFFFF; --rg3: #1A1A1A; --rg4: #1A1A1A;
     color-scheme: dark;
@@ -94,6 +97,7 @@
   --page: #121211; --paper: #1A1A1A; --ink: #EDEBE5; --ink-2: #C7C4BC; --muted: #A8A49B;
   --steel: #8C8880; --line: #2E2C28; --line-2: #3A3833; --red-ink: #E46A5C;
   --land: #24231F; --coast: #5E5B54; --marker-edge: #EDEBE5; --own: #E8734F; --own-ink: #1A1A1A; --night: #050505;
+  --hw1: #3A2420; --hw2: #7A3324; --hw3: #C2402A; --hw4: #F4A891;
   --ro1: #3A3833; --ro2: #6B675F; --ro3: #B5B1A8; --ro4: #EDEBE5;
   --rg1: #EDEBE5; --rg2: #FFFFFF; --rg3: #1A1A1A; --rg4: #1A1A1A;
   color-scheme: dark;
@@ -649,3 +653,8 @@ svg.avrose .avl, svg.avelev .avl { font: 600 8.5px var(--mono); fill: var(--mute
 .ideas { margin: 0; padding-left: 20px; display: grid; gap: 8px; max-width: 900px; }
 .ideas li { line-height: 1.5; color: var(--ink-2); }
 .ideas strong { color: var(--ink); }
+.hlegend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; margin: 8px 0 2px; font-size: 11.5px; color: var(--muted); }
+.hlegend .hlk { display: inline-flex; align-items: center; gap: 5px; }
+.hlegend .hlk i { display: inline-block; width: 10px; height: 10px; margin-right: -3px; border: 1px solid var(--line-2); }
+.hlegend .hlk i:last-of-type { margin-right: 2px; }
+.hlegend .hlnote { flex-basis: 100%; }

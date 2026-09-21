@@ -3,6 +3,14 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v4.14.1 — no more stale code after an update (2026-09-22)
+
+- JavaScript and CSS were cached by the browser for an hour. After an
+  update the page could keep running old modules (or a mix of old and
+  new), so new sections such as the snow-depth graph and the ski-area map
+  did not appear. Code and styles are now revalidated on every load, with
+  an ETag so an unchanged file costs a 304.
+
 ## v4.14 — huts, mountain lodges and remote cafés (2026-09-22)
 
 - **New map layer "huts & cafés"**, shown when zoomed in: from

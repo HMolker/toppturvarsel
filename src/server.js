@@ -115,11 +115,23 @@ async function serveStatic(req, res, urlPath) {
   try {
     const info = await stat(resolved);
     if (!info.isFile()) throw new Error('not a file');
+    // Code and styles are always revalidated: after an update the browser
+    // must not run an hour-old app.js against a new route.js (ES modules
+    // are fetched one by one, so a stale cache mixes versions). An ETag makes
+    // the check cheap: 304 when nothing changed. Images may be cached.
+    const ext = path.extname(resolved);
+    const code = rel === 'index.html' || ['.js', '.css', '.html', '.json'].includes(ext);
+    const etag = `"${info.size.toString(36)}-${Math.floor(info.mtimeMs).toString(36)}"`;
+    if (code && req.headers['if-none-match'] === etag) {
+      res.writeHead(304, { ETag: etag, 'Cache-Control': 'no-cache' });
+      return res.end();
+    }
     const body = await readFile(resolved);
     res.writeHead(200, {
-      'Content-Type': MIME[path.extname(resolved)] ?? 'application/octet-stream',
+      'Content-Type': MIME[ext] ?? 'application/octet-stream',
       'Content-Length': body.length,
-      'Cache-Control': rel === 'index.html' ? 'no-cache' : 'public, max-age=3600',
+      'Cache-Control': code ? 'no-cache' : 'public, max-age=3600',
+      ...(code ? { ETag: etag } : {}),
     });
     res.end(body);
   } catch {

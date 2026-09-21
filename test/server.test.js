@@ -176,3 +176,19 @@ test('GET /api/version reports the package version and when it started', async (
     assert.match(v.node, /^v\d+/);
   });
 });
+
+test('code is revalidated on every load (ETag, 304), so an update is never mixed with a cached older module', async () => {
+  await withServer(async (base) => {
+    const r = await fetch(`${base}/app.js`);
+    assert.equal(r.status, 200);
+    assert.equal(r.headers.get('cache-control'), 'no-cache');
+    const etag = r.headers.get('etag');
+    assert.ok(etag);
+    const again = await fetch(`${base}/route.js`, { headers: {} });
+    assert.equal(again.headers.get('cache-control'), 'no-cache');
+    const same = await fetch(`${base}/app.js`, { headers: { 'If-None-Match': etag } });
+    assert.equal(same.status, 304);
+    const img = await fetch(`${base}/brand/icon-64.png`);
+    assert.match(img.headers.get('cache-control'), /max-age=3600/);
+  });
+});

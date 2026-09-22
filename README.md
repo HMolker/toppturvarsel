@@ -446,6 +446,7 @@ curl -X POST localhost:8080/api/test-alert   # dry run, records nothing
 | `GET /api/snowhistory?tour=` | Snow depth 1 Oct – 30 Jun for this winter and the five before, from seNorge (past winters cached for good). |
 | `GET /api/huts` | Cabins, open huts, mountain lodges and remote cafés within 15 km of the tours, from OpenStreetMap (cached 30 days). |
 | `GET /api/overpass` | What the OpenStreetMap (Overpass) queue is doing: requests waiting, the one running, rested servers, last error. |
+| `GET /api/skill` | Forecast accuracy: every verified cell, with skill, error and bias per parameter and lead time. |
 | `GET /api/resortmap?resort=` | Runs, lifts, terrain grid and fun facts for a listed ski resort, from OpenStreetMap (cached 30 days). |
 | `GET /api/forecast?resort=` | 5-day forecast at a listed ski resort, by its id. |
 | `GET /api/version` | The running version (from package.json) and when the server started. |
@@ -495,6 +496,40 @@ work — they choose the seNorge grid cell the snow depth comes from — so put
 them on the objective, not the car park.
 
 ---
+
+## Forecast accuracy (/skill)
+
+A tool of its own, at `http://<your-pi>:8080/skill`, linked from the resorts
+box: **how good the forecast has actually been**, by how far ahead it was
+made and by where.
+
+Every morning the server asks Open-Meteo for 16 days ahead at each 25 km
+cell holding a tour or a resort, and writes down what it said for 1, 3, 5,
+10 and 15 days out. The same request returns the last five days as analysed
+— what actually happened — so yesterday's weather scores the forecasts made
+1, 3, 5, 10 and 15 days before it.
+
+Four things are checked: **new snow** (and whether 5 cm fell), the day's
+**highest temperature**, mean **cloud** (a bluebird day is under 30 %) and
+the day's strongest **wind**. *All four* is a weighted average — snow 40 %,
+temperature 25 %, wind 20 %, cloud 15 %.
+
+Every score is measured against climatology, not against zero:
+
+    skill = 1 − (the forecast's error) ÷ (the error of saying "normal for the time of year")
+
+0 means the forecast was no better than knowing the season; 1 means it was
+perfect. The climatology is built from the observations as they accumulate,
+so a cell shows nothing until it has 30 scored days and enough observations
+to know what normal is. The 1-day scores appear after a couple of days, the
+15-day ones after a fortnight, and the map fills in over a winter.
+
+Until then — and whenever you press **Sample data** — the page shows
+made-up figures of a realistic shape, clearly marked, so you can see what it
+will look like.
+
+Settings (`.env`): `SKILL_VERIFY=on|off`, `SKILL_HOUR=6` (Norwegian time),
+`SKILL_MIN_CASES=30`. Stored in `data/cache/verify/`, a few MB a season.
 
 ## National lift data (Kartverket and Lantmäteriet)
 

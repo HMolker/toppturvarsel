@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fjällskred — forecast accuracy</title>
+<meta name="description" content="How accurate the weather forecasts have been, by lead time and by place: 1 to 15 days ahead for snowfall, temperature, cloud and wind.">
+<link rel="stylesheet" href="/styles.css">
+<link rel="icon" type="image/png" sizes="64x64" href="/brand/icon-64.png">
+<link rel="apple-touch-icon" href="/brand/icon-180.png">
+<meta name="theme-color" content="#F4F3EF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121211" media="(prefers-color-scheme: dark)">
+</head>
+<body>
+
+<header class="top">
+  <img class="brandmark" src="/brand/logo-header.png" width="107" height="120"
+       alt="Fjällskred — Molker Digital free-touring monitor">
+  <div>
+    <div class="eyebrow">Fjällskred · Molker Digital — forecast accuracy</div>
+    <h1>How good was the forecast?</h1>
+    <p class="sub">Every forecast is kept and checked against what happened. Pick a parameter, drag the days ahead, and see where the forecast still holds up.</p>
+  </div>
+  <div class="status">
+    <span class="chip"><span class="dot" id="collectDot"></span><span id="collectTxt">loading…</span></span>
+    <button class="btn" id="sampleBtn" title="Fill the page with made-up figures, to see how it looks once a winter of forecasts has been collected">Sample data</button>
+    <a class="btn primary" href="/">Back to conditions</a>
+  </div>
+</header>
+
+<main>
+  <section class="card" id="controlsCard">
+    <div class="skillctl">
+      <div class="ctlgroup">
+        <span class="lbl" id="paramLbl">What is being checked</span>
+        <div class="seg" id="params" role="group" aria-labelledby="paramLbl"></div>
+      </div>
+      <div class="ctlgroup grow">
+        <label class="lbl" for="lead">Days ahead</label>
+        <div class="leadrow">
+          <input type="range" id="lead" min="0" max="4" step="1" value="2">
+          <span class="leadval" id="leadval">5<span> d</span></span>
+        </div>
+        <div class="ticks" id="ticks" aria-hidden="true"></div>
+      </div>
+    </div>
+    <p class="note" id="paramNote"></p>
+  </section>
+
+  <div class="skillgrid">
+    <section class="card">
+      <h2>Skill by 25 km cell</h2>
+      <p class="note" id="mapNote"></p>
+      <div class="routemap" id="skillMap"></div>
+      <div class="rmlegend" id="skillLegend"></div>
+    </section>
+
+    <section class="card" id="cellCard">
+      <h2 id="cellName">Pick a cell</h2>
+      <p class="note" id="cellCoord"></p>
+      <div id="cellStats"></div>
+      <h3 class="subhead">Skill against forecast length</h3>
+      <div id="decayChart"></div>
+      <p class="note" id="decayNote"></p>
+      <h3 class="subhead" id="secondHead">Every parameter at this lead time</h3>
+      <div id="barsChart"></div>
+      <p class="note" id="barsNote"></p>
+    </section>
+  </div>
+
+  <section class="card">
+    <h2>Across every cell</h2>
+    <p class="note">The average of all cells with enough scored days, so you can see where the useful range ends.</p>
+    <div id="overallChart"></div>
+    <div class="tablewrap"><table class="rstable" id="overallTable"></table></div>
+  </section>
+
+  <section class="card">
+    <h2>How this is measured</h2>
+    <div class="howcols">
+      <div>
+        <h3 class="subhead">Kept every morning</h3>
+        <p class="note">For each 25 km cell holding a tour or a resort, the forecast for 1, 3, 5, 10 and 15 days ahead is written down. The same request brings back the last five days as analysed, which is what the older forecasts are then scored against.</p>
+        <h3 class="subhead">Scored against normal, not against zero</h3>
+        <p class="note">An error of 2 °C means nothing on its own. Each score is the forecast's error measured against the error of simply saying "normal for the time of year", built from the observations collected here:<br>
+          <code>skill = 1 − forecast error ÷ error of saying "normal"</code><br>
+          0 means no better than knowing the season. 1 means perfect.</p>
+      </div>
+      <div>
+        <h3 class="subhead">The four, and the one</h3>
+        <p class="note">New snow (and whether 5 cm fell), the day's highest temperature, mean cloud (a bluebird day is under 30 %), and the day's strongest wind. <b>All four</b> is a weighted average — snow 40 %, temperature 25 %, wind 20 %, cloud 15 % — because they do not matter equally when you are choosing a day.</p>
+        <h3 class="subhead">Nothing is shown too early</h3>
+        <p class="note">A cell needs <span id="minCases">30</span> scored days before it shows a number, and enough observations for a climatology. Until then it stays blank. A 15-day forecast made today cannot be marked for a fortnight, so the long lead times fill in last.</p>
+      </div>
+    </div>
+    <p class="attrib" id="sourceNote"></p>
+  </section>
+</main>
+
+<script type="module" src="/skill.js"></script>
+</body>
+</html>

@@ -3,6 +3,28 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v4.19.0 — forecast accuracy, as a tool of its own (2026-09-22)
+
+- New page at **/skill**, linked from the resorts box: how good the forecast
+  has actually been, by lead time and by place.
+  - A slider for 1, 3, 5, 10 and 15 days ahead.
+  - New snow (and whether 5 cm fell), temperature, sun and cloud, wind —
+    and **all four** as one weighted score (snow 40 %, temperature 25 %,
+    wind 20 %, cloud 15 %).
+  - A map of 25 km cells, coloured by skill, click one for its record.
+  - Skill against forecast length, per cell and across every cell.
+- Every morning the server keeps the 16-day forecast for each cell holding a
+  tour or a resort, and scores the older ones against the analysis that comes
+  back in the same request. Scores are against climatology — the error of
+  saying "normal for the time of year" — so 0 means no better than knowing
+  the season and 1 means perfect.
+- Nothing is shown before a cell has 30 scored days and a climatology to
+  compare with. Until then, and on the Sample data button, the page shows
+  made-up figures of a realistic shape, clearly marked.
+- Settings: `SKILL_VERIFY=on|off`, `SKILL_HOUR=6`, `SKILL_MIN_CASES=30`.
+  Stored in `data/cache/verify/`, a few MB a season.
+- New `GET /api/skill`.
+
 ## v4.18.1 — the Swedish resorts are back (2026-09-22)
 
 - The Swedish resort list comes from one big OpenStreetMap query, and

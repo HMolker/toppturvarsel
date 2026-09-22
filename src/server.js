@@ -18,6 +18,7 @@ import { getResortMap } from './resortmap.js';
 import { getHuts } from './huts.js';
 import { overpassStatus } from './util/overpass.js';
 import { startNightScan, nightScanStatus } from './nightly.js';
+import { getSkill, startVerification } from './verify.js';
 import { fetchForecast } from './sources/forecast.js';
 
 const resortFc = new Map();
@@ -276,6 +277,15 @@ async function handleApi(req, res, url) {
     }
   }
 
+  if (route === '/api/skill') {
+    // How well the forecasts have done, by cell, parameter and lead time.
+    try {
+      return jsonz(req, res, 200, await getSkill(), { 'Cache-Control': 'public, max-age=900' });
+    } catch (err) {
+      return json(res, 502, { error: 'skill data unavailable', detail: err.message });
+    }
+  }
+
   if (route === '/api/overpass') {
     // What the OpenStreetMap queue is doing: for diagnosing a map that won't load.
     return json(res, 200, overpassStatus());
@@ -402,6 +412,10 @@ export function createServer() {
       } else if (url.pathname === '/editor' || url.pathname === '/editor/') {
         if (req.method === 'GET' || req.method === 'HEAD') await serveEditor(res);
         else json(res, 405, { error: 'method not allowed' });
+      } else if (url.pathname === '/skill' || url.pathname === '/skill/') {
+        // The forecast-accuracy tool, its own page like the tour editor.
+        if (req.method === 'GET' || req.method === 'HEAD') await serveStatic(req, res, '/skill.html');
+        else json(res, 405, { error: 'method not allowed' });
       } else if (url.pathname.startsWith('/api/')) {
         await handleApi(req, res, url);
       } else if (req.method === 'GET' || req.method === 'HEAD') {
@@ -431,6 +445,8 @@ if (isMain) {
     startScheduler();
     // Ski-area maps and snow history for every resort, fetched at night.
     startNightScan();
+    // Keep every forecast and check it against what happened.
+    startVerification();
     // Derive tour routes quietly in the background, one at a time.
     if ((process.env.TRACKS_WARMUP ?? 'true') !== 'false') {
       setTimeout(() => warmRoutes().catch((e) => log.warn(`tracks: warm-up failed: ${e.message}`)), 60000).unref();

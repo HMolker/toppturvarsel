@@ -58,6 +58,7 @@
   /* Hours outside usable light in the forecast's hour strip. */
   --night: #4A473F;
   /* Hour quality inside the light, darker = better. */
+  --hs1: #FDF1ED; --hs2: #FBD6CB; --hs3: #F4A891; --hs4: #E8734F; --hs5: #C2402A; --hs6: #6E1E15;
   --hw1: #FBD6CB; --hw2: #F4A891; --hw3: #E8734F; --hw4: #C2402A;
   /* Wet-snow hours in the strip: a cold blue-grey, apart from the red scale. */
   --wet: #7C93A8;
@@ -99,6 +100,7 @@
 :root[data-theme="dark"] {
   --page: #121211; --paper: #1A1A1A; --ink: #EDEBE5; --ink-2: #C7C4BC; --muted: #A8A49B;
   --steel: #8C8880; --line: #2E2C28; --line-2: #3A3833; --red-ink: #E46A5C;
+  --hs1: #3A2A26; --hs2: #5A342C; --hs3: #8A4634; --hs4: #B45336; --hs5: #D8603F; --hs6: #F4A891;
   --land: #24231F; --coast: #5E5B54; --marker-edge: #EDEBE5; --own: #E8734F; --own-ink: #1A1A1A; --night: #050505;
   --hw1: #3A2420; --hw2: #7A3324; --hw3: #C2402A; --hw4: #F4A891; --wet: #5D7890;
   --ro1: #3A3833; --ro2: #6B675F; --ro3: #B5B1A8; --ro4: #EDEBE5;
@@ -789,3 +791,32 @@ svg.avrose .avl, svg.avelev .avl { font: 600 8.5px var(--mono); fill: var(--mute
 .hutw.unknown { color: var(--ink-2); font-weight: 400; }
 .maphint { font: 11px var(--mono); fill: var(--ink-2); paint-order: stroke; stroke: var(--paper); stroke-width: 3px; }
 .legend-row span svg.hut { vertical-align: -3px; margin-right: 4px; }
+
+
+/* ---- forecast accuracy tool (/skill) ---- */
+.skillctl { display: flex; flex-wrap: wrap; gap: 18px 30px; align-items: flex-end; }
+.skillctl .ctlgroup { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.skillctl .ctlgroup.grow { flex: 1 1 300px; }
+.skillctl .lbl { font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.skillctl .seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.skillctl .seg .btn[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--page); font-weight: 600; }
+.skillctl .leadrow { display: flex; align-items: center; gap: 14px; }
+.skillctl input[type="range"] { flex: 1; accent-color: var(--own); min-width: 140px; }
+.skillctl .leadval { font-family: var(--mono); font-size: 24px; min-width: 4.4ch; text-align: right; font-variant-numeric: tabular-nums; }
+.skillctl .leadval span { font-size: 13px; color: var(--muted); }
+.skillctl .ticks { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.skillgrid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 900px) { .skillgrid { grid-template-columns: 1fr; } }
+.skcell { cursor: pointer; }
+.skcell:focus-visible rect { stroke: var(--ink); stroke-width: 2; }
+.skkey { width: 22px; height: 10px; display: inline-block; }
+.skkey.none { background: var(--line); border: 1px solid var(--line-2); width: 12px; height: 12px; vertical-align: -2px; margin-right: 5px; }
+.howcols { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 4px 28px; }
+.subhead { font-size: 13px; margin: 16px 0 6px; font-weight: 600; }
+.tablewrap { overflow-x: auto; }
+#overallTable tr.on { background: var(--hs1); }
+#overallChart, #decayChart, #barsChart { max-width: 520px; }
+#overallChart svg, #decayChart svg, #barsChart svg { width: 100%; height: auto; }
+.maplabel.strong { font-weight: 600; fill: var(--ink); }
+.warnline { border-left: 3px solid var(--own); padding: 6px 10px; background: var(--hs1); margin-bottom: 12px; }
+.btn.on { background: var(--own); border-color: var(--own); color: var(--own-ink); }

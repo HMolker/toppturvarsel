@@ -52,7 +52,10 @@ export function factsHtml(x, r = null) {
   const crossLine = (k) => {
     const v = c[k];
     if (!v || v.error || !v.total) return null;
-    const miss = v.missing?.length ? ` · missing from OpenStreetMap: ${v.missing.join(', ')}` : ' · all of them are mapped';
+    const count = v.missingCount ?? v.missing?.length ?? 0;
+    const miss = !count ? ' · all of them are mapped'
+      : v.missing?.length ? ` · missing from OpenStreetMap: ${v.missing.join(', ')}`
+        : ` · ${count} of them not in OpenStreetMap`;
     return `${v.total} lift${v.total === 1 ? '' : 's'} registered with ${v.source}, ${v.matched} matched${miss}`;
   };
   const crossRows = [crossLine('ssr'), crossLine('file')].filter(Boolean);

@@ -3,6 +3,21 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v4.19.1 — Sweden's lifts, from Lantmäteriet (2026-09-23)
+
+- `data/lifts-SE.geojson` now ships with the app: all 635 *Lintrafik* lines
+  (lifts, gondolas, funiculars) from Lantmäteriet's Topografi 50, converted
+  from SWEREF 99 TM to WGS 84. © Lantmäteriet. Every Swedish resort map is
+  checked against it with nothing to set up — lifts it knows and
+  OpenStreetMap does not are drawn and counted, as Kartverket's register
+  already does for Norway.
+- The lines carry no names in that dataset, so the facts say how many are
+  missing rather than naming them.
+- Nine resorts in the built-in Swedish fallback list had positions off by 2
+  to 8 km; they are now taken from the mapped lifts themselves (Åre Björnen,
+  Björnrike, Storhogna, Tänndalen, Kläppen, Orsa Grönklitt, Hassela,
+  Branäs, Ski Sunne).
+
 ## v4.19.0 — forecast accuracy, as a tool of its own (2026-09-22)
 
 - New page at **/skill**, linked from the resorts box: how good the forecast

@@ -92,3 +92,18 @@ test('Swedish resorts: the built-in list stands in when OpenStreetMap cannot be 
     _resetResorts();
   }
 });
+
+test('the Lantmäteriet lift file that ships with the app is real, in WGS 84, and lands on the resorts', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const { shapeLiftFile } = await import('../src/sources/liftfile.js');
+  const gj = JSON.parse(await readFile(new URL('../data/lifts-SE.geojson', import.meta.url), 'utf8'));
+  const lifts = shapeLiftFile(gj);
+  assert.ok(lifts.length > 500, `${lifts.length} lift lines`);
+  const pts = lifts.flatMap((l) => l.points);
+  assert.ok(pts.every((p) => p.lat > 55 && p.lat < 69.5 && p.lon > 10 && p.lon < 25), 'every point is inside Sweden');
+  const km = (a, b, c, d) => Math.hypot((a - c) * 111, (b - d) * 111 * Math.cos(((a + c) / 2 * Math.PI) / 180));
+  for (const [name, lat, lon] of [['Åre', 63.399, 13.081], ['Riksgränsen', 68.426, 18.128], ['Hemavan', 65.817, 15.083]]) {
+    const near = lifts.filter((l) => l.points.some((p) => km(p.lat, p.lon, lat, lon) < 4));
+    assert.ok(near.length >= 5, `${name} has ${near.length} mapped lifts within 4 km`);
+  }
+});

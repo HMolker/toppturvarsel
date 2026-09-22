@@ -246,7 +246,7 @@ test('getResortMap: a stored map is shown at once however old; an old one is ref
   const dir = path.join(tmp, 'cache', 'resortmap');
   await mk(dir, { recursive: true });
   const old = new Date(Date.now() - 200 * 86400e3).toISOString();
-  await writeFile(path.join(dir, 'fnugg-old.json'), JSON.stringify({ v: 2, id: R.id, resort: 'Old', lifts: [], runs: [], facts: {}, fetchedAt: old }));
+  await writeFile(path.join(dir, 'fnugg-old.json'), JSON.stringify({ v: 3, id: R.id, resort: 'Old', lifts: [], runs: [], facts: {}, fetchedAt: old }));
   const realFetch = globalThis.fetch;
   let overpassCalls = 0;
   let release;

@@ -7,6 +7,8 @@ import { haversineKm } from './util/utm.js';
 import { log } from './util/log.js';
 import { overpass } from './util/overpass.js';
 import { appVersion } from './util/appversion.js';
+import { ssrLifts, matchToLifts } from './sources/ssr.js';
+import { fileLifts } from './sources/liftfile.js';
 
 /**
  * A ski resort from OpenStreetMap: lifts with their stations, pylons and
@@ -362,10 +364,48 @@ export function resortFacts(r, ends = null) {
 
 const cacheFile = (id) => path.resolve(config.dataDir, 'cache', 'resortmap', `${String(id).replace(/[^\w-]/g, '_')}.json`);
 
+
+/**
+ * A second opinion on OpenStreetMap's lifts:
+ *   Norway  Kartverket's place-name register (SSR) — official lift names.
+ *   Sweden  data/lifts-SE.geojson, if you have exported Lantmäteriet's
+ *           Topografi 50 lift lines (see src/sources/liftfile.js).
+ * Anything from those with no mapped lift near it is drawn on the map and
+ * listed in the facts as missing from OpenStreetMap.
+ */
+async function crossCheck(resort, lifts, boundary, centre) {
+  const extras = [];
+  const facts = {};
+  const belongs = (p) => (boundary ? inside(p, boundary.points) || distToLine(p, boundary.points) < 600 : distM(p, centre) < CENTRE_M + 1500);
+
+  if (resort.country === 'NO') {
+    try {
+      const { lifts: named, areas } = await ssrLifts(resort.lat, resort.lon);
+      const here = named.filter(belongs);
+      const { matched, missing } = matchToLifts(here, lifts);
+      facts.ssr = { total: here.length, matched: matched.length, missing: missing.map((m) => m.name), area: areas[0]?.name ?? null, source: 'Kartverket (SSR)' };
+      for (const m of missing) extras.push({ source: 'Kartverket', name: m.name, kind: m.type, lat: m.lat, lon: m.lon });
+    } catch (err) {
+      log.warn(`resortmap: SSR lift names for ${resort.name}: ${err.message}`);
+      facts.ssr = { error: err.message };
+    }
+  }
+
+  const agency = resort.country === 'SE' ? 'Lantmäteriet' : 'national map data';
+  const file = (await fileLifts(resort.country)).filter((l) => l.points.some(belongs));
+  if (file.length) {
+    const mids = file.map((l) => ({ ...l, ...l.points[Math.floor(l.points.length / 2)] }));
+    const { matched, missing } = matchToLifts(mids, lifts, { withinM: 250 });
+    facts.file = { total: file.length, matched: matched.length, missing: missing.map((m) => m.name).filter(Boolean), source: agency };
+    for (const m of missing) extras.push({ source: agency, name: m.name, kind: m.kind, points: m.points, lengthM: lengthM(m.points) });
+  }
+  return { extras, facts };
+}
+
 // One lookup per resort at a time: a second click joins the first.
 const inflight = new Map();
 
-const readCached = (id) => readFile(cacheFile(id), 'utf8').then(JSON.parse).then((c) => (c?.v === 2 ? c : null)).catch(() => null);
+const readCached = (id) => readFile(cacheFile(id), 'utf8').then(JSON.parse).then((c) => (c?.v === 3 ? c : null)).catch(() => null);
 const ageMs = (c) => Date.now() - new Date(c.fetchedAt).getTime();
 
 /**
@@ -445,14 +485,17 @@ async function loadResortMap(resort, opts) {
     l.zb = Number.isFinite(z?.b) ? Math.round(z.b) : null;
   });
 
+  const cross = await crossCheck(resort, shaped.lifts, shaped.boundary, centre);
+
   const value = {
-    v: 2,
+    v: 3,
     app: await appVersion(),
     resort: resort.name,
     id: resort.id,
     ...shaped,
     terrain,
-    facts: resortFacts(shaped, stationZ),
+    facts: { ...resortFacts(shaped, stationZ), cross: cross.facts },
+    extras: cross.extras,
     source: 'OpenStreetMap contributors (ODbL)',
     fetchedAt: new Date().toISOString(),
   };

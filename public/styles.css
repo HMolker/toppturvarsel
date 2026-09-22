@@ -737,6 +737,7 @@ svg.avrose .avl, svg.avelev .avl { font: 600 8.5px var(--mono); fill: var(--mute
 .rmpoi path { fill: none; stroke: var(--ink); stroke-width: 1; stroke-linecap: round; stroke-linejoin: round; }
 .rmbadge text { font: 600 8.5px var(--mono); }
 .rmliftname { font: 500 8.5px var(--mono); fill: var(--ink); paint-order: stroke; stroke: var(--paper); stroke-width: 2.6px; stroke-linejoin: round; }
+.rmextraname { font-size: 9.5px; fill: var(--own); font-weight: 600; paint-order: stroke; stroke: var(--paper); stroke-width: 2.6px; }
 .rmstationname { font: 600 8.5px var(--sans); fill: var(--ink); paint-order: stroke; stroke: var(--paper); stroke-width: 2.6px; stroke-linejoin: round; }
 .rmrun:hover polyline:nth-of-type(2) { stroke-width: 3.6; }
 .rmlift:hover polyline:nth-of-type(2) { stroke-width: 2.2; }

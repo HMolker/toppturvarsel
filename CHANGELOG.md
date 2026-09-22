@@ -3,6 +3,23 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v4.18.0 — lifts checked against the national maps (2026-09-22)
+
+- **Norway:** every resort map is now checked against Kartverket's
+  place-name register (SSR), which holds each lift's official name and
+  position. Lifts it knows and OpenStreetMap does not are ringed in red on
+  the map, named, and listed in the fun facts ("9 lifts registered with
+  Kartverket, 7 matched · missing from OpenStreetMap: Olaheisen,
+  Roniheisen"). No key, nothing to set up. © Kartverket, CC BY 4.0.
+- **Sweden:** Lantmäteriet's lift lines (Topografi 50, object type
+  Lintrafik) need a Geotorget account and come as a GeoPackage, so they
+  cannot be fetched automatically. Export them once to
+  `data/lifts-SE.geojson` (WGS 84) and every Swedish resort map uses them
+  the same way — as drawn lines where OpenStreetMap has nothing. The same
+  works for Norway with an N50 export in `data/lifts-NO.geojson`. See
+  README, "National lift data".
+- Stored resort maps are rebuilt by the night scan after this upgrade.
+
 ## v4.17.0 — lifts only on the resort map, and honest counts (2026-09-22)
 
 - The ski-area map now draws **only the lifts**. Which ways belong to which

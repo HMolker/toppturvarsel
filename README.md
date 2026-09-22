@@ -496,6 +496,37 @@ them on the objective, not the car park.
 
 ---
 
+## National lift data (Kartverket and Lantmäteriet)
+
+OpenStreetMap is drawn by volunteers, so a ski area's lifts are usually a
+few short. Two official sources are used to check it:
+
+**Norway — automatic, nothing to set up.** Kartverket's place-name register
+(SSR) holds every lift's official name and position
+(`navneobjekttype` *Skiheis*, *Fjellheis*). Each resort map asks it for the
+names around the resort and matches them against the mapped lifts. Whatever
+is registered but not mapped is ringed in red on the map and listed in the
+fun facts. Open data, no key, CC BY 4.0 — © Kartverket.
+
+**Sweden — a file you export yourself.** Lantmäteriet's lift lines live in
+*Topografi 50*, theme *Byggnadsverk*, layer `Byggnadsanläggningslinje`,
+object type **Lintrafik** (code 1978: lifts, gondolas and funiculars).
+That product is not on Lantmäteriet's open STAC API; it needs a free
+Geotorget account and is delivered as a GeoPackage, so the app cannot fetch
+it for you. Once you have it:
+
+1. Open the GeoPackage in QGIS and select the `byggnadsanlaggningslinje`
+   layer; filter to `objekttyp = 'Lintrafik'`.
+2. Export it as **GeoJSON** in **EPSG:4326 (WGS 84)**.
+3. Save it as `data/lifts-SE.geojson` on the Pi and restart
+   (`docker compose up -d`).
+
+Every Swedish resort map then checks against it exactly as Norway does.
+The same works for Norway with an N50 export (`data/lifts-NO.geojson`,
+feature types *Taubane* and *Skitrekk*) if you want lift lines rather than
+just names. Any GeoJSON of `LineString`/`MultiLineString` features works;
+the name is read from `name`, `namn`, `navn` or `tekst`.
+
 ## Honest limitations
 
 These are the things worth knowing before you trust a number on this page.

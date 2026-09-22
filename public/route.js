@@ -458,7 +458,7 @@ export function renderResortMap(el, { resort, data = null, country }) {
   const W = 560, H = 400;
   // Framed on the lifts alone: runs are not drawn (OpenStreetMap's piste
   // data is too patchy to trust), so the map zooms in on the lift network.
-  const geo = data ? (data.lifts ?? []).flatMap((x) => x.points) : [];
+  const geo = data ? [...(data.lifts ?? []), ...(data.extras ?? [])].flatMap((x) => x.points ?? [{ lat: x.lat, lon: x.lon }]) : [];
   const base = { lat: resort.lat, lon: resort.lon };
   const pts = [...geo, base];
   const xs = pts.map((p) => mx(p.lon)), ys = pts.map((p) => my(p.lat));
@@ -529,6 +529,33 @@ export function renderResortMap(el, { resort, data = null, country }) {
       `<polyline points="${pl(l.points)}" fill="none" stroke="var(--ink)" stroke-width="${BIG.has(l.kind) ? 2 : 1.3}"${l.drag ? ' stroke-dasharray="5 3"' : ''}/>` +
       (ticks ? `<path d="${ticks}" stroke="var(--ink)" stroke-width="1"/>` : '') + pylons + st(pix[0]) + st(pix[pix.length - 1]) + `</g>`;
   }).join('');
+
+  // Lifts the national map agency knows about and OpenStreetMap does not:
+  // a line where we have one, otherwise a ring at the registered position.
+  const extras = (d.extras ?? []).map((x) => {
+    const title = `<title>${esc(x.name ?? 'Lift')} · ${esc(x.kind ?? 'lift')} · in ${esc(x.source)}, not in OpenStreetMap</title>`;
+    if (x.points?.length > 1) {
+      return `<g class="rmextra">${title}<polyline points="${pl(x.points)}" class="rmhalo thin"/>` +
+        `<polyline points="${pl(x.points)}" fill="none" stroke="var(--own)" stroke-width="1.6" stroke-dasharray="2 3"/></g>`;
+    }
+    const q = P(x);
+    return `<g class="rmextra" transform="translate(${q[0].toFixed(1)} ${q[1].toFixed(1)})">${title}` +
+      `<circle r="4.5" fill="none" stroke="var(--own)" stroke-width="1.6" stroke-dasharray="2 2"/></g>`;
+  }).join('');
+
+  // Their names, where there is room.
+  for (const x of d.extras ?? []) {
+    if (!x.name) continue;
+    const q = x.points?.length ? P(x.points[Math.floor(x.points.length / 2)]) : P(x);
+    const w = x.name.length * 5.4;
+    for (const [dx, anchor] of [[8, 'start'], [-8, 'end']]) {
+      const box = anchor === 'start' ? [q[0] + dx, q[1] - 5, q[0] + dx + w, q[1] + 6] : [q[0] + dx - w, q[1] - 5, q[0] + dx, q[1] + 6];
+      if (!free(box)) continue;
+      taken.push(box);
+      labels.push(`<text x="${(q[0] + dx).toFixed(1)}" y="${(q[1] + 4).toFixed(1)}" text-anchor="${anchor}" class="rmextraname">${esc(x.name)}</text>`);
+      break;
+    }
+  }
 
   // Lift names along the cable, upright, where there is room.
   for (const l of [...(d.lifts ?? [])].sort((a, b) => b.lengthM - a.lengthM)) {
@@ -607,6 +634,8 @@ export function renderResortMap(el, { resort, data = null, country }) {
   if (kinds.has('chair_lift')) extra.push([liftSym(1.3, false), 'chairlift']);
   if ((d.lifts ?? []).some((l) => l.drag)) extra.push([liftSym(1.3, true), 'drag lift']);
   if ((d.pois ?? []).length) extra.push(['<g transform="translate(8 0)" class="rmpoi"><circle r="5"/>' + POI_GLYPH.restaurant + '</g>', 'food, rental, school']);
+  const agency = [...new Set((d.extras ?? []).map((x) => x.source))].join(' / ');
+  if (agency) extra.push([`<circle cx="8" r="4.5" fill="none" stroke="var(--own)" stroke-width="1.6" stroke-dasharray="2 2"/>`, `in ${agency}, not in OpenStreetMap`]);
   const legend = extra.length
     ? `<div class="rmlegend">${extra.map(([sym, label]) => `<span><svg width="20" height="10" aria-hidden="true" overflow="visible"><g transform="translate(2 5)">${sym}</g></svg>${esc(label)}</span>`).join('')}` +
       `<span class="note">Lifts only — the runs in OpenStreetMap are too patchy to draw.</span></div>`
@@ -618,7 +647,7 @@ export function renderResortMap(el, { resort, data = null, country }) {
     `<svg class="routesvg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Map of the lifts at ${esc(resort.name)}">` +
     `<rect width="${W}" height="${H}" fill="var(--page)"/>` +
     `<g class="contours">${contourSvg.join('')}</g><g class="tiles">${tiles.join('')}</g>` +
-    boundary + `<g class="rmlifts">${lifts}</g>` + pois + labels.join('') +
+    boundary + `<g class="rmlifts">${lifts}</g>` + extras + pois + labels.join('') +
     (geo.length ? '' : `<path d="M${bx.toFixed(1)} ${(by - 9).toFixed(1)} l7.5 12.5 h-15 Z" fill="var(--ink)" stroke="var(--paper)" stroke-width="1.5"/>` +
       `<text x="${bx.toFixed(1)}" y="${(by - 15).toFixed(1)}" text-anchor="middle" class="maplabel">${esc(resort.name)}</text>`) +
     `<g transform="translate(14 ${H - 18})"><rect x="-6" y="-16" width="${(sb.px + 58).toFixed(0)}" height="26" rx="4" fill="var(--paper)" opacity=".92"/>` +

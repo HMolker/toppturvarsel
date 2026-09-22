@@ -32,10 +32,16 @@ const grid = gridPoints(box);
 const ends = shaped.lifts.flatMap((l) => [l.points[0], l.points[l.points.length - 1]]);
 const stationZ = shaped.lifts.map((_, i) => ({ a: z(ends[2 * i].lat, ends[2 * i].lon), b: z(ends[2 * i + 1].lat, ends[2 * i + 1].lon) }));
 shaped.lifts.forEach((l, i) => { l.za = Math.round(stationZ[i].a); l.zb = Math.round(stationZ[i].b); });
+// Two lifts the national register knows and OpenStreetMap does not.
+const extras = [
+  { source: 'Kartverket', name: 'Olaheisen', kind: 'Skiheis', lat: BASE.lat + 0.012, lon: BASE.lon - 0.018 },
+  { source: 'Kartverket', name: 'Roniheisen', kind: 'Skiheis', lat: BASE.lat + 0.004, lon: BASE.lon + 0.012 },
+];
 const data = {
+  extras,
   ...shaped,
   terrain: { box, nx: 24, ny: 20, z: grid.map((p) => z(p.lat, p.lon)), source: 'demo' },
-  facts: resortFacts(shaped, stationZ),
+  facts: { ...resortFacts(shaped, stationZ), cross: { ssr: { total: 9, matched: 7, missing: ['Olaheisen', 'Roniheisen'], source: 'Kartverket (SSR)' } } },
 };
 // What the resort itself reports (Fnugg), deliberately more than OSM has.
 const resort = { ...BASE, lifts: { count: 9, open: 7 }, slopes: { count: 18, open: 14 }, live: true };

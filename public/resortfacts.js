@@ -47,6 +47,19 @@ export function factsHtml(x, r = null) {
     cards.unshift(`<li class="wide"><b>The resort's own count</b><span>${esc(rows)}<br>Fnugg, from the resort itself — use these numbers; the OpenStreetMap figures below are an estimate from what volunteers have drawn.</span></li>`);
   }
 
+  // A second opinion from the national map agency.
+  const c = x.cross ?? {};
+  const crossLine = (k) => {
+    const v = c[k];
+    if (!v || v.error || !v.total) return null;
+    const miss = v.missing?.length ? ` · missing from OpenStreetMap: ${v.missing.join(', ')}` : ' · all of them are mapped';
+    return `${v.total} lift${v.total === 1 ? '' : 's'} registered with ${v.source}, ${v.matched} matched${miss}`;
+  };
+  const crossRows = [crossLine('ssr'), crossLine('file')].filter(Boolean);
+  if (crossRows.length) {
+    cards.push(`<li class="wide"><b>Checked against the national map</b><span>${esc(crossRows.join(' · '))}<br>Official data (Kartverket's place-name register in Norway, your Lantmäteriet export in Sweden). A lift it knows and OpenStreetMap does not is ringed on the map.</span></li>`);
+  }
+
   const yesno = (v, label) => (v ? label : null);
   const liftRows = (x.lifts ?? []).map((l) => {
     const notes = [yesno(l.bubble, 'bubble'), yesno(l.heating, 'heated'), yesno(l.detachable, 'detachable'), l.pylons ? `${l.pylons} pylons` : null].filter(Boolean).join(', ');

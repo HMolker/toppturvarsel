@@ -3,6 +3,24 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v4.17.0 — lifts only on the resort map, and honest counts (2026-09-22)
+
+- The ski-area map now draws **only the lifts**. Which ways belong to which
+  run, and how they are graded, is too uneven in OpenStreetMap to draw
+  honestly. With the runs gone the map frames on the lift network, so it
+  zooms in much further.
+- Lifts are searched for much harder: the ski area's own boundary is asked
+  for first and everything inside it is taken, the circle around the resort
+  grew from 4 to 7 km, funiculars count as lifts, and any lift meeting an
+  accepted one end to end is followed — so linked areas come out whole
+  while a neighbouring resort's lift stays out.
+- Fun facts say plainly that the OpenStreetMap numbers are an estimate, and
+  the resort's own counts from Fnugg are shown first with the difference
+  ("9 lifts reported, 7 mapped — 2 missing from OpenStreetMap").
+- After an upgrade the night scan refetches every resort once, then goes
+  back to refreshing maps older than 30 days (`RESORT_MAP_MAX_AGE_DAYS`),
+  so most nights it finds nothing to do.
+
 ## v4.16.0 — ski-area maps stored, refreshed at night (2026-09-22)
 
 - A night scan (01:00–05:00 Norwegian time) goes through every ski

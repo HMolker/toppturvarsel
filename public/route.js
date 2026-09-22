@@ -443,24 +443,22 @@ export function renderForecast(el, fc, tour = null, bulletins = []) {
  * a ski resort's runs and lifts
  * ------------------------------------------------------------------ */
 
-export const DIFF_LABEL = { novice: 'novice', easy: 'easy', intermediate: 'intermediate', advanced: 'advanced', expert: 'expert', freeride: 'freeride' };
-const diffVar = (d) => `var(--pd-${d ?? 'unknown'})`;
-// Text on a difficulty badge: dark on the pale steps, light on the dark ones.
-const DIFF_TEXT = { novice: 'var(--pd-text-dark)', easy: 'var(--pd-text-dark)', unknown: 'var(--pd-text-dark)' };
-const GROOMING = { classic: 'groomed', mogul: 'moguls', backcountry: 'not groomed', 'classic+skating': 'classic and skating', 'classic;skating': 'classic and skating', skating: 'skating', scooter: 'scooter track' };
+export const GROOMING = { classic: 'groomed', mogul: 'moguls', backcountry: 'not groomed', 'classic+skating': 'classic and skating', 'classic;skating': 'classic and skating', skating: 'skating', scooter: 'scooter track' };
 
 /**
  * Everything OpenStreetMap has on the ski area, drawn in the tour maps'
- * quiet style: the grey topo map and contours underneath, runs in the
- * profile's ramp by difficulty (pale for novice, through pink and red to
- * maroon and black for expert), floodlit runs dotted, lifts as ink lines
- * with cross ticks, their pylons and named stations with heights, lift and
- * run numbers, cross-country trails, sledging, the snow park, and where to
- * eat, rent and learn. Hover anything for its details.
+ * quiet style: the grey topo map and contours underneath, the lift network
+ * as ink lines with cross ticks, their pylons and named stations with
+ * heights, lift names along the cable, and where to eat, rent and learn.
+ * Runs are deliberately not drawn: which ways belong to which piste, and
+ * how they are graded, is too uneven in OpenStreetMap to map honestly.
+ * Hover anything for its details.
  */
 export function renderResortMap(el, { resort, data = null, country }) {
   const W = 560, H = 400;
-  const geo = data ? [...(data.runs ?? []), ...(data.lifts ?? []), ...(data.areas ?? []), ...(data.parks ?? [])].flatMap((x) => x.points) : [];
+  // Framed on the lifts alone: runs are not drawn (OpenStreetMap's piste
+  // data is too patchy to trust), so the map zooms in on the lift network.
+  const geo = data ? (data.lifts ?? []).flatMap((x) => x.points) : [];
   const base = { lat: resort.lat, lon: resort.lon };
   const pts = [...geo, base];
   const xs = pts.map((p) => mx(p.lon)), ys = pts.map((p) => my(p.lat));
@@ -503,28 +501,8 @@ export function renderResortMap(el, { resort, data = null, country }) {
 
   const d = data ?? {};
   const boundary = d.boundary ? `<polygon points="${pl(d.boundary.points)}" class="rmbound"><title>${esc(d.boundary.name ?? 'Ski area')}</title></polygon>` : '';
-  const nordic = (d.nordic ?? []).map((n) =>
-    `<g class="rmnordic"><title>${esc(n.name ?? 'Cross-country trail')} · cross-country${n.grooming ? `, ${esc(GROOMING[n.grooming] ?? n.grooming)}` : ''}${n.lit ? ', floodlit' : ''} · ${km(n.lengthM)}</title>` +
-    `<polyline points="${pl(n.points)}" class="rmhalo thin"/><polyline points="${pl(n.points)}" class="rmnordicline"/></g>`).join('');
-  const sled = (d.sled ?? []).map((n) =>
-    `<g><title>${esc(n.name ?? 'Sledging run')} · sledging · ${km(n.lengthM)}</title><polyline points="${pl(n.points)}" class="rmhalo thin"/><polyline points="${pl(n.points)}" class="rmsled"/></g>`).join('');
-  const parks = (d.parks ?? []).map((n) => n.area
-    ? `<polygon points="${pl(n.points)}" class="rmpark"><title>${esc(n.name ?? 'Snow park')} · snow park</title></polygon>`
-    : `<polyline points="${pl(n.points)}" class="rmparkline"><title>${esc(n.name ?? 'Snow park')} · snow park</title></polyline>`).join('');
-  const areas = (d.areas ?? []).map((a) => `<polygon points="${pl(a.points)}" fill="${diffVar(a.difficulty)}" fill-opacity=".22" stroke="none"><title>${esc(a.name ?? 'Piste area')}</title></polygon>`).join('');
-
-  // Runs: easiest first, so the harder (darker) lines sit on top where they share a path.
-  const order = ['unknown', 'novice', 'easy', 'intermediate', 'advanced', 'expert', 'freeride'];
-  const runsSorted = [...(d.runs ?? [])].sort((a, b) => order.indexOf(a.difficulty ?? 'unknown') - order.indexOf(b.difficulty ?? 'unknown'));
-  const runs = runsSorted.map((r) => {
-    const notes = [r.grooming ? GROOMING[r.grooming] ?? r.grooming : null, r.lit ? 'floodlit' : null, r.snowmaking ? 'snowmaking' : null, r.gladed ? 'in the trees' : null].filter(Boolean).join(', ');
-    const title = `<title>${r.ref ? `${esc(r.ref)} ` : ''}${esc(r.name ?? 'Unnamed run')} · ${esc(DIFF_LABEL[r.difficulty] ?? 'difficulty not mapped')} · ${km(r.lengthM)}${notes ? ` · ${esc(notes)}` : ''}</title>`;
-    const dash = r.difficulty === 'freeride' || /backcountry/.test(r.grooming ?? '') ? ' stroke-dasharray="5 3.5"' : '';
-    return `<g class="rmrun">${title}<polyline points="${pl(r.points)}" class="rmcase"${dash}/>` +
-      `<polyline points="${pl(r.points)}" fill="none" stroke="${diffVar(r.difficulty)}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"${dash}/>` +
-      (r.lit ? `<polyline points="${pl(r.points)}" class="rmlit"/>` : '') + `</g>`;
-  }).join('');
-
+  // Cable cars and gondolas get a heavier line than chairs.
+  const BIG = new Set(['cable_car', 'gondola', 'mixed_lift', 'funicular']);
   // Lifts: line, cross ticks along the cable, pylons as dots, stations as squares.
   const lifts = (d.lifts ?? []).map((l) => {
     const pix = l.points.map(P);
@@ -548,7 +526,7 @@ export function renderResortMap(el, { resort, data = null, country }) {
     const pylons = (l.pylons ?? []).map((p) => { const q = P(p); return `<circle cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="1.5" class="rmpylon"/>`; }).join('');
     const st = (q) => `<rect x="${(q[0] - 3).toFixed(1)}" y="${(q[1] - 3).toFixed(1)}" width="6" height="6" class="rmstation"/>`;
     return `<g class="rmlift">${title}<polyline points="${pl(l.points)}" class="rmhalo thin"/>` +
-      `<polyline points="${pl(l.points)}" fill="none" stroke="var(--ink)" stroke-width="1.3"${l.drag ? ' stroke-dasharray="5 3"' : ''}/>` +
+      `<polyline points="${pl(l.points)}" fill="none" stroke="var(--ink)" stroke-width="${BIG.has(l.kind) ? 2 : 1.3}"${l.drag ? ' stroke-dasharray="5 3"' : ''}/>` +
       (ticks ? `<path d="${ticks}" stroke="var(--ink)" stroke-width="1"/>` : '') + pylons + st(pix[0]) + st(pix[pix.length - 1]) + `</g>`;
   }).join('');
 
@@ -581,32 +559,6 @@ export function renderResortMap(el, { resort, data = null, country }) {
     labels.push(`<text transform="translate(${lx.toFixed(1)} ${ly.toFixed(1)}) rotate(${ang.toFixed(1)})" text-anchor="middle" y="3" class="rmliftname">${esc(text)}</text>`);
   }
 
-  // Run numbers (or names): one badge per named run, on its longest piece.
-  const runBadges = new Map();
-  for (const r of d.runs ?? []) {
-    const key = `${r.ref ?? ''}|${r.name ?? ''}`;
-    if (!r.ref && !r.name) continue;
-    if (!runBadges.has(key) || runBadges.get(key).lengthM < r.lengthM) runBadges.set(key, r);
-  }
-  for (const r of runBadges.values()) {
-    const pix = r.points.map(P);
-    const text = r.ref ?? r.name;
-    const w = r.ref ? Math.max(14, text.length * 6.2 + 6) : text.length * 5.6 + 8;
-    let m = null, box = null;
-    for (const t of [0.5, 0.35, 0.65, 0.2, 0.8]) {
-      const q = pix[Math.round((pix.length - 1) * t)];
-      const bx2 = [q[0] - w / 2, q[1] - 7, q[0] + w / 2, q[1] + 7];
-      if (free(bx2)) { m = q; box = bx2; break; }
-    }
-    if (!m) continue;
-    taken.push(box);
-    labels.push(
-      `<g transform="translate(${m[0].toFixed(1)} ${m[1].toFixed(1)})" class="rmbadge"><title>${esc(r.name ?? '')}</title>` +
-      `<rect x="${(-w / 2).toFixed(1)}" y="-7" width="${w.toFixed(1)}" height="14" rx="7" fill="${diffVar(r.difficulty)}" stroke="var(--paper)" stroke-width="1.2"/>` +
-      `<text y="3.4" text-anchor="middle" fill="${DIFF_TEXT[r.difficulty ?? 'unknown'] ?? 'var(--pd-text-light)'}">${esc(text)}</text></g>`
-    );
-  }
-
   // Named stations with their height, highest first.
   const seen = new Set();
   const stationLabels = (d.lifts ?? []).flatMap((l) => [
@@ -635,36 +587,38 @@ export function renderResortMap(el, { resort, data = null, country }) {
     'ski school': '<path d="M0 -3.5 L3.5 -1.5 L0 0.5 L-3.5 -1.5 Z M-2 -0.6 V2 C-1 3.3 1 3.3 2 2 V-0.6" />',
     hut: '<path d="M-3.5 0 L0 -3.5 L3.5 0 V3.5 H-3.5 Z" />',
   };
+  const poiAt = [];
   const pois = (d.pois ?? []).map((p) => {
     const q = P(p);
     if (q[0] < 6 || q[1] < 6 || q[0] > W - 6 || q[1] > H - 6) return '';
+    // Base-area restaurants sit on top of each other; keep the first of a cluster.
+    if (poiAt.some(([x, y]) => Math.hypot(x - q[0], y - q[1]) < 11)) return '';
+    poiAt.push(q);
     return `<g transform="translate(${q[0].toFixed(1)} ${q[1].toFixed(1)})" class="rmpoi"><title>${esc(p.name ?? p.kind)} · ${esc(p.kind)}</title>` +
       `<circle r="6.2"/>${POI_GLYPH[p.kind] ?? ''}</g>`;
   }).join('');
 
   // Legend: only what is on the map, under it.
-  const present = new Set([...(d.runs ?? []), ...(d.areas ?? [])].map((r) => r.difficulty ?? 'unknown'));
-  const legendRuns = ['novice', 'easy', 'intermediate', 'advanced', 'expert', 'freeride', 'unknown'].filter((x) => present.has(x))
-    .map((x) => [`<line x1="0" x2="16" y1="0" y2="0" stroke="${diffVar(x)}" stroke-width="3"${x === 'freeride' ? ' stroke-dasharray="5 3.5"' : ''}/>`, x === 'unknown' ? 'run, not graded' : DIFF_LABEL[x]]);
+  const kinds = new Set((d.lifts ?? []).map((l) => l.kind));
   const extra = [];
-  if ((d.runs ?? []).some((r) => r.lit)) extra.push(['<line x1="0" x2="16" y1="0" y2="0" stroke="var(--pd-intermediate)" stroke-width="3"/><line x1="0" x2="16" y1="0" y2="0" class="rmlit"/>', 'floodlit']);
-  if ((d.lifts ?? []).some((l) => !l.drag)) extra.push(['<line x1="0" x2="16" y1="0" y2="0" stroke="var(--ink)" stroke-width="1.3"/><path d="M5 -3 V3 M11 -3 V3" stroke="var(--ink)"/><rect x="-2.5" y="-2.5" width="5" height="5" class="rmstation"/>', 'chair, gondola']);
-  if ((d.lifts ?? []).some((l) => l.drag)) extra.push(['<line x1="0" x2="16" y1="0" y2="0" stroke="var(--ink)" stroke-width="1.3" stroke-dasharray="5 3"/>', 'drag lift']);
-  if ((d.nordic ?? []).length) extra.push(['<line x1="0" x2="16" y1="0" y2="0" class="rmnordicline"/>', 'cross-country']);
-  if ((d.sled ?? []).length) extra.push(['<line x1="0" x2="16" y1="0" y2="0" class="rmsled"/>', 'sledging']);
-  if ((d.parks ?? []).length) extra.push(['<rect x="0" y="-4" width="16" height="8" class="rmpark"/>', 'snow park']);
+  const liftSym = (w, dash) => `<line x1="0" x2="16" y1="0" y2="0" stroke="var(--ink)" stroke-width="${w}"${dash ? ' stroke-dasharray="5 3"' : ''}/>` +
+    (dash ? '' : '<path d="M5 -3 V3 M11 -3 V3" stroke="var(--ink)"/>') + '<rect x="-2.5" y="-2.5" width="5" height="5" class="rmstation"/>';
+  if ([...kinds].some((k) => BIG.has(k))) extra.push([liftSym(2, false), 'gondola, cable car']);
+  if (kinds.has('chair_lift')) extra.push([liftSym(1.3, false), 'chairlift']);
+  if ((d.lifts ?? []).some((l) => l.drag)) extra.push([liftSym(1.3, true), 'drag lift']);
   if ((d.pois ?? []).length) extra.push(['<g transform="translate(8 0)" class="rmpoi"><circle r="5"/>' + POI_GLYPH.restaurant + '</g>', 'food, rental, school']);
-  const legend = [...legendRuns, ...extra].length
-    ? `<div class="rmlegend">${[...legendRuns, ...extra].map(([sym, label]) => `<span><svg width="20" height="10" aria-hidden="true" overflow="visible"><g transform="translate(2 5)">${sym}</g></svg>${esc(label)}</span>`).join('')}</div>`
+  const legend = extra.length
+    ? `<div class="rmlegend">${extra.map(([sym, label]) => `<span><svg width="20" height="10" aria-hidden="true" overflow="visible"><g transform="translate(2 5)">${sym}</g></svg>${esc(label)}</span>`).join('')}` +
+      `<span class="note">Lifts only — the runs in OpenStreetMap are too patchy to draw.</span></div>`
     : '';
 
   const [bx, by] = P(base);
   const sb = scaleBar(f, base.lat);
   el.innerHTML =
-    `<svg class="routesvg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Map of the runs and lifts at ${esc(resort.name)}">` +
+    `<svg class="routesvg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Map of the lifts at ${esc(resort.name)}">` +
     `<rect width="${W}" height="${H}" fill="var(--page)"/>` +
     `<g class="contours">${contourSvg.join('')}</g><g class="tiles">${tiles.join('')}</g>` +
-    boundary + nordic + sled + parks + areas + `<g class="rmruns">${runs}</g>` + `<g class="rmlifts">${lifts}</g>` + pois + labels.join('') +
+    boundary + `<g class="rmlifts">${lifts}</g>` + pois + labels.join('') +
     (geo.length ? '' : `<path d="M${bx.toFixed(1)} ${(by - 9).toFixed(1)} l7.5 12.5 h-15 Z" fill="var(--ink)" stroke="var(--paper)" stroke-width="1.5"/>` +
       `<text x="${bx.toFixed(1)}" y="${(by - 15).toFixed(1)}" text-anchor="middle" class="maplabel">${esc(resort.name)}</text>`) +
     `<g transform="translate(14 ${H - 18})"><rect x="-6" y="-16" width="${(sb.px + 58).toFixed(0)}" height="26" rx="4" fill="var(--paper)" opacity=".92"/>` +

@@ -14,15 +14,32 @@ const { makeResortOsm, makeResortTerrain } = await import('../demo/advert/resort
 
 const BASE = { id: 'fnugg-test', name: 'Testfjell', country: 'NO', lat: 60.8601, lon: 8.5178 };
 
-test('Overpass query: every piste type, lifts, stations and pylons, the area, and places', () => {
+test('Overpass query: the ski area, everything inside it, lifts and funiculars around it, and places', () => {
   const q = resortQuery(60.86, 8.51);
-  assert.match(q, /way\(around:4000,60\.86,8\.51\)\["piste:type"\]/);
-  assert.match(q, /aerialway~"\^\(cable_car\|gondola/);
-  assert.match(q, /node\(around:4000,60\.86,8\.51\)\[aerialway~"\^\(station\|pylon\)\$"\]/);
-  assert.match(q, /way\(around:4000,60\.86,8\.51\)\[landuse=winter_sports\]/);
-  assert.match(q, /relation\(around:4000,60\.86,8\.51\)\[landuse=winter_sports\]/);
+  assert.match(q, /way\(around:9000,60\.86,8\.51\)\[landuse=winter_sports\]/);
+  assert.match(q, /relation\(around:9000,60\.86,8\.51\)\[site=piste\]/);
+  assert.match(q, /\.a map_to_area->\.ar;/);
+  assert.match(q, /way\(area\.ar\)\[aerialway\]/);
+  assert.match(q, /way\(around:7000,60\.86,8\.51\)\[aerialway\]/);
+  assert.match(q, /way\(area\.ar\)\[railway=funicular\]/);
+  assert.match(q, /node\(area\.ar\)\[aerialway~"\^\(station\|pylon\)\$"\]/);
+  assert.match(q, /way\(area\.ar\)\["piste:type"\]/);
   assert.match(q, /amenity~"\^\(restaurant\|cafe\|bar\|fast_food\|ski_school\)\$"/);
   assert.match(q, /shop=ski/);
+});
+
+test('lifts: those in the area, plus whatever links to them; a stranger stays out', async () => {
+  const { keepLiftChain } = await import('../src/resortmap.js');
+  const P = (e, n) => ({ lat: BASE.lat + n / 111320, lon: BASE.lon + e / 55000 });
+  const L = (name, a, b) => ({ name, points: [a, b] });
+  const lifts = [
+    L('base', P(0, 0), P(0, 1500)),
+    L('linked', P(0, 1550), P(0, 3000)),        // starts where the first ends
+    L('linked again', P(50, 3050), P(600, 4400)),
+    L('neighbour', P(9000, 200), P(9000, 1400)),
+  ];
+  const kept = keepLiftChain(lifts, null, BASE).map((l) => l.name);
+  assert.deepEqual(kept, ['base', 'linked', 'linked again'], 'the chain is followed out of the circle');
 });
 
 test('shape: the resort area keeps a neighbour out; stations, pylons and details land on their lift', () => {
@@ -215,9 +232,11 @@ test('night scan: the window, and missing maps first, then the oldest, fresh one
   assert.ok(inWindow(1, 1, 5) && inWindow(4, 1, 5) && !inWindow(5, 1, 5) && !inWindow(13, 1, 5));
   assert.ok(inWindow(23, 22, 4) && inWindow(3, 22, 4) && !inWindow(12, 22, 4), 'a window across midnight');
   const day = 86400e3;
-  const ages = { a: 10 * day, b: Infinity, c: 120 * day, d: 95 * day };
-  const order = await scanOrder(['a', 'b', 'c', 'd'].map((id) => ({ id })), async (id) => ages[id], 90);
+  const meta = { a: { age: 10 * day, app: '5.0.0' }, b: { age: Infinity, app: null }, c: { age: 120 * day, app: '5.0.0' }, d: { age: 95 * day, app: '5.0.0' } };
+  const order = await scanOrder(['a', 'b', 'c', 'd'].map((id) => ({ id })), async (id) => meta[id], 90, '5.0.0');
   assert.deepEqual(order.map((r) => r.id), ['b', 'c', 'd']);
+  const afterUpgrade = await scanOrder(['a', 'b', 'c', 'd'].map((id) => ({ id })), async (id) => meta[id], 90, '5.1.0');
+  assert.deepEqual(afterUpgrade.map((r) => r.id), ['b', 'c', 'd', 'a'], 'a new version refetches every map once');
 });
 
 test('getResortMap: a stored map is shown at once however old; an old one is refreshed behind the scenes', async () => {
@@ -253,4 +272,20 @@ test('getResortMap: a stored map is shown at once however old; an old one is ref
   } finally {
     globalThis.fetch = realFetch;
   }
+});
+
+test('fun facts: the resort\'s own counts come first and the OpenStreetMap ones are marked as an estimate', async () => {
+  const { factsHtml } = await import('../public/resortfacts.js');
+  const s = shapeResort(makeResortOsm(BASE), BASE);
+  const f = resortFacts(s, s.lifts.map(() => ({ a: 600, b: 1200 })));
+  const html = factsHtml(f, { lifts: { count: 9 }, slopes: { count: 18 } });
+  assert.match(html, /The resort&#39;s own count|The resort's own count/);
+  assert.match(html, /9 lifts reported, 7 mapped \(2 missing from OpenStreetMap\)/);
+  assert.match(html, /18 slopes reported, 11 mapped \(7 missing from OpenStreetMap\)/);
+  assert.match(html, /≈ 7 lifts/);
+  assert.match(html, /an estimate/);
+  // No live counts: no comparison card, but still an estimate.
+  const plain = factsHtml(f, null);
+  assert.ok(!/own count/.test(plain));
+  assert.match(plain, /≈ 11 runs/);
 });

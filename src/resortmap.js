@@ -6,6 +6,7 @@ import { bestElevations } from './sources/elevation.js';
 import { haversineKm } from './util/utm.js';
 import { log } from './util/log.js';
 import { overpass } from './util/overpass.js';
+import { appVersion } from './util/appversion.js';
 
 /**
  * A ski resort from OpenStreetMap: lifts with their stations, pylons and
@@ -39,27 +40,51 @@ import { overpass } from './util/overpass.js';
 
 // Ski areas change slowly: a stored map is refreshed after about three months
 // (by the night scan, see nightly.js). Older ones are still shown meanwhile.
-export const RESORT_MAP_MAX_AGE_DAYS = Number(process.env.RESORT_MAP_MAX_AGE_DAYS ?? 90);
+export const RESORT_MAP_MAX_AGE_DAYS = Number(process.env.RESORT_MAP_MAX_AGE_DAYS ?? 30);
 const TTL = RESORT_MAP_MAX_AGE_DAYS * 86400e3;
-const RADIUS_M = 4000;
+// How far out to look for lifts. Big areas (Trysil, Åre) spill well past a
+// 4 km circle, so the search is wide and the resort's own boundary — or a
+// chain of lifts meeting end to end — decides what belongs to it.
+const RADIUS_M = Number(process.env.RESORT_RADIUS_M ?? 7000);
+const AREA_RADIUS_M = 9000;
+// A lift counts as part of the resort when it starts or ends this close to
+// one already accepted (lifts feed each other at shared stations).
+const CHAIN_M = 700;
+const CENTRE_M = 3500;
 
 export const LIFT_KINDS = {
   cable_car: 'cable car', gondola: 'gondola', mixed_lift: 'mixed lift', chair_lift: 'chairlift',
-  drag_lift: 'drag lift', 't-bar': 'T-bar', 'j-bar': 'J-bar', platter: 'platter lift', rope_tow: 'rope tow', magic_carpet: 'magic carpet',
+  drag_lift: 'drag lift', 't-bar': 'T-bar', 'j-bar': 'J-bar', platter: 'platter lift', rope_tow: 'rope tow',
+  magic_carpet: 'magic carpet', funicular: 'funicular', zip_line: 'zip line',
 };
+/** A funicular is a railway in OSM, not an aerialway. */
+const liftKind = (t) => (LIFT_KINDS[t.aerialway] ? t.aerialway : t.railway === 'funicular' ? 'funicular' : null);
 const DRAG = new Set(['drag_lift', 't-bar', 'j-bar', 'platter', 'rope_tow', 'magic_carpet']);
 export const DIFFICULTIES = ['novice', 'easy', 'intermediate', 'advanced', 'expert', 'freeride'];
 const POI = { restaurant: 'restaurant', cafe: 'café', bar: 'bar', fast_food: 'kiosk', ski_school: 'ski school', ski: 'ski rental', alpine_hut: 'hut' };
 
-export function resortQuery(lat, lon, r = RADIUS_M) {
+export function resortQuery(lat, lon, r = RADIUS_M, ar = AREA_RADIUS_M) {
   const a = `(around:${r},${lat},${lon})`;
-  return `[out:json][timeout:90];
+  const area = `(around:${ar},${lat},${lon})`;
+  // The ski area itself first; then everything inside it, plus everything
+  // within the circle, so a resort with no boundary mapped still comes out.
+  return `[out:json][timeout:120];
 (
-  way${a}["piste:type"];
-  way${a}[aerialway~"^(${Object.keys(LIFT_KINDS).join('|')})$"];
+  way${area}[landuse=winter_sports];
+  relation${area}[landuse=winter_sports];
+  relation${area}[site=piste];
+)->.a;
+.a map_to_area->.ar;
+(
+  .a;
+  way(area.ar)[aerialway];
+  way${a}[aerialway];
+  way(area.ar)[railway=funicular];
+  way${a}[railway=funicular];
+  node(area.ar)[aerialway~"^(station|pylon)$"];
   node${a}[aerialway~"^(station|pylon)$"];
-  way${a}[landuse=winter_sports];
-  relation${a}[landuse=winter_sports];
+  way(area.ar)["piste:type"];
+  way${a}["piste:type"];
   nwr${a}[amenity~"^(restaurant|cafe|bar|fast_food|ski_school)$"];
   nwr${a}[shop=ski];
   nwr${a}[tourism=alpine_hut];
@@ -126,6 +151,34 @@ function minutes(v) {
  * shaping (pure, tested)
  * ------------------------------------------------------------------ */
 
+/**
+ * Which lifts belong to this resort: those inside its boundary (or, with no
+ * boundary, near its point), and then anything meeting those end to end,
+ * repeatedly — how a ski area actually hangs together.
+ */
+export function keepLiftChain(lifts, boundary, centre, { chainM = CHAIN_M, centreM = CENTRE_M } = {}) {
+  if (!lifts.length) return lifts;
+  const poly = boundary?.points ?? null;
+  const ends = (l) => [l.points[0], l.points[l.points.length - 1]];
+  const seed = (l) =>
+    poly ? l.points.some((p) => inside(p, poly) || distToLine(p, poly) < 400)
+      : centre ? l.points.some((p) => distM(p, centre) < centreM)
+        : true;
+  const keep = new Set(lifts.filter(seed));
+  for (let grew = true; grew; ) {
+    grew = false;
+    for (const l of lifts) {
+      if (keep.has(l)) continue;
+      const mine = ends(l);
+      if ([...keep].some((k) => ends(k).some((p) => mine.some((q) => distM(p, q) < chainM)))) {
+        keep.add(l);
+        grew = true;
+      }
+    }
+  }
+  return lifts.filter((l) => keep.has(l));
+}
+
 export function shapeResort(elements, centre = null) {
   const out = { boundary: null, lifts: [], stations: [], pylons: [], runs: [], areas: [], nordic: [], sled: [], parks: [], pois: [] };
   const boundaries = [];
@@ -169,9 +222,10 @@ export function shapeResort(elements, centre = null) {
       boundaries.push({ name: t.name ?? null, points: pts });
       continue;
     }
-    if (t.aerialway && LIFT_KINDS[t.aerialway]) {
+    const lk = liftKind(t);
+    if (lk) {
       out.lifts.push({
-        id: e.id, kind: t.aerialway, kindName: LIFT_KINDS[t.aerialway], drag: DRAG.has(t.aerialway),
+        id: e.id, kind: lk, kindName: LIFT_KINDS[lk], drag: DRAG.has(lk),
         name: t.name ?? null, ref: t.ref ?? null, operator: t.operator ?? null,
         capacity: num(t['aerialway:capacity']), occupancy: num(t['aerialway:occupancy']),
         duration: minutes(t['aerialway:duration']),
@@ -214,9 +268,13 @@ export function shapeResort(elements, centre = null) {
   if (out.boundary) {
     const poly = out.boundary.points;
     const near = (pts) => pts.some((p) => inside(p, poly) || distToLine(p, poly) < 400);
-    for (const k of ['lifts', 'runs', 'areas', 'parks', 'sled']) out[k] = out[k].filter((x) => near(x.points));
+    for (const k of ['runs', 'areas', 'parks', 'sled']) out[k] = out[k].filter((x) => near(x.points));
     out.pois = out.pois.filter((p) => inside(p, poly) || distToLine(p, poly) < 300);
   }
+  // Lifts: inside the area, or reached from one that is. A beginner lift just
+  // outside the mapped boundary, or the far end of a linked area, still counts;
+  // a neighbouring resort's lift, standing on its own, does not.
+  out.lifts = keepLiftChain(out.lifts, out.boundary, centre);
   // Nordic trails can run for tens of kilometres: keep the ones that touch the area.
   const liftPts = out.lifts.flatMap((l) => l.points);
   if (liftPts.length) {
@@ -335,10 +393,10 @@ export function refreshResortMap(resort, { click = false } = {}) {
   return job;
 }
 
-/** Age of a resort's stored map in ms (Infinity when there is none). */
-export async function resortMapAge(id) {
+/** A stored map's age in ms and the app version that made it. */
+export async function resortMapMeta(id) {
   const c = await readCached(id);
-  return c ? ageMs(c) : Infinity;
+  return c ? { age: ageMs(c), app: c.app ?? null } : { age: Infinity, app: null };
 }
 
 /** When each stored map was written: key -> ms (from the file's time, cheaply). */
@@ -389,6 +447,7 @@ async function loadResortMap(resort, opts) {
 
   const value = {
     v: 2,
+    app: await appVersion(),
     resort: resort.name,
     id: resort.id,
     ...shaped,

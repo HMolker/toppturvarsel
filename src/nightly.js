@@ -1,5 +1,6 @@
 import { getResorts } from './resorts.js';
-import { refreshResortMap, resortMapAge, storedResortMaps, resortMapKey, RESORT_MAP_MAX_AGE_DAYS } from './resortmap.js';
+import { refreshResortMap, resortMapMeta, storedResortMaps, resortMapKey, RESORT_MAP_MAX_AGE_DAYS } from './resortmap.js';
+import { appVersion } from './util/appversion.js';
 import { getSnowHistory } from './snowhistory.js';
 import { overpassCooling } from './util/overpass.js';
 import { log } from './util/log.js';
@@ -33,14 +34,18 @@ export function inWindow(h, from = FROM, to = TO) {
 
 const status = { running: false, lastRun: null, lastDone: 0, lastFailed: 0, lastStoppedBecause: null, current: null };
 
-/** Which resorts need a visit, in order: never fetched first, then the oldest. */
-export async function scanOrder(resorts, ageOf, maxAgeDays = RESORT_MAP_MAX_AGE_DAYS) {
-  const withAge = [];
+/**
+ * Which resorts need a visit, in order: never fetched first, then the oldest.
+ * After an upgrade every map is refetched once, because a new version usually
+ * reads OpenStreetMap differently (more lift types, a wider search).
+ */
+export async function scanOrder(resorts, metaOf, maxAgeDays = RESORT_MAP_MAX_AGE_DAYS, version = null) {
+  const due = [];
   for (const r of resorts) {
-    const age = await ageOf(r.id);
-    if (age >= maxAgeDays * 86400e3) withAge.push({ r, age });
+    const { age, app } = await metaOf(r.id);
+    if (age >= maxAgeDays * 86400e3 || (version && app !== version)) due.push({ r, age });
   }
-  return withAge.sort((a, b) => b.age - a.age).map((x) => x.r);
+  return due.sort((a, b) => b.age - a.age).map((x) => x.r);
 }
 
 /** One pass. `until()` says when to stop (end of the window). */
@@ -52,7 +57,8 @@ export async function nightScan({ until = () => !inWindow(osloHour()), gapMs = G
   status.lastStoppedBecause = null;
   try {
     const resorts = (await getResorts())?.resorts ?? [];
-    const todo = await scanOrder(resorts, resortMapAge);
+    const version = await appVersion();
+    const todo = await scanOrder(resorts, resortMapMeta, RESORT_MAP_MAX_AGE_DAYS, version);
     log.info(`night scan: ${todo.length} of ${resorts.length} ski-area maps to fetch or refresh`);
     for (const r of todo) {
       if (until()) {
@@ -97,6 +103,7 @@ export async function nightScanStatus() {
   const stored = await storedResortMaps();
   const now = Date.now();
   const ages = resorts.map((r) => stored.get(resortMapKey(r.id))).filter(Boolean).map((t) => (now - t) / 86400e3);
+  const version = await appVersion();
   return {
     enabled: ON,
     window: `${String(FROM).padStart(2, '0')}:00–${String(TO).padStart(2, '0')}:00`,
@@ -105,6 +112,7 @@ export async function nightScanStatus() {
     due: resorts.length - ages.filter((d) => d < RESORT_MAP_MAX_AGE_DAYS).length,
     oldestDays: ages.length ? Math.floor(Math.max(...ages)) : null,
     maxAgeDays: RESORT_MAP_MAX_AGE_DAYS,
+    version,
     ...status,
   };
 }

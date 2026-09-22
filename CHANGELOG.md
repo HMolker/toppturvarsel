@@ -3,6 +3,36 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v5.0.0 — terrain & routes (2026-09-23)
+
+A new page, **/terrain** ("Terrain & routes" on the Tours card, "Terrain &
+3D" in every tour panel), a page of its own like the tour editor:
+
+- **A pannable, zoomable map** with **NVE's slope and runout map** for
+  Norway (slope from 27°, three runout zones; © NVE, CC BY 4.0), through the
+  tile proxy as `/tiles/nve/…`.
+- **Computed shading** from the terrain model: slope angle (the slope layer
+  for Sweden), aspect, or today's problems (25°+ ground facing the
+  bulletin's problem aspects, at their heights).
+- **Draw a route** and see what it crosses: distance, climb, time, a profile
+  coloured by the slope of the ground under it, metres per slope class,
+  every 30°+ stretch with aspect and heights, a rose of the steep aspects,
+  the stretches in today's avalanche problems, and NVE runout zones crossed.
+- **Suggest a way up**: a least-cost line on skins that keeps off steep
+  ground, runout zones and today's problem slopes where it can. Marked
+  unverified.
+- **3D view** of the route's area in WebGL, map and overlays draped over it.
+- Routes kept in the address bar and in this browser; a tour's own route can
+  be taken over as yours.
+- New endpoints `GET /api/dem/{z}/{x}/{y}`, `POST /api/terrain/profile`,
+  `GET /api/terrain/zone`, limited to 12 km around the tours and resorts, with
+  a daily height budget (`TERRAIN_DAILY_POINTS`, default 60 000) and a year's
+  disk cache.
+- **Prepared for v5.1:** Import GPX / Export GPX buttons and a "Weather on
+  the route" box (start and highest point) are in place, switched off; the
+  plan is in `docs/v5.1.md`.
+- `demo/terrain-check.mjs`: the page driven offline in a headless browser
+  against made-up terrain, with screenshots.
 ## v4.19.0 — forecast accuracy, as a tool of its own (2026-09-22)
 
 - New page at **/skill**, linked from the resorts box: how good the forecast

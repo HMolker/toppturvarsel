@@ -155,6 +155,69 @@ forecast Open-Meteo (CC BY 4.0, free for non-commercial use) · photos
 Wikimedia Commons, each under its own licence, credited on the card ·
 Norwegian resort status Fnugg · Swedish resorts © OpenStreetMap contributors.
 
+## Terrain & routes (v5)
+
+`/terrain`, linked from the Tours card and from every tour panel
+("Terrain & 3D"), is a page of its own, like the tour editor. It is the
+Skida / FATMAP part of Fjällskred:
+
+- **A map you can pan and zoom** (no library): Kartverket's grey topo in
+  Norway, OpenTopoMap in Sweden, through the same tile proxy as the rest.
+- **NVE's slope and runout map** (Norway and Svalbard): slope angle from 27°
+  in six classes and the three avalanche runout zones, from the 1 m / 10 m
+  terrain model. © NVE, CC BY 4.0. It comes through the tile proxy as
+  `/tiles/nve/{z}/{x}/{y}.png`; tiles with nothing drawn are remembered.
+- **Computed shading**, worked out in the browser from a terrain grid:
+  slope angle (the only slope layer in Sweden), aspect in eight colours, or
+  **today's problems** — ground of 25° and more facing the aspects, and at
+  the heights, of the avalanche problems in the bulletin for the region of
+  the nearest tour.
+- **Draw a route**: click to add points, drag to move them, drag a small
+  ring to add one in between, Delete to remove, Ctrl+Z to undo. The server
+  measures it every 25 m (more on long routes), each point with a small
+  cross of heights around it, so the slope is the ground's fall line, not
+  the route's own gradient. You get distance, climb, time on skins (400 m up
+  and 1500 m down an hour, 4 km/h on the flat), the profile coloured by
+  slope, metres in each slope class, every stretch of 30° and more with its
+  aspect and heights, a rose of which way the steep parts face, which
+  stretches meet today's avalanche problems, and (Norway) where the route
+  crosses NVE's runout zones.
+- **Suggest a way up**: the cheapest way on skins between the route's ends
+  (or two points you click) when steep ground, runout zones and today's
+  problem slopes cost extra (A* on the terrain grid; in Norway it also reads
+  NVE's finer slope map). "More cautious" weighs them harder. Marked
+  unverified: it knows nothing about cornices, glaciers, small cliffs,
+  forest, water or the snow.
+- **3D view**: the area around the route (or the view) as a WebGL mesh with
+  the map, the overlays and the route draped over it. Drag to turn, scroll
+  to zoom, a slider for height exaggeration.
+- Routes live in the page's address (share or bookmark the link) and in a
+  list saved in this browser. A tour's own route (your GPX or OpenStreetMap)
+  is shown dotted and can be taken over as your route.
+
+**Service area and cost.** Like the tiles, everything covers 12 km around
+the tours and ski resorts, so this box never becomes a free elevation
+service. Heights come from Kartverket (Norway, 50 points per request) and
+Open-Meteo (Sweden, 100 per request); every point asked for counts against
+`TERRAIN_DAILY_POINTS` (default 60 000 a day, about 1 200 Kartverket
+requests) and past it the page is told to try tomorrow. Terrain grids are
+kept on disk for a year (`data/cache/dem/`), so an area costs once. A first
+look at a new area takes a while: a screenful of shading is about 20 grid
+tiles of 289 points, a suggestion or 3D view up to 30.
+
+**Limits.** In Sweden the terrain model is Copernicus GLO-90 (90 m cells),
+so short steep faces read flatter than they are; there is no NVE layer. The
+map shading has 16 screen pixels per cell at every zoom, so it is coarse
+zoomed out and finer zoomed in. Runout is read from the colours of NVE's
+map along the route, which is a heuristic.
+
+GPX import and export and the weather at the start and the highest point
+are v5.1; the buttons and the panel are in place. See `docs/v5.1.md`.
+
+`node demo/terrain-check.mjs <outdir>` runs the page offline against a
+made-up terrain (the advert's Hallingdal) in a headless browser and takes
+screenshots of each part.
+
 ## Trip planner
 
 "Where should I go in the coming days?" The planner ranks the tours for
@@ -367,6 +430,7 @@ The ones that matter:
 | `ALERT_REGIONS` | `all` | Or a comma-separated list of region ids (see `data/regions.json`). |
 | `ALERT_COUNTRIES` | `all` | Or e.g. `NO` or `NO,SE`: which countries you are notified about. The country buttons on the page only change what you see. |
 | `ALERT_QUIET_FROM` / `_TO` | `22` / `6` | Alerts found overnight are **held, not dropped**, and sent when the window ends. |
+| `TERRAIN_DAILY_POINTS` | `60000` | Heights the terrain page may ask Kartverket / Open-Meteo for per day (UTC). |
 
 ### Alerts by email
 
@@ -452,6 +516,10 @@ curl -X POST localhost:8080/api/test-alert   # dry run, records nothing
 | `GET /api/version` | The running version (from package.json) and when the server started. |
 | `GET /api/outlook` | Trip planner inputs: bulletins per day and every tour's 5-day summit forecast with hourly values (gzipped). |
 | `GET /api/resorts` | Ski resorts: Norway with live lift/slope status (Fnugg), Sweden location only (OSM). |
+| `GET /api/dem/{z}/{x}/{y}` | Terrain page: a 17 × 17 height grid over one map tile (z 11–15), service area only, kept a year. |
+| `POST /api/terrain/profile` | Terrain page: `{"points": [[lat, lon], …]}` (≤ 300 points, ≤ 50 km, service area only) → samples every 25 m+ with height, slope and aspect of the ground. |
+| `GET /api/terrain/zone` | Terrain page: the service-area margin and today's height budget. |
+| `GET /tiles/nve/{z}/{x}/{y}.png` | NVE's slope and runout map (Norway), through the tile proxy. |
 
 The healthcheck deliberately fails on **stale data**, not just on a dead
 process, so a container that is up but quietly not fetching shows as
@@ -620,7 +688,8 @@ is written against the documented output and tested against that shape.
 ## Attribution and being a good neighbour
 
 Avalanche data is © NVE / Varsom.no and Naturvårdsverket; snow data is from
-NVE's seNorge. Regobs data, if you enable it, requires crediting both Regobs
+NVE's seNorge; the slope and runout map on the terrain page is © NVE
+(CC BY 4.0). Regobs data, if you enable it, requires crediting both Regobs
 and the individual observer. The footer of the page carries this — please
 leave it there.
 

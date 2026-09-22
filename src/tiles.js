@@ -25,6 +25,12 @@ const SOURCES = {
   // WMTS capabilities), with 20 m contour lines at high zoom.
   no: (z, x, y) => `https://cache.kartverket.no/v1/wmts/1.0.0/topograatone/default/webmercator/${z}/${y}/${x}.png`,
   se: (z, x, y) => `https://tile.opentopomap.org/${z}/${x}/${y}.png`,
+  // NVE's slope-angle and avalanche runout map (v5): transparent PNG over
+  // the topo, Norway and Svalbard only, 27° and steeper in six classes plus
+  // three runout zones (short / medium / long). A cached ArcGIS service in
+  // Web Mercator, levels 5-16 (service metadata checked 2026-09-23).
+  // © NVE, CC BY 4.0.
+  nve: (z, x, y) => `https://gis3.nve.no/arcgis/rest/services/wmts/Bratthet_med_utlop_2024/MapServer/tile/${z}/${y}/${x}`,
 };
 const MIN_Z = 9, MAX_Z = 16;
 const MARGIN_KM = 12;
@@ -52,10 +58,22 @@ export function tileAllowed(z, x, y, boxes) {
   });
 }
 
+/** Is a point inside the service area (within MARGIN_KM of a tour or resort)? */
+export function pointAllowed(lat, lon, list) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return false;
+  return list.some((t) => {
+    const dLat = MARGIN_KM / 111;
+    const dLon = MARGIN_KM / (111 * Math.cos((t.lat * Math.PI) / 180));
+    return Math.abs(t.lat - lat) <= dLat && Math.abs(t.lon - lon) <= dLon;
+  });
+}
+export const ZONE_MARGIN_KM = MARGIN_KM;
+
 let boxesPromise = null;
 let resortBoxes = null;
 // Tours, plus ski resorts once their list has loaded (the resort view has a
 // map too). The resort list is only ever the one from Fnugg / OpenStreetMap.
+export const zoneBoxes = () => boxes();
 const boxes = async () => {
   const tours = await (boxesPromise ??= tourBoxes());
   if (!resortBoxes) {
@@ -85,12 +103,25 @@ export async function serveTile(res, src, z, x, y) {
   } catch {
     /* not cached */
   }
+  // An overlay (NVE) has no tile where there is nothing to draw and answers
+  // 404: remembered, so the same empty tile is not asked for again.
+  try {
+    const none = await stat(`${file}.none`);
+    if (Date.now() - none.mtimeMs < TTL) return send(404, 'no tile here');
+  } catch {
+    /* not known to be empty */
+  }
 
   try {
     const upstream = await fetch(SOURCES[src](z, x, y), {
       headers: { 'User-Agent': UA },
       signal: AbortSignal.timeout(15000),
     });
+    if (upstream.status === 404 && src === 'nve') {
+      await mkdir(path.dirname(file), { recursive: true });
+      await writeFile(`${file}.none`, '');
+      return send(404, 'no tile here');
+    }
     if (!upstream.ok) return send(502, `upstream ${upstream.status}`);
     const buf = Buffer.from(await upstream.arrayBuffer());
     await mkdir(path.dirname(file), { recursive: true });

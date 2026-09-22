@@ -5,4 +5,4 @@
  * Overpass and MET Norway ask for the same. See
  * https://foundation.wikimedia.org/wiki/Policy:User-Agent_policy
  */
-export const UA = 'Fjallskred/4 (self-hosted ski touring dashboard; +https://github.com/HMolker/toppturvarsel)';
+export const UA = 'Fjallskred/5 (self-hosted ski touring dashboard; +https://github.com/HMolker/toppturvarsel)';

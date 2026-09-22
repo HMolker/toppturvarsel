@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fjällskred — terrain &amp; routes</title>
+<meta name="description" content="Slope angle, aspect and avalanche runout on the map, draw a ski tour and see what it crosses, in 3D and against today's avalanche problems.">
+<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/terrain/terrain.css">
+<link rel="icon" type="image/png" sizes="64x64" href="/brand/icon-64.png">
+<link rel="apple-touch-icon" href="/brand/icon-180.png">
+<meta name="theme-color" content="#F4F3EF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121211" media="(prefers-color-scheme: dark)">
+</head>
+<body class="terrainpage">
+
+<header class="top">
+  <a href="/" class="brandlink"><img class="brandmark" src="/brand/logo-header.png" width="107" height="120" alt="Fjällskred — back to the conditions"></a>
+  <div>
+    <div class="eyebrow">Fjällskred · Molker Digital — terrain &amp; routes</div>
+    <h1>Plan a line</h1>
+    <p class="sub">Slope angle, aspect and avalanche runout on the map. Draw a tour and see how steep the ground under it is, which way it faces, how long it takes and where it meets today's avalanche problems.</p>
+  </div>
+  <div class="status">
+    <a class="btn" href="/">← Conditions</a>
+  </div>
+</header>
+
+<div class="twrap">
+
+  <section class="card tmapcard">
+    <div class="hd tbar">
+      <label class="tgo">Go to
+        <input list="places" id="goto" placeholder="tour or ski resort…" autocomplete="off">
+        <datalist id="places"></datalist>
+      </label>
+      <label class="tchk" title="NVE's slope-angle map with avalanche runout zones. Norway and Svalbard only; from the 1 m / 10 m terrain model.">
+        <input type="checkbox" id="lyrNve" checked> NVE slope &amp; runout
+      </label>
+      <label>Shading
+        <select id="lyrShade">
+          <option value="off">none</option>
+          <option value="slope">slope angle (computed)</option>
+          <option value="aspect">aspect</option>
+          <option value="problems">today's problems</option>
+        </select>
+      </label>
+      <label class="topac">Overlay <input type="range" id="lyrOpacity" min="20" max="100" value="70"></label>
+    </div>
+    <div class="tmapwrap">
+      <div class="tmap" id="tmap" aria-label="Terrain map. Drag to move, scroll or pinch to zoom."></div>
+      <div class="zoomctl" role="group" aria-label="Map zoom">
+        <button class="zoombtn" data-zoom="in" aria-label="Zoom in">+</button>
+        <button class="zoombtn" data-zoom="out" aria-label="Zoom out">−</button>
+      </div>
+      <div class="tmsg" id="tmsg" hidden></div>
+      <div class="tstatus mono" id="tstatus"></div>
+    </div>
+    <div class="tools" role="toolbar" aria-label="Route tools">
+      <button class="btn primary" id="drawBtn" aria-pressed="false">Draw route</button>
+      <button class="btn" id="undoBtn" disabled title="Undo (Ctrl+Z)">Undo</button>
+      <button class="btn" id="delBtn" disabled title="Remove the selected point (Delete)">Remove point</button>
+      <button class="btn" id="revBtn" disabled title="Swap start and end">Reverse</button>
+      <button class="btn" id="clearBtn" disabled>Clear</button>
+      <span class="tsep"></span>
+      <button class="btn" id="suggestBtn" title="Find a way from the start to the end of your route (or two points you click) that keeps off steep ground">Suggest a way up</button>
+      <button class="btn" id="view3dBtn" title="See the area in 3D">3D view</button>
+      <span class="tsep"></span>
+      <button class="btn" id="gpxInBtn" disabled title="Coming in v5.1">Import GPX</button>
+      <button class="btn" id="gpxOutBtn" disabled title="Coming in v5.1">Export GPX</button>
+    </div>
+    <div class="legend tlegend" id="tlegend"></div>
+    <p class="attrib" id="tattrib"></p>
+  </section>
+
+  <section class="card tside">
+    <div class="hd"><h2 id="rtitle">Your route</h2>
+      <input type="text" id="rname" placeholder="name this route" aria-label="Route name">
+      <button class="btn small" id="saveBtn" disabled>Save</button>
+    </div>
+    <div class="bd" id="rpanel">
+      <p class="note" id="rempty">Press <strong>Draw route</strong> and click on the map to put down points; drag a point to move it, drag a small ring between two points to add one. Or <strong>Suggest a way up</strong> between two points you pick. The ground under the route is measured every 25 m or so.</p>
+      <div id="rstats" hidden></div>
+      <div class="rprofile" id="rprofile"></div>
+      <div id="rdetail"></div>
+      <div id="rsuggest"></div>
+    </div>
+    <div class="hd"><h2>Saved in this browser</h2></div>
+    <div class="bd"><div id="saved"><p class="note">Nothing saved yet.</p></div></div>
+  </section>
+
+</div>
+
+<dialog class="t3d" id="t3d" aria-label="3D view">
+  <div class="t3dhd">
+    <strong id="t3dTitle">3D view</strong>
+    <label class="note">Height ×<span id="exagVal">1.3</span> <input type="range" id="exag" min="10" max="30" value="13"></label>
+    <span class="note" id="t3dNote"></span>
+    <button class="btn small" id="t3dClose">Close</button>
+  </div>
+  <canvas id="t3dCanvas"></canvas>
+</dialog>
+
+<footer>
+  <h3>How this page works</h3>
+  <ul>
+    <li><strong>Slope and runout, Norway:</strong> NVE's slope-angle map with avalanche runout zones (bratthet med utløp, 2024), from Kartverket's 1 m and 10 m terrain models. Green from 27°, yellow to red and purple above 30°, runout zones in three blues (short, medium, long: roughly one avalanche in two, four and twenty runs further). © NVE, CC BY 4.0.</li>
+    <li><strong>Computed shading and the route:</strong> heights from Kartverket (Norway, 1 m / 10 m) or Copernicus GLO-90 (Sweden, 90 m) through this service. The map shading is worked out in your browser from a grid of 17 × 17 heights per map tile, so it gets finer as you zoom in; at low zoom it averages steep faces down. The route is measured every 25 m or more, each point with a small cross of heights around it, so its slope is the ground's, not the route's own gradient. In Sweden that cross spans 90 m cells and steep short faces read flatter than they are.</li>
+    <li><strong>Suggested routes</strong> are the cheapest way on skins from start to end when steep ground, runout zones and today's problem slopes cost extra. They know nothing about cornices, glaciers, cliff bands smaller than a grid cell, forest, open water or the snow. Unverified: a line to look at, not to follow.</li>
+    <li><strong>Service area:</strong> everything here covers 12 km around the tours and ski resorts in Fjällskred, so this box never becomes a free map or elevation service for the internet. A daily budget caps how many heights it asks for.</li>
+  </ul>
+  <p>Slope angle is only one part of avalanche terrain. Read the bulletin, and look at the slope you are on.</p>
+</footer>
+
+<script type="module" src="/terrain/app.js"></script>
+</body>
+</html>

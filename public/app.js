@@ -1097,7 +1097,8 @@ function selectTour(name) {
     (reg.country === 'NO'
       ? `<a class="btn" href="https://www.regobs.no/" target="_blank" rel="noopener">Regobs observations</a>`
       : '') +
-    (reg.offMap ? '' : `<button class="btn" data-region="${esc(reg.id)}">Region overview</button>`) + `</div>` +
+    (reg.offMap ? '' : `<button class="btn" data-region="${esc(reg.id)}">Region overview</button>`) +
+    `<a class="btn" href="/terrain#tour=${encodeURIComponent(t.name)}" title="Slope and runout under the route, 3D, your own line">Terrain &amp; 3D</a>` + `</div>` +
     `</div></div>`;
 
   state.tourView = { route: null, terrain: null, photos: null, own: null, slopes: null };

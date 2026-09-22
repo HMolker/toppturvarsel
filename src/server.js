@@ -20,6 +20,7 @@ import { overpassStatus } from './util/overpass.js';
 import { startNightScan, nightScanStatus } from './nightly.js';
 import { getSkill, startVerification } from './verify.js';
 import { fetchForecast } from './sources/forecast.js';
+import { getDemTile, getRouteProfile, zoneInfo } from './dem.js';
 
 const resortFc = new Map();
 import { serveTile } from './tiles.js';
@@ -143,6 +144,37 @@ async function serveStatic(req, res, urlPath) {
 }
 
 let refreshing = null;
+
+/** A small JSON request body; anything over `max` bytes is refused. */
+function readJsonBody(req, max = 65536) {
+  return new Promise((resolve, reject) => {
+    let size = 0;
+    let over = false;
+    const chunks = [];
+    req.on('data', (c) => {
+      size += c.length;
+      if (over) return; // drain and drop the rest, so the 413 can be sent
+      if (size > max) {
+        over = true;
+        chunks.length = 0;
+        const e = new Error('request body too large');
+        e.status = 413;
+        reject(e);
+      } else chunks.push(c);
+    });
+    req.on('end', () => {
+      if (over) return;
+      try {
+        resolve(JSON.parse(Buffer.concat(chunks).toString('utf8') || 'null'));
+      } catch {
+        const e = new Error('body is not JSON');
+        e.status = 400;
+        reject(e);
+      }
+    });
+    req.on('error', reject);
+  });
+}
 
 async function handleApi(req, res, url) {
   const route = url.pathname;
@@ -286,6 +318,27 @@ async function handleApi(req, res, url) {
     }
   }
 
+  // v5 terrain page: elevation grids and route profiles, service area only.
+  const dem = route.match(/^\/api\/dem\/(\d{1,2})\/(\d{1,6})\/(\d{1,6})$/);
+  if (dem) {
+    try {
+      return jsonz(req, res, 200, await getDemTile(+dem[1], +dem[2], +dem[3]), { 'Cache-Control': 'public, max-age=604800' });
+    } catch (err) {
+      return json(res, err.status ?? 502, { error: err.message });
+    }
+  }
+  if (route === '/api/terrain/zone') {
+    return json(res, 200, await zoneInfo());
+  }
+  if (route === '/api/terrain/profile') {
+    if (req.method !== 'POST') return json(res, 405, { error: 'POST a route: {"points": [[lat, lon], ...]}' });
+    try {
+      return jsonz(req, res, 200, await getRouteProfile(await readJsonBody(req)));
+    } catch (err) {
+      return json(res, err.status ?? 502, { error: err.message });
+    }
+  }
+
   if (route === '/api/overpass') {
     // What the OpenStreetMap queue is doing: for diagnosing a map that won't load.
     return json(res, 200, overpassStatus());
@@ -406,7 +459,7 @@ export function createServer() {
   return http.createServer(async (req, res) => {
     const url = new URL(req.url, `http://${req.headers.host ?? 'localhost'}`);
     try {
-      const tile = url.pathname.match(/^\/tiles\/([a-z]{2})\/(\d{1,2})\/(\d{1,6})\/(\d{1,6})\.png$/);
+      const tile = url.pathname.match(/^\/tiles\/([a-z]{2,3})\/(\d{1,2})\/(\d{1,6})\/(\d{1,6})\.png$/);
       if (tile && (req.method === 'GET' || req.method === 'HEAD')) {
         await serveTile(res, tile[1], +tile[2], +tile[3], +tile[4]);
       } else if (url.pathname === '/editor' || url.pathname === '/editor/') {
@@ -415,6 +468,10 @@ export function createServer() {
       } else if (url.pathname === '/skill' || url.pathname === '/skill/') {
         // The forecast-accuracy tool, its own page like the tour editor.
         if (req.method === 'GET' || req.method === 'HEAD') await serveStatic(req, res, '/skill.html');
+        else json(res, 405, { error: 'method not allowed' });
+      } else if (url.pathname === '/terrain' || url.pathname === '/terrain/') {
+        // The terrain & route page (v5), a page of its own like the editor.
+        if (req.method === 'GET' || req.method === 'HEAD') await serveStatic(req, res, '/terrain.html');
         else json(res, 405, { error: 'method not allowed' });
       } else if (url.pathname.startsWith('/api/')) {
         await handleApi(req, res, url);

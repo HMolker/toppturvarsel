@@ -17,6 +17,7 @@ import { getSnowHistory } from './snowhistory.js';
 import { getResortMap } from './resortmap.js';
 import { getHuts } from './huts.js';
 import { overpassStatus } from './util/overpass.js';
+import { startNightScan, nightScanStatus } from './nightly.js';
 import { fetchForecast } from './sources/forecast.js';
 
 const resortFc = new Map();
@@ -243,7 +244,7 @@ async function handleApi(req, res, url) {
   }
 
   if (route === '/api/version') {
-    return json(res, 200, await versionInfo());
+    return json(res, 200, { ...(await versionInfo()), nightScan: await nightScanStatus().catch(() => null) });
   }
 
   if (route === '/api/meta') {
@@ -428,6 +429,8 @@ if (isMain) {
         `ntfy=${config.ntfyTopic ? 'on' : 'off'}`
     );
     startScheduler();
+    // Ski-area maps and snow history for every resort, fetched at night.
+    startNightScan();
     // Derive tour routes quietly in the background, one at a time.
     if ((process.env.TRACKS_WARMUP ?? 'true') !== 'false') {
       setTimeout(() => warmRoutes().catch((e) => log.warn(`tracks: warm-up failed: ${e.message}`)), 60000).unref();

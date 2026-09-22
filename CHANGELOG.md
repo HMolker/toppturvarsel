@@ -3,6 +3,21 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v4.16.0 — ski-area maps stored, refreshed at night (2026-09-22)
+
+- A night scan (01:00–05:00 Norwegian time) goes through every ski
+  resort and stores its map, fun facts and snow history, so opening a
+  resort in the day is instant. Resorts never fetched go first, then the
+  oldest. It waits a minute between resorts, uses OpenStreetMap at the
+  lowest priority, and pauses when OpenStreetMap is failing.
+- A stored map is kept for 90 days (was 30), then refetched. A map older
+  than that is still shown at once while a new one is fetched behind the
+  scenes.
+- "Data sources & freshness" has a new card: how many resorts are stored,
+  the oldest, how many are left, and how last night went.
+- Settings (in `.env`): `NIGHT_SCAN=on|off`, `NIGHT_SCAN_HOURS=1-5`,
+  `NIGHT_SCAN_GAP_S=60`, `RESORT_MAP_MAX_AGE_DAYS=90`.
+
 ## v4.15.4 — ski-area maps no longer wait behind background work (2026-09-22)
 
 - The resort panel could sit on "Counting runs and lifts in

@@ -1,4 +1,4 @@
-import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, rename, readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { config } from './config.js';
 import { gridBox, gridPoints } from './terrain.js';
@@ -37,7 +37,10 @@ import { overpass } from './util/overpass.js';
  * Data © OpenStreetMap contributors, ODbL.
  */
 
-const TTL = 30 * 86400e3;
+// Ski areas change slowly: a stored map is refreshed after about three months
+// (by the night scan, see nightly.js). Older ones are still shown meanwhile.
+export const RESORT_MAP_MAX_AGE_DAYS = Number(process.env.RESORT_MAP_MAX_AGE_DAYS ?? 90);
+const TTL = RESORT_MAP_MAX_AGE_DAYS * 86400e3;
 const RADIUS_M = 4000;
 
 export const LIFT_KINDS = {
@@ -64,9 +67,10 @@ export function resortQuery(lat, lon, r = RADIUS_M) {
 out geom tags;`;
 }
 
-async function fetchOverpass(lat, lon) {
-  return overpass(resortQuery(lat, lon), { timeoutMs: 60000, what: 'resortmap', priority: 'high', deadlineMs: 75000 });
-}
+// Someone is looking at the panel: first in line, 75 s at most.
+const CLICK = { timeoutMs: 60000, what: 'resortmap', priority: 'high', deadlineMs: 75000 };
+// The night scan: last in line, no hurry.
+const NIGHT = { timeoutMs: 120000, what: 'resortmap (night scan)', priority: 'low' };
 
 /* ------------------------------------------------------------------ *
  * geometry helpers
@@ -303,27 +307,60 @@ const cacheFile = (id) => path.resolve(config.dataDir, 'cache', 'resortmap', `${
 // One lookup per resort at a time: a second click joins the first.
 const inflight = new Map();
 
-export function getResortMap(resort) {
+const readCached = (id) => readFile(cacheFile(id), 'utf8').then(JSON.parse).then((c) => (c?.v === 2 ? c : null)).catch(() => null);
+const ageMs = (c) => Date.now() - new Date(c.fetchedAt).getTime();
+
+/**
+ * The map for the panel. A stored map is returned at once whatever its age;
+ * one older than the limit is also refreshed in the background (the night
+ * scan normally gets there first). Only a resort never looked up waits for
+ * OpenStreetMap.
+ */
+export async function getResortMap(resort) {
+  const cached = await readCached(resort.id);
+  if (cached) {
+    if (ageMs(cached) >= TTL && !inflight.has(resort.id)) {
+      refreshResortMap(resort).catch((err) => log.warn(`resortmap: background refresh of ${resort.name} failed: ${err.message}`));
+    }
+    return cached;
+  }
+  return refreshResortMap(resort, { click: true });
+}
+
+/** Fetch and store a resort's map now (a click waits; the night scan does not). */
+export function refreshResortMap(resort, { click = false } = {}) {
   if (inflight.has(resort.id)) return inflight.get(resort.id);
-  const job = loadResortMap(resort).finally(() => inflight.delete(resort.id));
+  const job = loadResortMap(resort, click ? CLICK : NIGHT).finally(() => inflight.delete(resort.id));
   inflight.set(resort.id, job);
   return job;
 }
 
-async function loadResortMap(resort) {
-  const file = cacheFile(resort.id);
-  let stale = null;
-  try {
-    const cached = JSON.parse(await readFile(file, 'utf8'));
-    if (cached.v === 2 && Date.now() - new Date(cached.fetchedAt).getTime() < TTL) return cached;
-    if (cached.v === 2) stale = cached;
-  } catch {
-    /* not cached */
+/** Age of a resort's stored map in ms (Infinity when there is none). */
+export async function resortMapAge(id) {
+  const c = await readCached(id);
+  return c ? ageMs(c) : Infinity;
+}
+
+/** When each stored map was written: key -> ms (from the file's time, cheaply). */
+export async function storedResortMaps() {
+  const dir = path.dirname(cacheFile('x'));
+  const out = new Map();
+  for (const f of await readdir(dir).catch(() => [])) {
+    if (!f.endsWith('.json')) continue;
+    const st = await stat(path.join(dir, f)).catch(() => null);
+    if (st) out.set(f.slice(0, -5), st.mtimeMs);
   }
+  return out;
+}
+export const resortMapKey = (id) => String(id).replace(/[^\w-]/g, '_');
+
+async function loadResortMap(resort, opts) {
+  const file = cacheFile(resort.id);
+  const stale = await readCached(resort.id);
   const centre = { lat: resort.lat, lon: resort.lon };
   let elements;
   try {
-    elements = await fetchOverpass(resort.lat, resort.lon);
+    elements = await overpass(resortQuery(resort.lat, resort.lon), opts);
   } catch (err) {
     // An old map beats no map.
     if (stale) return { ...stale, stale: true, error: err.message };

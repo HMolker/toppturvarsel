@@ -1562,6 +1562,21 @@ function renderSources() {
         (since ? `<br>running since ${esc(since.toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}` : '')
       : v === undefined ? 'checking…' : 'unknown (server older than v4.9)') +
     `</div></div>`;
+  const ns = v?.nightScan;
+  const nightCard = ns
+    ? `<div class="src${ns.enabled ? '' : ' bad'}"><h4>Ski-area maps (OpenStreetMap)</h4><div class="note">` +
+      `${ns.stored} of ${ns.resorts} resorts stored` +
+      (ns.oldestDays != null ? ` · oldest ${ns.oldestDays} days` : '') +
+      `<br>` +
+      (!ns.enabled
+        ? 'night scan off (NIGHT_SCAN=off)'
+        : ns.running
+          ? `night scan running now${ns.current ? `: ${esc(ns.current)}` : ''}`
+          : `night scan ${esc(ns.window)}, refreshes after ${ns.maxAgeDays} days` +
+            (ns.due ? ` · ${ns.due} to do` : ' · all up to date') +
+            (ns.lastRun ? `<br>last night: ${ns.lastDone} stored${ns.lastFailed ? `, ${ns.lastFailed} failed` : ''}` : '')) +
+      `</div></div>`
+    : '';
   $('#sources').innerHTML =
     cards
       .filter((c, i) => COUNTRY_OF[i].some(inSel))
@@ -1569,7 +1584,7 @@ function renderSources() {
         ([name, ok, detail]) =>
           `<div class="src${ok === false ? ' bad' : ''}"><h4>${esc(name)}</h4><div class="note">${esc(detail)}</div></div>`
       )
-      .join('') + versionCard;
+      .join('') + nightCard + versionCard;
 }
 
 // The running version, for the sources box: asked once per page load.

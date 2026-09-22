@@ -209,3 +209,48 @@ test('Overpass queue: a deadline ends the wait in line; background work rests af
     _resetOverpass();
   }
 });
+
+test('night scan: the window, and missing maps first, then the oldest, fresh ones skipped', async () => {
+  const { inWindow, scanOrder } = await import('../src/nightly.js');
+  assert.ok(inWindow(1, 1, 5) && inWindow(4, 1, 5) && !inWindow(5, 1, 5) && !inWindow(13, 1, 5));
+  assert.ok(inWindow(23, 22, 4) && inWindow(3, 22, 4) && !inWindow(12, 22, 4), 'a window across midnight');
+  const day = 86400e3;
+  const ages = { a: 10 * day, b: Infinity, c: 120 * day, d: 95 * day };
+  const order = await scanOrder(['a', 'b', 'c', 'd'].map((id) => ({ id })), async (id) => ages[id], 90);
+  assert.deepEqual(order.map((r) => r.id), ['b', 'c', 'd']);
+});
+
+test('getResortMap: a stored map is shown at once however old; an old one is refreshed behind the scenes', async () => {
+  const { writeFile, mkdir: mk } = await import('node:fs/promises');
+  const { getResortMap } = await import('../src/resortmap.js');
+  const R = { ...BASE, id: 'fnugg-old' };
+  const dir = path.join(tmp, 'cache', 'resortmap');
+  await mk(dir, { recursive: true });
+  const old = new Date(Date.now() - 200 * 86400e3).toISOString();
+  await writeFile(path.join(dir, 'fnugg-old.json'), JSON.stringify({ v: 2, id: R.id, resort: 'Old', lifts: [], runs: [], facts: {}, fetchedAt: old }));
+  const realFetch = globalThis.fetch;
+  let overpassCalls = 0;
+  let release;
+  const gate = new Promise((r) => (release = r));
+  globalThis.fetch = async (url) => {
+    if (String(url).includes('overpass')) {
+      overpassCalls++;
+      await gate;
+      return new Response(JSON.stringify({ elements: makeResortOsm(R) }), { status: 200 });
+    }
+    return new Response(JSON.stringify({ punkter: [] }), { status: 200 });
+  };
+  try {
+    const m = await getResortMap(R);
+    assert.equal(m.fetchedAt, old, 'the old map comes back without waiting');
+    await new Promise((r) => setTimeout(r, 20));
+    assert.equal(overpassCalls, 1, 'and a refresh has started');
+    release();
+    await new Promise((r) => setTimeout(r, 100));
+    const again = await getResortMap(R);
+    assert.notEqual(again.fetchedAt, old, 'the refreshed map is stored');
+    assert.equal(again.lifts.length, 7);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});

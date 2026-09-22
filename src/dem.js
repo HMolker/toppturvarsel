@@ -3,6 +3,8 @@ import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { config } from './config.js';
 import { bestElevations } from './sources/elevation.js';
+import { lmEnabled, lmStatus } from './sources/lmcog.js';
+import * as elevation from './sources/elevation.js';
 import { tileBounds, tileAllowed, pointAllowed, zoneBoxes } from './tiles.js';
 import { haversineKm } from './util/utm.js';
 import { log } from './util/log.js';
@@ -100,7 +102,10 @@ const pointCache = new Map();
 const POINT_CACHE_MAX = 200000;
 const pkey = (p) => `${p.lat.toFixed(5)},${p.lon.toFixed(5)}`;
 
-async function elevationsCached(points, country) {
+/** Sweden with a Geotorget login reads Lantmäteriet's files, not per-point APIs. */
+const lmFor = (country) => country === 'SE' && lmEnabled();
+
+async function elevationsCached(points, country, { spacingM = 10 } = {}) {
   const out = new Array(points.length);
   const missing = [];
   points.forEach((p, i) => {
@@ -110,8 +115,10 @@ async function elevationsCached(points, country) {
   });
   let source = null;
   if (missing.length) {
-    spend(missing.length);
-    const res = await queued(() => bestElevations(missing.map((i) => points[i]), country));
+    // Lantmäteriet's files have their own cap (LANTMATERIET_DAILY_MB); the
+    // point budget is for Kartverket and Open-Meteo.
+    if (!lmFor(country)) spend(missing.length);
+    const res = await queued(() => bestElevations(missing.map((i) => points[i]), country, { spacingM }));
     source = res.source;
     missing.forEach((idx, k) => {
       const v = { z: res.values[k], source: res.source };
@@ -178,7 +185,9 @@ export async function getDemTile(z, x, y) {
     const b = tileBounds(z, x, y);
     const country = nearestCountry((b.north + b.south) / 2, (b.east + b.west) / 2, list);
     const pts = demPoints(z, x, y);
-    const { values, source } = await elevationsCached(pts, country);
+    // Metres between the grid's points, so a file-based source reads the right detail.
+    const spacingM = (40075016.686 * Math.cos((((b.north + b.south) / 2) * Math.PI) / 180)) / 2 ** z / (DEM_N - 1);
+    const { values, source } = await elevationsCached(pts, country, { spacingM });
     const tile = {
       z, x, y, n: DEM_N,
       // metres, row-major from the NW corner; null where unknown
@@ -308,12 +317,13 @@ export async function getRouteProfile(body) {
 
   const mid = v.points[Math.floor(v.points.length / 2)];
   const country = nearestCountry(mid.lat, mid.lon, list);
-  // Kartverket's 1 m / 10 m model resolves a 10 m cross; Copernicus is 90 m
-  // cells, so the cross must span them or every slope reads flat.
-  const offsetM = country === 'NO' ? 10 : 90;
+  // Kartverket's 1 m / 10 m model and Lantmäteriet's 1 m model resolve a
+  // 10 m cross; Copernicus is 90 m cells, so the cross must span them or
+  // every slope reads flat.
+  const offsetM = country === 'NO' || lmFor(country) ? 10 : 90;
   const { samples, spacing } = sampleRoute(v.points);
   const pts = crossPoints(samples, offsetM);
-  const { values, source, sources } = await elevationsCached(pts, country);
+  const { values, source, sources } = await elevationsCached(pts, country, { spacingM: offsetM });
 
   const out = samples.map((s, k) => {
     const [c, e, w, n, so] = values.slice(k * 5, k * 5 + 5);
@@ -329,7 +339,7 @@ export async function getRouteProfile(body) {
     };
   });
   const result = {
-    source: sources.includes('copernicus-glo90') && sources.includes('kartverket-dtm') ? 'mixed' : source,
+    source: sources.filter(Boolean).length > 1 ? 'mixed' : source,
     country,
     spacingM: spacing,
     crossM: offsetM,
@@ -346,10 +356,15 @@ export async function getRouteProfile(body) {
 /** What the page needs to know about the service area, and nothing else. */
 export async function zoneInfo() {
   const list = await zoneBoxes();
+  const lm = lmStatus();
   return {
     marginKm: 12,
     demZoom: { min: DEM_MIN_Z, max: DEM_MAX_Z, n: DEM_N },
     budget: budgetStatus(),
     count: list.length,
+    // Countries whose terrain comes from files (cheap to read finely): the
+    // 3D view can use a finer grid there.
+    fine: lm.enabled ? ['SE'] : [],
+    lantmateriet: { enabled: lm.enabled, traffic: lm.traffic, lastError: elevation.lmLastError },
   };
 }

@@ -1,5 +1,10 @@
 import { UA } from '../util/ua.js';
 import { haversineKm } from '../util/utm.js';
+import { lmEnabled, lmElevations } from './lmcog.js';
+import { log } from '../util/log.js';
+
+/** The last reason Lantmäteriet's terrain model could not be used, for the status. */
+export let lmLastError = null;
 
 /**
  * Elevation along a route, from Open-Meteo's elevation API
@@ -56,7 +61,29 @@ export async function fetchKartverket(points) {
  * Copernicus via Open-Meteo otherwise, and Open-Meteo to fill any gaps
  * (a Norwegian route that crosses into Sweden, or a Kartverket outage).
  */
-export async function bestElevations(points, country) {
+/**
+ * `spacingM`: roughly how far apart the points are. Only file-based sources
+ * (Lantmäteriet) use it, to read no finer detail than needed; callers that
+ * do not say get a coarse read (their grids are 50 m or more apart).
+ */
+export async function bestElevations(points, country, { spacingM = 50 } = {}) {
+  // Sweden, with a Geotorget login: Lantmäteriet's 1 m terrain model (v5.2).
+  // Where it has no data or fails, Copernicus fills in as before.
+  if (country === 'SE' && lmEnabled()) {
+    try {
+      const lm = await lmElevations(points, { spacingM });
+      const missing = lm.map((z, i) => (z === null ? i : -1)).filter((i) => i >= 0);
+      if (missing.length) {
+        const fill = await fetchElevationsBatched(missing.map((i) => points[i]));
+        missing.forEach((idx, k) => (lm[idx] = fill[k]));
+      }
+      lmLastError = null;
+      return { values: lm, source: missing.length > points.length / 2 ? 'copernicus-glo90' : 'lantmateriet-mhm' };
+    } catch (err) {
+      lmLastError = err.message;
+      log.warn(`elevation: Lantmäteriet failed (${err.message}); using Copernicus`);
+    }
+  }
   if (country === 'NO') {
     try {
       const kv = await fetchKartverket(points);

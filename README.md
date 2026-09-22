@@ -205,8 +205,29 @@ kept on disk for a year (`data/cache/dem/`), so an area costs once. A first
 look at a new area takes a while: a screenful of shading is about 20 grid
 tiles of 289 points, a suggestion or 3D view up to 30.
 
-**Limits.** In Sweden the terrain model is Copernicus GLO-90 (90 m cells),
-so short steep faces read flatter than they are; there is no NVE layer. The
+**Sweden at 1 m (v5.2).** With a Geotorget account that has ordered
+*Markhöjdmodell Nedladdning*, set `LANTMATERIET_USER` and
+`LANTMATERIET_PASSWORD` in `.env` and Swedish terrain comes from
+Lantmäteriet's 1 m model instead of Copernicus' 90 m: the computed slope
+shading, the route profile (a 10 m cross, as in Norway), the suggestions,
+the 3D view (which may then use up to 80 terrain tiles, so finer cells) and
+the tour contours. The server finds the right 10 × 10 km file through
+Lantmäteriet's open STAC catalogue and reads only the 512 × 512 blocks it
+needs, from the coarsest overview that is still fine enough, with HTTP range
+requests; the files are Cloud-Optimized GeoTIFFs (float32, DEFLATE with the
+floating-point predictor), decoded without any library. Blocks are kept on
+disk for a year (`data/cache/lm/`). `LANTMATERIET_DAILY_MB` (default 1000)
+caps what is downloaded a day. If the login is refused (401), the account
+has no access yet (403) or Lantmäteriet is down, Sweden falls back to
+Copernicus and the terrain page says why. © Lantmäteriet, CC BY 4.0.
+
+To check a login from Windows before putting it on the Pi:
+`curl.exe -u USER -r 0-65535 -o head.tif https://dl1.lantmateriet.se/hojd/data/grid/mhm/70_4/m703_40.tif`
+must give a 64 KB file, not a 1 KB error page.
+
+**Limits.** Without a Lantmäteriet login the Swedish terrain model is
+Copernicus GLO-90 (90 m cells), so short steep faces read flatter than they
+are. There is no NVE layer in Sweden either way. The
 map shading has 16 screen pixels per cell at every zoom, so it is coarse
 zoomed out and finer zoomed in. Runout is read from the colours of NVE's
 map along the route, which is a heuristic.
@@ -442,6 +463,8 @@ The ones that matter:
 | `ALERT_COUNTRIES` | `all` | Or e.g. `NO` or `NO,SE`: which countries you are notified about. The country buttons on the page only change what you see. |
 | `ALERT_QUIET_FROM` / `_TO` | `22` / `6` | Alerts found overnight are **held, not dropped**, and sent when the window ends. |
 | `TERRAIN_DAILY_POINTS` | `60000` | Heights the terrain page may ask Kartverket / Open-Meteo for per day (UTC). |
+| `LANTMATERIET_USER` / `_PASSWORD` | – | Geotorget login with access to *Markhöjdmodell Nedladdning*: Sweden's terrain at 1 m. |
+| `LANTMATERIET_DAILY_MB` | `1000` | Most MB a day downloaded from Lantmäteriet's terrain files. |
 
 ### Alerts by email
 
@@ -701,7 +724,8 @@ is written against the documented output and tested against that shape.
 
 Avalanche data is © NVE / Varsom.no and Naturvårdsverket; snow data is from
 NVE's seNorge; the slope and runout map on the terrain page is © NVE
-(CC BY 4.0); the route weather is © MET Norway (CC BY 4.0). Regobs data, if you enable it, requires crediting both Regobs
+(CC BY 4.0); the route weather is © MET Norway (CC BY 4.0); Swedish terrain at 1 m is
+© Lantmäteriet (CC BY 4.0). Regobs data, if you enable it, requires crediting both Regobs
 and the individual observer. The footer of the page carries this — please
 leave it there.
 

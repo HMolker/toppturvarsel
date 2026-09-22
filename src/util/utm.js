@@ -21,9 +21,10 @@ const rad = (d) => (d * Math.PI) / 180;
  * @param {number} lat  latitude in degrees
  * @param {number} lon  longitude in degrees
  * @param {number} zone UTM zone number (default 33)
- * @returns {{x:number, y:number, zone:number}} easting/northing in whole metres
+ * @param {{round?: boolean}} [opts] round to whole metres (default true)
+ * @returns {{x:number, y:number, zone:number}} easting/northing in metres
  */
-export function latLonToUTM(lat, lon, zone = 33) {
+export function latLonToUTM(lat, lon, zone = 33, { round = true } = {}) {
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
     throw new TypeError('latLonToUTM: lat and lon must be finite numbers');
   }
@@ -71,7 +72,8 @@ export function latLonToUTM(lat, lon, zone = 33) {
 
   if (lat < 0) y += 10000000; // southern hemisphere false northing
 
-  return { x: Math.round(x), y: Math.round(y), zone };
+  // Whole metres for the 1 km seNorge grid; unrounded for the 1 m terrain model.
+  return round ? { x: Math.round(x), y: Math.round(y), zone } : { x, y, zone };
 }
 
 /**

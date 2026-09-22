@@ -3,6 +3,27 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v5.2.0 — Sweden's terrain at 1 m, from Lantmäteriet (2026-09-23)
+
+- With a Geotorget login that has ordered *Markhöjdmodell Nedladdning*
+  (`LANTMATERIET_USER` / `LANTMATERIET_PASSWORD` in `.env`), Swedish terrain
+  comes from Lantmäteriet's 1 m model instead of Copernicus' 90 m: slope
+  shading, route profiles (now a 10 m cross in Sweden too), suggestions, the
+  3D view (finer, up to 80 terrain tiles) and tour contours. © Lantmäteriet,
+  CC BY 4.0.
+- The files are found through Lantmäteriet's open STAC catalogue and read in
+  512 × 512 blocks by HTTP range requests, from the coarsest overview fine
+  enough for the job; Cloud-Optimized GeoTIFF with DEFLATE and the
+  floating-point predictor, decoded without a library (checked against a
+  real file's header and a file written by libtiff,
+  `test/fixtures/make-cog.py`). Blocks are cached on disk for a year;
+  `LANTMATERIET_DAILY_MB` (default 1000) caps a day's downloads.
+- A refused login (401), missing access (403) or an outage falls back to
+  Copernicus, and the terrain page says why.
+- Fixed on the way: the coordinate conversion rounded to whole metres, fine
+  for the 1 km snow grid but not for a 1 m terrain model; it now has an
+  unrounded mode.
+
 ## v5.1.0 — weather on the route, GPX in and out (2026-09-23)
 
 - **Weather on the route:** once a route is measured, MET Norway's hourly

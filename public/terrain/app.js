@@ -35,6 +35,7 @@ const S = {
   ref: null, hover: null,
   shade: 'off', nve: true, opacity: 0.7,
   budget: null,
+  fine: [],
 };
 
 const dem = new DemStore();
@@ -552,7 +553,7 @@ function renderPanel({ loading = false } = {}) {
   // Weather at the start and the highest point (v5.1), filled in below.
   sec.push(`<div class="rsec"><h4>Weather on the route</h4><div id="rweather"></div></div>`);
 
-  sec.push(`<p class="attrib">Heights: ${S.profile.source === 'kartverket-dtm' ? 'Kartverket DTM 1 m / 10 m' : S.profile.source === 'copernicus-glo90' ? 'Copernicus GLO-90 via Open-Meteo (90 m cells: short steep faces read flatter)' : 'Kartverket and Copernicus'}, a point every ${S.profile.spacingM} m, slope from a ${S.profile.crossM * 2} m cross. Time: 400 m climb and 1500 m descent an hour, 4 km/h on the flat.</p>`);
+  sec.push(`<p class="attrib">Heights: ${sourceName([S.profile.source], true)}, a point every ${S.profile.spacingM} m, slope from a ${S.profile.crossM * 2} m cross. Time: 400 m climb and 1500 m descent an hour, 4 km/h on the flat.</p>`);
   det.innerHTML = sec.join('');
   loadWeather(a.weatherPoints);
   det.querySelectorAll('[data-zoomsec]').forEach((b) => {
@@ -633,6 +634,18 @@ $('#gpxOutBtn').onclick = () => {
   a.click();
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
 };
+
+/** Where the heights came from, in words. */
+function sourceName(list, long = false) {
+  const names = {
+    'kartverket-dtm': long ? 'Kartverket DTM 1 m / 10 m' : 'Kartverket DTM',
+    'lantmateriet-mhm': long ? 'Lantmäteriet Markhöjdmodell 1 m' : 'Lantmäteriet 1 m',
+    'copernicus-glo90': long ? 'Copernicus GLO-90 via Open-Meteo (90 m cells: short steep faces read flatter)' : 'Copernicus GLO-90',
+    mixed: 'several terrain models',
+  };
+  const l = (list ?? []).filter(Boolean);
+  return l.length ? [...new Set(l.map((x) => names[x] ?? x))].join(' + ') : 'unknown';
+}
 
 /* ------------------------------------------------------------------ *
  * suggested way up
@@ -800,10 +813,14 @@ async function open3d() {
   const pts = S.route.length >= 2 ? S.route : S.suggestion?.points ?? null;
   const vb = map.bounds();
   const box = pts ? paddedBox(pts, 0.2, 1) : vb;
+  // Where the terrain comes from files (Sweden with Lantmäteriet's 1 m model),
+  // a fine grid is cheap: allow more tiles, so the 3D view gets finer cells.
+  const fineHere = S.fine.includes(nearest((box.north + box.south) / 2, (box.east + box.west) / 2)?.item.country);
+  const maxTiles = fineHere ? 80 : 30;
   let r = null;
   for (let z = DEM_MAX_Z; z >= 11; z--) {
     r = tileRange(box, z);
-    if (tileCount(r) <= 30) break;
+    if (tileCount(r) <= maxTiles) break;
   }
   const c = { lat: (box.north + box.south) / 2, lon: (box.east + box.west) / 2 };
   if (!inZone(c.lat, c.lon)) { message('The 3D view needs the area to be inside the service area.'); return; }
@@ -895,7 +912,7 @@ async function open3d() {
   if (!viewer) return;
   viewer.exag = +$('#exag').value / 10;
   viewer.setScene(g, cv);
-  note(`${Math.round(g.cellM)} m grid · ${g.sources.includes('kartverket-dtm') ? 'Kartverket DTM' : 'Copernicus GLO-90'} · drag to turn, scroll to zoom`);
+  note(`${Math.round(g.cellM)} m grid · ${sourceName(g.sources)} · drag to turn, scroll to zoom`);
 }
 $('#view3dBtn').onclick = open3d;
 $('#t3dClose').onclick = () => $('#t3d').close();
@@ -928,7 +945,7 @@ function renderLegend() {
   }
   parts.push(`<div class="legend-row"><span><i class="swc" style="background:var(--ink)"></i>route under 25°</span><span class="note">steeper parts of the route in the slope colours</span></div>`);
   $('#tlegend').innerHTML = parts.join('');
-  $('#tattrib').innerHTML = `Map © ${country === 'SE' ? 'OpenTopoMap (CC-BY-SA), © OpenStreetMap contributors' : 'Kartverket'} · Slope &amp; runout © NVE (CC BY 4.0) · Heights: Kartverket DTM (Norway), Copernicus GLO-90 via Open-Meteo (Sweden) · Not for navigation`;
+  $('#tattrib').innerHTML = `Map © ${country === 'SE' ? 'OpenTopoMap (CC-BY-SA), © OpenStreetMap contributors' : 'Kartverket'} · Slope &amp; runout © NVE (CC BY 4.0) · Heights: Kartverket DTM (Norway), ${S.fine.includes('SE') ? 'Lantmäteriet Markhöjdmodell 1 m, CC BY 4.0' : 'Copernicus GLO-90 via Open-Meteo'} (Sweden) · Not for navigation`;
 }
 
 function updateStatus() {
@@ -1090,6 +1107,8 @@ async function init() {
 
   const zone = await getJson('/api/terrain/zone');
   if (zone?.budget) S.budget = zone.budget;
+  S.fine = zone?.fine ?? [];
+  if (zone?.lantmateriet?.lastError) message(`Lantmäteriet's terrain model is not being used: ${zone.lantmateriet.lastError}`);
   renderLegend();
   renderSaved();
   updateButtons();

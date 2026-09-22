@@ -2,18 +2,18 @@
  * A drawn route as data: kept in the page's address (so a link or a
  * bookmark brings it back) and in this browser's own list of saved routes.
  *
- * The route model is deliberately the shape a GPX track maps onto — an
- * ordered list of [lat, lon] with a name — so v5.1's GPX import and export
- * are a translation of this and nothing else. See docs/v5.1.md.
+ * The route model is the shape a GPX track maps onto — an ordered list of
+ * [lat, lon] with a name — so GPX import and export (gpx.js) are a
+ * translation of this and nothing else.
  */
 
 export const ROUTE_VERSION = 1;
 
-/** Features that are wired in the page but switched on in a later version. */
+/** Switches for features added after v5.0 (all on since v5.1). */
 export const FEATURES = {
-  gpxImport: false, // v5.1
-  gpxExport: false, // v5.1
-  weather: false, // v5.1: MET Norway at the start and the highest point
+  gpxImport: true, // v5.1
+  gpxExport: true, // v5.1
+  weather: true, // v5.1: MET Norway at the start and the highest point
 };
 
 /* ----------------- encoded polyline (precision 1e-5) ----------------- */

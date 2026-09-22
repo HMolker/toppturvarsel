@@ -21,6 +21,7 @@ import { startNightScan, nightScanStatus } from './nightly.js';
 import { getSkill, startVerification } from './verify.js';
 import { fetchForecast } from './sources/forecast.js';
 import { getDemTile, getRouteProfile, zoneInfo } from './dem.js';
+import { getRouteWeather } from './weather.js';
 
 const resortFc = new Map();
 import { serveTile } from './tiles.js';
@@ -334,6 +335,15 @@ async function handleApi(req, res, url) {
     if (req.method !== 'POST') return json(res, 405, { error: 'POST a route: {"points": [[lat, lon], ...]}' });
     try {
       return jsonz(req, res, 200, await getRouteProfile(await readJsonBody(req)));
+    } catch (err) {
+      return json(res, err.status ?? 502, { error: err.message });
+    }
+  }
+
+  if (route === '/api/terrain/weather') {
+    if (req.method !== 'POST') return json(res, 405, { error: 'POST {"points": [[lat, lon, ele], ...]} (one or two points)' });
+    try {
+      return jsonz(req, res, 200, await getRouteWeather(await readJsonBody(req, 4096)));
     } catch (err) {
       return json(res, err.status ?? 502, { error: err.message });
     }

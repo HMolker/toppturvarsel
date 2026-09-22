@@ -16,6 +16,8 @@ import { suggestPath, simplify, snapNode } from './suggest.js';
 import { classifyPoints } from './nve.js';
 import { Terrain3D } from './view3d.js';
 import { readHash, writeHash, savedRoutes, saveRoute, deleteRoute, FEATURES } from './routeio.js';
+import { parseGpx, thinTrack, toGpx, gpxFileName } from './gpx.js';
+import { renderWeather } from './weather.js';
 import { dangerChip, problemIcons, initAvalancheTips } from '../avalanche.js';
 import { problemAspects, problemBands } from '../planner.js';
 
@@ -547,12 +549,12 @@ function renderPanel({ loading = false } = {}) {
       `<p class="note">Read from the map's colours along the route; a heuristic, so look at the map.</p></div>`);
   }
 
-  // v5.1: weather at the start and the highest point.
-  const wp = a.weatherPoints;
-  sec.push(`<div class="rsec"><h4>Weather on the route</h4><div class="rsoon"><b>Coming in v5.1.</b> The forecast from MET Norway (yr.no) for the start (${wp.start.ele ?? '–'} m) and the highest point (${wp.summit?.ele ?? '–'} m), hour by hour.</div></div>`);
+  // Weather at the start and the highest point (v5.1), filled in below.
+  sec.push(`<div class="rsec"><h4>Weather on the route</h4><div id="rweather"></div></div>`);
 
   sec.push(`<p class="attrib">Heights: ${S.profile.source === 'kartverket-dtm' ? 'Kartverket DTM 1 m / 10 m' : S.profile.source === 'copernicus-glo90' ? 'Copernicus GLO-90 via Open-Meteo (90 m cells: short steep faces read flatter)' : 'Kartverket and Copernicus'}, a point every ${S.profile.spacingM} m, slope from a ${S.profile.crossM * 2} m cross. Time: 400 m climb and 1500 m descent an hour, 4 km/h on the flat.</p>`);
   det.innerHTML = sec.join('');
+  loadWeather(a.weatherPoints);
   det.querySelectorAll('[data-zoomsec]').forEach((b) => {
     b.onclick = () => {
       const s = a.steepSections[+b.dataset.zoomsec];
@@ -560,6 +562,77 @@ function renderPanel({ loading = false } = {}) {
     };
   });
 }
+
+/* ------------------------------------------------------------------ *
+ * weather on the route (v5.1)
+ * ------------------------------------------------------------------ */
+
+const weatherMemo = new Map();
+async function loadWeather(wp) {
+  const el = $('#rweather');
+  if (!el || !FEATURES.weather) return;
+  // The start and the highest point, or only the start if they are the same place.
+  const pts = [wp.start];
+  if (wp.summit && (Math.abs(wp.summit.lat - wp.start.lat) > 0.002 || Math.abs(wp.summit.lon - wp.start.lon) > 0.002)) pts.push(wp.summit);
+  const labels = pts.length > 1 ? ['Start', 'Highest point'] : ['Start'];
+  const key = pts.map((p) => `${p.lat.toFixed(3)},${p.lon.toFixed(3)},${Math.round((p.ele ?? 0) / 10)}`).join('|');
+  const hit = weatherMemo.get(key);
+  if (hit && Date.now() - hit.at < 20 * 60e3) { renderWeather(el, hit.data, { labels }); return; }
+  renderWeather(el, null);
+  let data;
+  try {
+    const res = await fetch('/api/terrain/weather', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ points: pts.map((p) => [p.lat, p.lon, p.ele]) }) });
+    data = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+    if (!res.ok) data = { error: data.error ?? `HTTP ${res.status}` };
+    else weatherMemo.set(key, { at: Date.now(), data });
+  } catch (err) {
+    data = { error: err.message };
+  }
+  const now = $('#rweather');
+  if (now) renderWeather(now, data, { labels });
+}
+
+/* ------------------------------------------------------------------ *
+ * GPX in and out (v5.1)
+ * ------------------------------------------------------------------ */
+
+const gpxInput = Object.assign(document.createElement('input'), { type: 'file', accept: '.gpx,application/gpx+xml,application/xml,text/xml', hidden: true });
+document.body.appendChild(gpxInput);
+$('#gpxInBtn').onclick = () => gpxInput.click();
+gpxInput.onchange = async () => {
+  const file = gpxInput.files?.[0];
+  gpxInput.value = '';
+  if (!file) return;
+  try {
+    if (file.size > 20e6) throw new Error('the file is over 20 MB');
+    const g = parseGpx(await file.text());
+    const pts = thinTrack(g.points, 150);
+    pushUndo();
+    S.route = pts;
+    S.sel = -1;
+    $('#rname').value = g.name || file.name.replace(/\.gpx$/i, '');
+    map.fit(pts.map(([lat, lon]) => ({ lat, lon })), 60, 15);
+    const outside = pts.some(([lat, lon]) => !inZone(lat, lon));
+    message(`${g.kind === 'track' ? 'Track' : g.kind === 'route' ? 'Route' : 'Waypoints'} loaded: ${g.points.length} points${g.points.length > pts.length ? `, thinned to ${pts.length}` : ''}.` +
+      (outside ? ' Part of it is outside the service area, so it cannot be measured.' : ''));
+    setTimeout(() => message(''), 6000);
+    changed({ analyseNow: true });
+  } catch (err) {
+    message(`Could not read ${file.name}: ${err.message}`);
+  }
+};
+$('#gpxOutBtn').onclick = () => {
+  if (S.route.length < 2) return;
+  // Heights at the route's own points, where the profile has measured them.
+  const eles = S.route.map(() => null);
+  if (S.profile && S.profileKey === routeKey()) for (const smp of S.profile.samples) if (smp.v !== undefined) eles[smp.v] = smp.ele;
+  const name = $('#rname').value.trim() || 'Fjällskred route';
+  const blob = new Blob([toGpx({ name, points: S.route, eles })], { type: 'application/gpx+xml' });
+  const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: gpxFileName(name) });
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+};
 
 /* ------------------------------------------------------------------ *
  * suggested way up
@@ -937,14 +1010,7 @@ function renderRef() {
   const use = $('#refUse');
   if (use) use.onclick = () => {
     // Thin the track to what a hand-drawn route would have.
-    const z16 = 256 * 2 ** 16;
-    let tol = 3, simp = ref.points;
-    const proj = ref.points.map(([la, lo]) => [mx(lo) * z16, my(la) * z16]);
-    do {
-      const keep = new Set(simplify(proj.map((p, i) => [...p, i]), tol).map((p) => p[2]));
-      simp = ref.points.filter((_, i) => keep.has(i));
-      tol *= 1.6;
-    } while (simp.length > 150);
+    const simp = thinTrack(ref.points, 150);
     pushUndo();
     S.route = simp.map((p) => p.slice());
     if (!$('#rname').value) $('#rname').value = ref.name;

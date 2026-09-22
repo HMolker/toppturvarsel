@@ -211,8 +211,19 @@ map shading has 16 screen pixels per cell at every zoom, so it is coarse
 zoomed out and finer zoomed in. Runout is read from the colours of NVE's
 map along the route, which is a heuristic.
 
-GPX import and export and the weather at the start and the highest point
-are v5.1; the buttons and the panel are in place. See `docs/v5.1.md`.
+**Weather on the route (v5.1).** Once a route is measured, the panel shows
+MET Norway's hourly forecast (the one behind yr.no) for the start and the
+highest point, each at its own height, every two hours for the next day and
+a half, with the range of temperature, the strongest wind and gusts, and
+snow versus rain. Strong wind (15 m/s and over) is in bold red. Answers are
+kept per point until MET's `Expires` and re-asked with `If-Modified-Since`;
+if MET cannot be reached the last answer is shown, marked as older.
+
+**GPX in and out (v5.1).** *Import GPX* reads a track, route or waypoints
+from any GPX file (Garmin Connect, Strava, Suunto, OsmAnd, Fatmap) in the
+browser — nothing is uploaded — and thins long tracks to 150 points.
+*Export GPX* downloads the route as both a track and a route, with heights
+from the measurement and no timestamps, for maps and for watches.
 
 `node demo/terrain-check.mjs <outdir>` runs the page offline against a
 made-up terrain (the advert's Hallingdal) in a headless browser and takes
@@ -518,6 +529,7 @@ curl -X POST localhost:8080/api/test-alert   # dry run, records nothing
 | `GET /api/resorts` | Ski resorts: Norway with live lift/slope status (Fnugg), Sweden location only (OSM). |
 | `GET /api/dem/{z}/{x}/{y}` | Terrain page: a 17 × 17 height grid over one map tile (z 11–15), service area only, kept a year. |
 | `POST /api/terrain/profile` | Terrain page: `{"points": [[lat, lon], …]}` (≤ 300 points, ≤ 50 km, service area only) → samples every 25 m+ with height, slope and aspect of the ground. |
+| `POST /api/terrain/weather` | Terrain page: `{"points": [[lat, lon, ele], …]}` (one or two, service area only) → MET Norway hourly forecast at each point and height. |
 | `GET /api/terrain/zone` | Terrain page: the service-area margin and today's height budget. |
 | `GET /tiles/nve/{z}/{x}/{y}.png` | NVE's slope and runout map (Norway), through the tile proxy. |
 
@@ -689,7 +701,7 @@ is written against the documented output and tested against that shape.
 
 Avalanche data is © NVE / Varsom.no and Naturvårdsverket; snow data is from
 NVE's seNorge; the slope and runout map on the terrain page is © NVE
-(CC BY 4.0). Regobs data, if you enable it, requires crediting both Regobs
+(CC BY 4.0); the route weather is © MET Norway (CC BY 4.0). Regobs data, if you enable it, requires crediting both Regobs
 and the individual observer. The footer of the page carries this — please
 leave it there.
 

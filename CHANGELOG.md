@@ -3,6 +3,25 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v5.1.0 — weather on the route, GPX in and out (2026-09-23)
+
+- **Weather on the route:** once a route is measured, MET Norway's hourly
+  forecast (the one behind yr.no) for the start and the highest point, each
+  at its own height: every two hours for the next day and a half,
+  temperature, wind and gusts with direction, precipitation as snow or rain,
+  and a summary per point. Strong wind in bold red. New endpoint
+  `POST /api/terrain/weather` (one or two points, service area only);
+  answers kept until MET's `Expires`, re-asked with `If-Modified-Since`, the
+  last answer shown (marked older) if MET is down. © MET Norway, CC BY 4.0.
+- **Import GPX:** track, route or waypoints from any GPX file, read in the
+  browser and never uploaded; long tracks thinned to 150 points; the file's
+  track name becomes the route name. Covers Garmin: export the activity from
+  Garmin Connect as GPX.
+- **Export GPX:** the route as a track and as a route, with measured heights
+  and no timestamps, named after the route.
+- The browser check (`demo/terrain-check.mjs`) now covers the weather box and
+  a GPX round trip.
+
 ## v5.0.0 — terrain & routes (2026-09-23)
 
 A new page, **/terrain** ("Terrain & routes" on the Tours card, "Terrain &

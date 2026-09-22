@@ -7,9 +7,11 @@
  * Runs the real server with its upstream answered locally: heights from the
  * advert's made-up Hallingdal mountains (demo/advert/terrain.mjs), topo tiles
  * drawn as a hillshade of the same model, NVE's slope map drawn from it in
- * NVE's classes, and a bulletin with a wind-slab problem on N–E aspects.
+ * NVE's classes, a bulletin with a wind-slab problem on N–E aspects, and a MET Norway
+ * forecast with snow showers and rising wind.
  * Then drives the page: shading, drawing a route on Høgeloft, the analysis,
- * a suggested way up and the 3D view, with screenshots of each.
+ * the weather on the route, a GPX export and import, a suggested way up and
+ * the 3D view, with screenshots of each.
  */
 
 import { mkdir, mkdtemp, writeFile, readFile } from 'node:fs/promises';
@@ -115,6 +117,22 @@ globalThis.fetch = async (url, opts = {}) => {
   m = u.match(/Bratthet_med_utlop_2024\/MapServer\/tile\/(\d+)\/(\d+)\/(\d+)/);
   if (m) return new Response(drawTile(+m[1], +m[3], +m[2], 'nve'), { status: 200, headers: { 'Content-Type': 'image/png' } });
   if (u.includes('overpass')) return J({ elements: [] });
+  if (u.includes('api.met.no')) {
+    // MET Norway's GeoJSON: a cold front with snow showers and rising wind.
+    const q = new URL(u).searchParams;
+    const alt = +q.get('altitude') || 0;
+    const t0 = Math.floor(Date.now() / 3600e3) * 3600e3;
+    const timeseries = Array.from({ length: 60 }, (_, i) => ({
+      time: new Date(t0 + i * 3600e3).toISOString().replace('.000', ''),
+      data: {
+        instant: { details: { air_temperature: +(1 - alt / 150 - i / 12).toFixed(1), wind_speed: +(3 + i / 4 + alt / 400).toFixed(1), wind_speed_of_gust: +(6 + i / 2.5 + alt / 250).toFixed(1), wind_from_direction: 240, cloud_area_fraction: 90 } },
+        next_1_hours: { summary: { symbol_code: i > 12 ? 'snowshowers_day' : 'cloudy' }, details: { precipitation_amount: i > 12 ? +(0.3 + (i % 5) / 10).toFixed(1) : 0 } },
+      },
+    }));
+    return new Response(JSON.stringify({ type: 'Feature', properties: { meta: { updated_at: new Date(t0).toISOString() }, timeseries } }), {
+      status: 200, headers: { 'Content-Type': 'application/json', Expires: new Date(Date.now() + 3600e3).toUTCString(), 'Last-Modified': new Date(t0).toUTCString() },
+    });
+  }
   return new Response('offline', { status: 503 });
 };
 
@@ -193,6 +211,39 @@ const a = await page.evaluate(() => {
   return { dist: s.analysis.distanceM, up: s.analysis.ascentM, steep: s.analysis.steepest?.slope, sections: s.analysis.steepSections.length, problems: s.analysis.problemSections.length, runout: s.analysis.runoutM, src: s.profile.source, n: s.profile.samples.length };
 });
 console.log('analysis', a);
+
+// Weather on the route (v5.1).
+await page.waitForSelector('#rweather .wtable', { timeout: 30000 });
+await page.locator('#rweather').scrollIntoViewIfNeeded();
+await shot('6b-weather', '#rweather');
+
+// GPX export and import (v5.1).
+{
+  await page.fill('#rname', 'Høgeloft NE');
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#gpxOutBtn')]);
+  const gpxFile = path.join(outDir, dl.suggestedFilename());
+  await dl.saveAs(gpxFile);
+  const xml = await readFile(gpxFile, 'utf8');
+  console.log('exported', dl.suggestedFilename(), (xml.match(/<trkpt/g) ?? []).length, 'trkpt,', (xml.match(/<ele>/g) ?? []).length, 'ele');
+  // Import it again as a long made-up watch track.
+  const trk = [];
+  for (let i = 0; i <= 800; i++) {
+    const t = i / 800;
+    trk.push(`<trkpt lat="${(H.lat - 0.03 * (1 - t)).toFixed(6)}" lon="${(H.lon + 0.03 * (1 - t) + 0.002 * Math.sin(t * 40)).toFixed(6)}"><ele>${Math.round(z(H.lat - 0.03 * (1 - t), H.lon + 0.03 * (1 - t)))}</ele></trkpt>`);
+  }
+  const watch = path.join(outDir, 'watch.gpx');
+  await writeFile(watch, `<?xml version="1.0"?><gpx version="1.1" creator="Garmin Connect"><trk><name>Morning ski tour</name><trkseg>${trk.join('')}</trkseg></trk></gpx>`);
+  const saved = await page.evaluate(() => window.fjallskredTerrain.state.route.map((p) => p.slice()));
+  await page.setInputFiles('input[type=file]', watch);
+  await page.waitForFunction(() => document.querySelector('#rname').value === 'Morning ski tour');
+  await page.waitForFunction(() => window.fjallskredTerrain.state.analysis && window.fjallskredTerrain.state.profileKey === JSON.stringify(window.fjallskredTerrain.state.route.map(([a, b]) => [+a.toFixed(5), +b.toFixed(5)])), null, { timeout: 60000 });
+  console.log('imported', await page.evaluate(() => window.fjallskredTerrain.state.route.length), 'points;', await page.textContent('#tmsg'));
+  await shot('6c-gpx-imported', '.tmapcard');
+  // Back to the drawn route for the rest.
+  await page.evaluate((r) => { const t = window.fjallskredTerrain; t.state.route = r; }, saved);
+  await page.click('#undoBtn');
+  await page.waitForFunction(() => window.fjallskredTerrain.state.analysis && document.querySelector('#rname'));
+}
 
 // Drag the second point to check editing.
 {

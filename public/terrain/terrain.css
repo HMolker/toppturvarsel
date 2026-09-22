@@ -145,3 +145,16 @@ dialog.t3d::backdrop { background: rgba(0,0,0,.45); }
   .rlist li { flex-wrap: wrap; }
   .rgrid b { font-size: 17px; }
 }
+
+/* weather on the route (v5.1) */
+.wsums { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 10px; }
+.wsum { display: flex; flex-direction: column; gap: 2px; font-size: 13px; color: var(--ink-2); border: 1px solid var(--line); border-radius: var(--r-ctl); padding: 8px 10px; }
+.wsum b { font-size: 16px; color: var(--ink); }
+.wtablewrap { max-height: 320px; overflow: auto; border: 1px solid var(--line); border-radius: var(--r-ctl); }
+.wtable { border-collapse: collapse; width: 100%; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.wtable th, .wtable td { padding: 3px 6px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.wtable thead th, .wtable tr:first-child th { position: sticky; top: 0; background: var(--paper); }
+.wtable .wday th { background: var(--page); font: 600 11px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); }
+.wtable td.hot { color: var(--red-ink); font-weight: 600; }
+.wtable .wt { font-weight: 600; }
+.wtable .note { font-size: 11px; margin-left: 2px; }

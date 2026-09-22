@@ -1180,7 +1180,7 @@ function selectResort(id) {
     `<dt>Country</dt><dd>${esc(countryName(r.country))}</dd>` +
     (nearReg ? `<dt>Avalanche region</dt><dd>${esc(nearReg.name)} — ${dangerPill(nearReg)}<br><span class="note">for off-piste and touring from the lifts</span></dd>` : '') +
     (tours[0]?.t?.snow?.depthCm != null ? `<dt>Snow nearby</dt><dd><strong>${Math.round(tours[0].t.snow.depthCm)} cm</strong> modelled at ${esc(tours[0].t.name)} (${Math.round(tours[0].d)} km)</dd>` : '') +
-    `<dt>Position</dt><dd>${r.lat.toFixed(4)}° N, ${r.lon.toFixed(4)}° E</dd>` +
+    `<dt>Position</dt><dd>${r.lat.toFixed(4)}° N, ${r.lon.toFixed(4)}° E${r.approx ? '<br><span class="note">approximate — from the built-in list, until OpenStreetMap can be reached</span>' : ''}</dd>` +
     `</dl>` +
     `<h4>Snow depth this winter</h4><div class="snowhist" id="snowHist"><p class="note">Loading the last winters…</p></div>` +
     `<h4>Fun facts</h4><div id="rsFacts"><p class="note">Counting runs and lifts in OpenStreetMap… <span id="rsWait">0 s</span><br>The first time for a resort this can take up to a minute.</p></div>` +
@@ -1512,6 +1512,17 @@ function renderSources() {
         (since ? `<br>running since ${esc(since.toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}` : '')
       : v === undefined ? 'checking…' : 'unknown (server older than v4.9)') +
     `</div></div>`;
+  // Where the resort lists come from, and whether they are current.
+  const rs = state.resorts?.sources ?? null;
+  const rsCard = rs
+    ? `<div class="src${Object.values(rs).some((x) => x.stale) ? ' bad' : ''}"><h4>Ski resorts</h4><div class="note">` +
+      Object.entries(rs)
+        .filter(([k]) => inSel(k.toUpperCase()))
+        .map(([k, x]) => `${k.toUpperCase()}: ${x.count} from ${esc(x.name)}${x.stale ? ` · not refreshed${x.error ? ` (${esc(String(x.error).slice(0, 80))})` : ''}` : ''}`)
+        .join('<br>') +
+      `</div></div>`
+    : '';
+
   const ns = v?.nightScan;
   const nightCard = ns
     ? `<div class="src${ns.enabled ? '' : ' bad'}"><h4>Ski-area maps (OpenStreetMap)</h4><div class="note">` +
@@ -1534,7 +1545,7 @@ function renderSources() {
         ([name, ok, detail]) =>
           `<div class="src${ok === false ? ' bad' : ''}"><h4>${esc(name)}</h4><div class="note">${esc(detail)}</div></div>`
       )
-      .join('') + nightCard + versionCard;
+      .join('') + rsCard + nightCard + versionCard;
 }
 
 // The running version, for the sources box: asked once per page load.

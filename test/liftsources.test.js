@@ -69,3 +69,26 @@ test('a Lantmäteriet export is read from data/lifts-SE.geojson', async () => {
   assert.equal((await fileLifts('SE')).length, 3);
   assert.deepEqual(await fileLifts('NO'), [], 'no file for Norway: nothing, and no error');
 });
+
+test('Swedish resorts: the built-in list stands in when OpenStreetMap cannot be reached, and one failure is not retried at once', async () => {
+  const { getResorts, _resetResorts } = await import('../src/resorts.js');
+  _resetResorts();
+  const realFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => { calls++; throw new Error('offline'); };
+  try {
+    const first = await getResorts();
+    const se = first.resorts.filter((r) => r.country === 'SE');
+    assert.ok(se.length > 30, `built-in Swedish list served (${se.length})`);
+    assert.ok(se.every((r) => r.approx && r.lat > 55 && r.lat < 70));
+    assert.ok(se.some((r) => r.name === 'Åre') && se.some((r) => r.name === 'Riksgränsen'));
+    assert.match(first.sources.se.name, /built-in list/);
+    assert.equal(first.sources.se.stale, true);
+    const after = calls;
+    await getResorts();
+    assert.equal(calls, after, 'a failed source is left alone for a while');
+  } finally {
+    globalThis.fetch = realFetch;
+    _resetResorts();
+  }
+});

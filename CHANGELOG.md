@@ -3,6 +3,21 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v4.18.1 — the Swedish resorts are back (2026-09-22)
+
+- The Swedish resort list comes from one big OpenStreetMap query, and
+  v4.15.4 gave it the lowest priority: after any Overpass failure it was
+  turned away for ten minutes without even trying, so on a Pi where
+  OpenStreetMap is unreliable the Swedish resorts disappeared. It is now
+  treated as something a person is waiting for, not background work.
+- A list that fails is not retried on every page load, only every 15
+  minutes, and the last good list is served however old it is.
+- If OpenStreetMap has never answered, a built-in list of 41 Swedish
+  resorts stands in (positions approximate, marked as such in the panel)
+  until it does. Sweden is never empty again.
+- "Data sources & freshness" now has a Ski resorts card: how many resorts
+  came from where, and whether the list is stale, with the error.
+
 ## v4.18.0 — lifts checked against the national maps (2026-09-22)
 
 - **Norway:** every resort map is now checked against Kartverket's

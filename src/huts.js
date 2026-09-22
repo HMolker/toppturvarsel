@@ -56,7 +56,7 @@ export function clusterPoints(tours, km = 8) {
 }
 
 async function fetchOverpass(points) {
-  return overpass(hutsQuery(points), { timeoutMs: 200000, what: 'huts' });
+  return overpass(hutsQuery(points), { timeoutMs: 200000, what: 'huts', priority: 'low' });
 }
 
 /* ------------------------------------------------------------------ *

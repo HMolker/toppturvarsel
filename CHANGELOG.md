@@ -3,6 +3,23 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v4.15.4 — ski-area maps no longer wait behind background work (2026-09-22)
+
+- The resort panel could sit on "Counting runs and lifts in
+  OpenStreetMap…" for many minutes: its request waited in line behind the
+  background jobs (deriving every tour's route, the huts layer, the Swedish
+  resort list), which are slow when OpenStreetMap's servers are busy.
+- The OpenStreetMap queue now has priorities: a ski-area map goes first, a
+  tour's route next, background work last.
+- A ski-area map gets at most 75 s, waiting included, and then says why it
+  failed, with Try again. The panel counts the seconds while it waits.
+- When every OpenStreetMap server has failed, background work pauses for
+  10 minutes (the route warm-up for 30) instead of queueing more requests.
+  A click still tries at once.
+- An expired ski-area map is shown, marked with its date, when a fresh one
+  can't be fetched. Two clicks on the same resort share one lookup.
+- New `GET /api/overpass` shows what the queue is doing.
+
 ## v4.15.3 — tour photos found again (2026-09-22)
 
 - Every request to outside services now identifies the app with a contact

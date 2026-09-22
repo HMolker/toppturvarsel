@@ -16,6 +16,7 @@ import { getOutlook } from './outlook.js';
 import { getSnowHistory } from './snowhistory.js';
 import { getResortMap } from './resortmap.js';
 import { getHuts } from './huts.js';
+import { overpassStatus } from './util/overpass.js';
 import { fetchForecast } from './sources/forecast.js';
 
 const resortFc = new Map();
@@ -274,6 +275,10 @@ async function handleApi(req, res, url) {
     }
   }
 
+  if (route === '/api/overpass') {
+    // What the OpenStreetMap queue is doing: for diagnosing a map that won't load.
+    return json(res, 200, overpassStatus());
+  }
   if (route === '/api/resortmap') {
     const list = (await getResorts().catch(() => null))?.resorts ?? [];
     const r = list.find((x) => x.id === url.searchParams.get('resort'));

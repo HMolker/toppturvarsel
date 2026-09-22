@@ -1233,7 +1233,7 @@ function selectResort(id) {
     `<dt>Position</dt><dd>${r.lat.toFixed(4)}° N, ${r.lon.toFixed(4)}° E</dd>` +
     `</dl>` +
     `<h4>Snow depth this winter</h4><div class="snowhist" id="snowHist"><p class="note">Loading the last winters…</p></div>` +
-    `<h4>Fun facts</h4><div id="rsFacts"><p class="note">Counting runs and lifts in OpenStreetMap… (the first time for a resort this can take up to a minute)</p></div>` +
+    `<h4>Fun facts</h4><div id="rsFacts"><p class="note">Counting runs and lifts in OpenStreetMap… <span id="rsWait">0 s</span><br>The first time for a resort this can take up to a minute.</p></div>` +
     `<h4>Next 5 days</h4><div id="forecast"></div>` +
     `<div class="linkrow">` +
     (r.url ? `<a class="btn primary" href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">${esc(r.name)} website ↗</a>` : '') +
@@ -1249,19 +1249,35 @@ function selectResort(id) {
     fetch(u)
       .then((res) => res.json().then((b) => (res.ok ? b : { error: b.detail ?? b.error ?? `HTTP ${res.status}` })))
       .catch((err) => ({ error: err.message }));
-  const loadMap = () =>
-    getJ(`/api/resortmap?resort=${encodeURIComponent(id)}`).then((m) => {
-      if (!still()) return;
-      if (!m.error) renderResortMap($('#routeMap'), { resort: r, data: m, country: r.country });
-      $('#rsFacts').innerHTML = m.error
-        ? `<p class="note">The runs and lifts could not be loaded from OpenStreetMap right now (${esc(m.error)}). ` +
-          `Its public servers are sometimes busy.</p><button class="btn" id="rsRetry">Try again</button>`
-        : factsHtml(m.facts);
-      $('#rsRetry')?.addEventListener('click', () => {
-        $('#rsFacts').innerHTML = '<p class="note">Trying OpenStreetMap again…</p>';
-        loadMap();
+  const loadMap = () => {
+    // A running count, so a slow OpenStreetMap looks slow rather than stuck.
+    const t0 = Date.now();
+    const tick = setInterval(() => {
+      const n = $('#rsWait');
+      if (!still() || !n) return clearInterval(tick);
+      n.textContent = `${Math.round((Date.now() - t0) / 1000)} s`;
+    }, 1000);
+    const ctl = new AbortController();
+    const stop = setTimeout(() => ctl.abort(), 100000);
+    return fetch(`/api/resortmap?resort=${encodeURIComponent(id)}`, { signal: ctl.signal })
+      .then((res) => res.json().then((b) => (res.ok ? b : { error: b.detail ?? b.error ?? `HTTP ${res.status}` })))
+      .catch((err) => ({ error: err.name === 'AbortError' ? 'no answer in 100 s' : err.message }))
+      .then((m) => {
+        clearInterval(tick);
+        clearTimeout(stop);
+        if (!still()) return;
+        if (!m.error || m.stale) renderResortMap($('#routeMap'), { resort: r, data: m, country: r.country });
+        $('#rsFacts').innerHTML = m.error && !m.stale
+          ? `<p class="note">The runs and lifts could not be loaded from OpenStreetMap right now (${esc(m.error)}). ` +
+            `Its public servers are sometimes busy.</p><button class="btn" id="rsRetry">Try again</button>`
+          : factsHtml(m.facts) +
+            (m.stale ? `<p class="note">From ${esc(String(m.fetchedAt).slice(0, 10))}: OpenStreetMap could not be reached for a fresh copy (${esc(m.error)}).</p>` : '');
+        $('#rsRetry')?.addEventListener('click', () => {
+          $('#rsFacts').innerHTML = '<p class="note">Trying OpenStreetMap again… <span id="rsWait">0 s</span></p>';
+          loadMap();
+        });
       });
-    });
+  };
   loadMap();
   // Snow at the resort's point, like a tour's; in simulation the nearest tour's depth sets the winter.
   getJ(`/api/snowhistory?resort=${encodeURIComponent(id)}`).then((h) => still() && renderSnowHistory($('#snowHist'), h, tours[0]?.t ?? { snow: null }, 'the resort'));

@@ -49,8 +49,8 @@ export function overpassQuery(lat, lon, r = SEARCH_RADIUS_M) {
 out geom;`;
 }
 
-export async function fetchOsm(lat, lon) {
-  return overpass(overpassQuery(lat, lon), { timeoutMs: 90000, what: 'routes' });
+export async function fetchOsm(lat, lon, { priority = 'normal' } = {}) {
+  return overpass(overpassQuery(lat, lon), { timeoutMs: 90000, what: 'routes', priority });
 }
 
 /* ------------------------------------------------------------------ *
@@ -302,8 +302,8 @@ export function routeFromOsm(elements, tour) {
   };
 }
 
-export async function discoverRoute(tour) {
-  const elements = await fetchOsm(tour.lat, tour.lon);
+export async function discoverRoute(tour, { priority } = {}) {
+  const elements = await fetchOsm(tour.lat, tour.lon, { priority });
   const route = routeFromOsm(elements, tour);
   log.info(
     `osm: ${tour.name}: ${route.found ? `${route.kind}, ${(route.lengthM / 1000).toFixed(1)} km from ${route.startType}` : route.reason}`

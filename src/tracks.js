@@ -3,6 +3,7 @@ import { readFile, writeFile, mkdir, rename, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { config, loadTours, loadRegions } from './config.js';
 import { discoverRoute } from './sources/osm.js';
+import { overpassCooling } from './util/overpass.js';
 import { withProfile } from './sources/elevation.js';
 import { fetchForecast } from './sources/forecast.js';
 import { parseGpx, toGpx, slugify } from './util/gpx.js';
@@ -55,7 +56,7 @@ export async function findTour(name) {
 
 const inflight = new Map();
 
-export async function getRoute(tour, { refresh = false } = {}) {
+export async function getRoute(tour, { refresh = false, priority = 'normal' } = {}) {
   const slug = slugify(tour.name);
   if (inflight.has(slug)) return inflight.get(slug);
   const job = (async () => {
@@ -100,7 +101,7 @@ export async function getRoute(tour, { refresh = false } = {}) {
     }
 
     // 3. derive
-    const route = await discoverRoute(tour);
+    const route = await discoverRoute(tour, { priority });
     route.tour = tour.name;
     route.slug = slug;
     route.fetchedAt = new Date().toISOString();
@@ -165,15 +166,21 @@ export async function getForecast(tour) {
  * Derive missing routes one at a time, a few seconds apart, so the first
  * click on a tour is instant and Overpass never sees a burst from us.
  */
-export async function warmRoutes({ delayMs = 5000 } = {}) {
+export async function warmRoutes({ delayMs = 5000, retryMs = 30 * 60e3 } = {}) {
   const tours = await loadTours();
   let done = 0;
   for (const tour of tours) {
     if (tour.kind === 'area') continue;
     const cached = await readJson(cacheDir('tracks', `${slugify(tour.name)}.json`));
     if (cached) continue;
+    if (overpassCooling()) {
+      // OpenStreetMap is failing: stop hammering it and come back later.
+      log.info(`tracks: warm-up paused (OpenStreetMap unavailable); trying again in ${Math.round(retryMs / 60000)} min`);
+      setTimeout(() => warmRoutes({ delayMs, retryMs }).catch(() => {}), retryMs).unref?.();
+      break;
+    }
     try {
-      await getRoute(tour);
+      await getRoute(tour, { priority: 'low' });
       done++;
     } catch (err) {
       log.warn(`tracks: warm-up ${tour.name} failed: ${err.message}`);

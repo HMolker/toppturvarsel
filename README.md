@@ -445,6 +445,7 @@ curl -X POST localhost:8080/api/test-alert   # dry run, records nothing
 | `GET /api/forecast?tour=` | 5-day summit forecast. |
 | `GET /api/snowhistory?tour=` | Snow depth 1 Oct – 30 Jun for this winter and the five before, from seNorge (past winters cached for good). |
 | `GET /api/huts` | Cabins, open huts, mountain lodges and remote cafés within 15 km of the tours, from OpenStreetMap (cached 30 days). |
+| `GET /api/overpass` | What the OpenStreetMap (Overpass) queue is doing: requests waiting, the one running, rested servers, last error. |
 | `GET /api/resortmap?resort=` | Runs, lifts, terrain grid and fun facts for a listed ski resort, from OpenStreetMap (cached 30 days). |
 | `GET /api/forecast?resort=` | 5-day forecast at a listed ski resort, by its id. |
 | `GET /api/version` | The running version (from package.json) and when the server started. |

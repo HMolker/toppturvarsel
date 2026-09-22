@@ -65,7 +65,7 @@ out geom tags;`;
 }
 
 async function fetchOverpass(lat, lon) {
-  return overpass(resortQuery(lat, lon), { timeoutMs: 120000, what: 'resortmap' });
+  return overpass(resortQuery(lat, lon), { timeoutMs: 60000, what: 'resortmap', priority: 'high', deadlineMs: 75000 });
 }
 
 /* ------------------------------------------------------------------ *
@@ -300,16 +300,36 @@ export function resortFacts(r, ends = null) {
 
 const cacheFile = (id) => path.resolve(config.dataDir, 'cache', 'resortmap', `${String(id).replace(/[^\w-]/g, '_')}.json`);
 
-export async function getResortMap(resort) {
+// One lookup per resort at a time: a second click joins the first.
+const inflight = new Map();
+
+export function getResortMap(resort) {
+  if (inflight.has(resort.id)) return inflight.get(resort.id);
+  const job = loadResortMap(resort).finally(() => inflight.delete(resort.id));
+  inflight.set(resort.id, job);
+  return job;
+}
+
+async function loadResortMap(resort) {
   const file = cacheFile(resort.id);
+  let stale = null;
   try {
     const cached = JSON.parse(await readFile(file, 'utf8'));
     if (cached.v === 2 && Date.now() - new Date(cached.fetchedAt).getTime() < TTL) return cached;
+    if (cached.v === 2) stale = cached;
   } catch {
     /* not cached */
   }
   const centre = { lat: resort.lat, lon: resort.lon };
-  const shaped = shapeResort(await fetchOverpass(resort.lat, resort.lon), centre);
+  let elements;
+  try {
+    elements = await fetchOverpass(resort.lat, resort.lon);
+  } catch (err) {
+    // An old map beats no map.
+    if (stale) return { ...stale, stale: true, error: err.message };
+    throw err;
+  }
+  const shaped = shapeResort(elements, centre);
   const framing = [...shaped.lifts, ...shaped.runs, ...shaped.areas, ...shaped.parks].flatMap((x) => x.points);
   const box = gridBox(framing.length ? framing : [], centre);
   const grid = gridPoints(box);

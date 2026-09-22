@@ -30,7 +30,7 @@ out tags center bb;`;
 }
 
 export async function fetchOsmResorts(iso = 'SE') {
-  const elements = await overpass(resortsQuery(iso), { timeoutMs: 200000, what: 'osm-resorts' });
+  const elements = await overpass(resortsQuery(iso), { timeoutMs: 200000, what: 'osm-resorts', priority: 'low' });
   return shapeOsmResorts({ elements }, iso);
 }
 

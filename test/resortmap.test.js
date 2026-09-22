@@ -151,3 +151,61 @@ test('Overpass: a busy instance gets one wait and retry, then the next; a refusi
     _resetOverpass();
   }
 });
+
+test('Overpass queue: a map someone is waiting for jumps the background work', async () => {
+  const { overpass, _resetOverpass } = await import('../src/util/overpass.js');
+  _resetOverpass();
+  const realFetch = globalThis.fetch;
+  const order = [];
+  globalThis.fetch = async (url, opts) => {
+    const q = decodeURIComponent(String(opts.body).slice(5));
+    order.push(q);
+    await new Promise((r) => setTimeout(r, 20));
+    return new Response(JSON.stringify({ elements: [] }), { status: 200 });
+  };
+  try {
+    const all = [
+      overpass('bg1', { priority: 'low' }),
+      overpass('bg2', { priority: 'low' }),
+      overpass('route', { priority: 'normal' }),
+      overpass('map', { priority: 'high' }),
+    ];
+    await Promise.all(all);
+    assert.deepEqual(order, ['bg1', 'map', 'route', 'bg2'], 'the first had already started; then high, normal, low');
+  } finally {
+    globalThis.fetch = realFetch;
+    _resetOverpass();
+  }
+});
+
+test('Overpass queue: a deadline ends the wait in line; background work rests after a total failure', async () => {
+  const { overpass, overpassStatus, _resetOverpass } = await import('../src/util/overpass.js');
+  _resetOverpass();
+  const realFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls++;
+    await new Promise((r) => setTimeout(r, 300));
+    return new Response(JSON.stringify({ elements: [] }), { status: 200 });
+  };
+  try {
+    const slow = overpass('slow', { priority: 'high', what: 'huts' });
+    await assert.rejects(overpass('map', { priority: 'high', deadlineMs: 100 }), /busy: waited 0 s in line \(busy with huts/);
+    await slow;
+    assert.equal(calls, 1, 'the timed-out request never went out');
+
+    globalThis.fetch = async () => { throw Object.assign(new TypeError('fetch failed'), { cause: { code: 'ECONNREFUSED' } }); };
+    await assert.rejects(overpass('q'), /unavailable/);
+    assert.ok(overpassStatus().coolingS > 0);
+    calls = 0;
+    globalThis.fetch = async () => { calls++; return new Response('{"elements":[]}', { status: 200 }); };
+    await assert.rejects(overpass('warm-up', { priority: 'low' }), /resting after failures/);
+    assert.equal(calls, 0);
+    await overpass('a click', { priority: 'normal' });
+    assert.equal(calls, 1, 'a click still tries, and success ends the rest');
+    assert.equal(overpassStatus().coolingS, 0);
+  } finally {
+    globalThis.fetch = realFetch;
+    _resetOverpass();
+  }
+});

@@ -3,6 +3,18 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v4.15.3 — tour photos found again (2026-09-22)
+
+- Every request to outside services now identifies the app with a contact
+  link (`Fjallskred/4 (...; +https://github.com/HMolker/toppturvarsel)`).
+  Wikimedia Commons refuses requests without one, which is why no tour
+  found any photos.
+- An empty or failed photo search is retried after 6 hours instead of
+  being kept for 7 days, so the old empty results clear themselves.
+- When a tour has no photos, the panel says why: Commons unreachable
+  (with the reason), Flickr unreachable, or Flickr not searched because
+  no `FLICKR_API_KEY` is set (a free key adds many more photos).
+
 ## v4.15.2 — huts in simulated mode (2026-09-22)
 
 - Simulated mode shows the huts & cafés layer even when the real list from

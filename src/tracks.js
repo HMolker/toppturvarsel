@@ -1,3 +1,4 @@
+import { UA } from './util/ua.js';
 import { readFile, writeFile, mkdir, rename, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { config, loadTours, loadRegions } from './config.js';
@@ -200,26 +201,37 @@ export async function getPhotos(tour) {
   const slug = slugify(tour.name);
   const file = cacheDir('photos', `${slug}.json`);
   const cached = await readJson(file);
-  if (cached && Date.now() - new Date(cached.fetchedAt).getTime() < PHOTO_TTL) return cached;
+  // A list with photos keeps for a week. An empty one, or one where an archive
+  // could not be reached, is looked at again after a few hours: an outage (or
+  // a refused request) must not leave every tour without photos for a week.
+  const ttl = cached?.photos?.length && !cached.errors ? PHOTO_TTL : 6 * 3600e3;
+  if (cached && Date.now() - new Date(cached.fetchedAt).getTime() < ttl) return cached;
 
   const route = await readJson(cacheDir('tracks', `${slug}.json`));
   const s = route?.summit?.source?.startsWith('osm') ? route.summit : { lat: tour.lat, lon: tour.lon };
   // Two archives, one list: Commons first (best credited), then Flickr, which
   // has far more of the smaller summits. Either failing leaves the other.
+  const errors = {};
   const [commons, flickr] = await Promise.all([
     fetchPhotos({ ...s, name: tour.name }).catch((e) => {
       log.warn(`photos: Commons failed for ${tour.name}: ${e.message}`);
+      errors.commons = e.message;
       return [];
     }),
     fetchFlickr(s).catch((e) => {
       log.warn(`photos: Flickr failed for ${tour.name}: ${e.message}`);
+      errors.flickr = e.message;
       return [];
     }),
   ]);
   const photos = [...commons, ...flickr]
     .sort((a, b) => (a.distM ?? Infinity) - (b.distM ?? Infinity))
     .slice(0, 10);
-  const value = { tour: tour.name, summit: { lat: s.lat, lon: s.lon }, photos, fetchedAt: new Date().toISOString() };
+  const value = {
+    tour: tour.name, summit: { lat: s.lat, lon: s.lon }, photos, fetchedAt: new Date().toISOString(),
+    flickr: Boolean(config.flickrApiKey),
+    ...(Object.keys(errors).length ? { errors } : {}),
+  };
   await writeJson(file, value);
   return value;
 }
@@ -247,7 +259,7 @@ export async function getPhotoThumb(tour, i) {
     /* not cached */
   }
   const res = await fetch(photo.thumbUrl, {
-    headers: { 'User-Agent': 'toppturvarsel/1.0 (self-hosted ski touring dashboard)' },
+    headers: { 'User-Agent': UA },
     signal: AbortSignal.timeout(20000),
   });
   if (!res.ok) return null;

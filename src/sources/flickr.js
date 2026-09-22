@@ -1,3 +1,4 @@
+import { UA } from '../util/ua.js';
 import { haversineKm } from '../util/utm.js';
 import { config } from '../config.js';
 
@@ -100,7 +101,7 @@ export function shapeFlickr(body, summit, { limit = 8 } = {}) {
 export async function fetchFlickr(summit, { radiusKm = 5, limit = 8, key = config.flickrApiKey } = {}) {
   if (!key) return [];
   const res = await fetch(flickrUrl(summit.lat, summit.lon, { radiusKm, key }), {
-    headers: { 'User-Agent': 'toppturvarsel/1.0 (self-hosted ski touring dashboard)' },
+    headers: { 'User-Agent': UA },
     signal: AbortSignal.timeout(20000),
   });
   if (!res.ok) throw new Error(`flickr HTTP ${res.status}`);

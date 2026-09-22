@@ -1,3 +1,4 @@
+import { UA } from '../util/ua.js';
 import { haversineKm } from '../util/utm.js';
 
 /**
@@ -37,7 +38,7 @@ export async function fetchKartverket(points) {
   for (let i = 0; i < points.length; i += KV_BATCH) {
     const batch = points.slice(i, i + KV_BATCH);
     const res = await fetch(kartverketUrl(batch), {
-      headers: { 'User-Agent': 'toppturvarsel/1.0 (self-hosted ski touring dashboard)', Accept: 'application/json' },
+      headers: { 'User-Agent': UA, Accept: 'application/json' },
       signal: AbortSignal.timeout(20000),
     });
     if (!res.ok) throw new Error(`kartverket HTTP ${res.status}`);
@@ -108,7 +109,7 @@ export async function fetchElevations(samples) {
   const lat = samples.map((p) => p.lat.toFixed(5)).join(',');
   const lon = samples.map((p) => p.lon.toFixed(5)).join(',');
   const res = await fetch(`${API}?latitude=${lat}&longitude=${lon}`, {
-    headers: { 'User-Agent': 'toppturvarsel/1.0 (self-hosted ski touring dashboard)' },
+    headers: { 'User-Agent': UA },
     signal: AbortSignal.timeout(20000),
   });
   if (!res.ok) throw new Error(`elevation HTTP ${res.status}`);

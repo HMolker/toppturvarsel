@@ -208,6 +208,8 @@ const calls = { kv: 0, kvPoints: [], om: 0, commons: 0, commonsByName: 0, flickr
 const realFetch = globalThis.fetch;
 const J = (b, status = 200) => new Response(JSON.stringify(b), { status, headers: { 'Content-Type': 'application/json' } });
 let kvDown = false;
+let commonsDown = false;
+let lastUA = null;
 
 globalThis.fetch = async (url, opts = {}) => {
   const u = String(url);
@@ -228,6 +230,8 @@ globalThis.fetch = async (url, opts = {}) => {
     return J({ elevation: lats.map(() => 7) });
   }
   if (u.includes('commons.wikimedia.org/w/api.php')) {
+    lastUA = opts.headers?.['User-Agent'] ?? null;
+    if (commonsDown) return J({ error: 'Please set a user-agent' }, 403);
     // Two ways in: by coordinates (geosearch) and by name (search).
     const gen = new URL(u).searchParams.get('generator');
     calls.commons++;
@@ -351,4 +355,23 @@ test('/api/photos hides upstream URLs; /api/photo proxies only listed thumbnails
     assert.equal(calls.commonsByName, 1);
     assert.equal(calls.flickr, 0, 'Flickr is not asked without a key');
   });
+});
+
+test('photos: a Commons outage is reported and not cached for a week; the user agent names the app and a contact', async () => {
+  const { getPhotos } = await import('../src/tracks.js');
+  commonsDown = true;
+  const tour = { name: 'Outage test peak', lat: 69.66, lon: 20.05, region: 'lyngen' };
+  const a = await getPhotos(tour);
+  commonsDown = false;
+  assert.match(a.errors.commons, /403/);
+  assert.match(lastUA, /^Fjallskred\/\d+ \(.*\+https:\/\/github\.com\//, 'Wikimedia wants a name and a contact');
+  // The failed result is cached only for hours: fake that they have passed.
+  const { writeFile, readFile } = await import('node:fs/promises');
+  const f = path.join(tmp, 'cache', 'photos', 'outage-test-peak.json');
+  const c = JSON.parse(await readFile(f, 'utf8'));
+  c.fetchedAt = new Date(Date.now() - 7 * 3600e3).toISOString();
+  await writeFile(f, JSON.stringify(c));
+  const b = await getPhotos(tour);
+  assert.equal(b.errors, undefined);
+  assert.ok(b.photos.length > 0, 'fetched again once Commons is back');
 });

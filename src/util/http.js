@@ -1,7 +1,6 @@
+import { UA } from './ua.js';
 import { log } from './log.js';
 
-const UA =
-  'toppturvarsel/1.0 (self-hosted ski touring conditions dashboard; contact: see deployment)';
 
 /**
  * fetch with a timeout, bounded retries and a polite user agent.

@@ -1,3 +1,4 @@
+import { UA } from '../util/ua.js';
 import { haversineKm } from '../util/utm.js';
 
 /**
@@ -67,7 +68,7 @@ export function commonsSearchUrl(name, limit = 12) {
 
 const get = async (url) => {
   const res = await fetch(url, {
-    headers: { 'User-Agent': 'toppturvarsel/1.0 (self-hosted ski touring dashboard)' },
+    headers: { 'User-Agent': UA },
     signal: AbortSignal.timeout(20000),
   });
   if (!res.ok) throw new Error(`commons HTTP ${res.status}`);

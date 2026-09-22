@@ -1,3 +1,4 @@
+import { UA } from './util/ua.js';
 import { readFile, writeFile, mkdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { config } from './config.js';
@@ -87,7 +88,7 @@ export async function serveTile(res, src, z, x, y) {
 
   try {
     const upstream = await fetch(SOURCES[src](z, x, y), {
-      headers: { 'User-Agent': 'toppturvarsel/1.0 (self-hosted ski touring dashboard; tiles cached 30 days)' },
+      headers: { 'User-Agent': UA },
       signal: AbortSignal.timeout(15000),
     });
     if (!upstream.ok) return send(502, `upstream ${upstream.status}`);

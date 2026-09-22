@@ -1,3 +1,4 @@
+import { UA } from './ua.js';
 import { log } from './log.js';
 
 /**
@@ -53,7 +54,7 @@ async function once(url, query, timeoutMs) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
-      'User-Agent': 'toppturvarsel/1.0 (self-hosted ski touring dashboard; github.com/HMolker/toppturvarsel)',
+      'User-Agent': UA,
       Accept: 'application/json',
     },
     body: `data=${encodeURIComponent(query)}`,

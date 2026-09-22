@@ -1,3 +1,4 @@
+import { UA } from '../util/ua.js';
 /**
  * Norwegian ski resorts with live lift and slope status, from Fnugg.
  *
@@ -23,7 +24,7 @@ export const fnuggUrl = () => `${API}?size=400`;
 
 export async function fetchFnugg() {
   const res = await fetch(fnuggUrl(), {
-    headers: { 'User-Agent': 'fjallskred/1.0 (self-hosted ski touring dashboard; hourly)', Accept: 'application/json' },
+    headers: { 'User-Agent': UA, Accept: 'application/json' },
     signal: AbortSignal.timeout(30000),
   });
   if (!res.ok) throw new Error(`fnugg HTTP ${res.status}`);

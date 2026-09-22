@@ -689,12 +689,19 @@ export function renderPhotos(el, data, tour, mapEl, offset = 0) {
     // Nothing openly licensed for this summit: draw it instead, from the
     // terrain model, looking down the side you would ski.
     const drawn = data.terrain ? reliefSvg(data.terrain, tour) : null;
-    el.innerHTML = drawn
+    // Say why there is no photo, when it's not just that none exist.
+    const why = [
+      data.errors?.commons ? `Wikimedia Commons could not be reached (${esc(data.errors.commons)}).` : null,
+      data.errors?.flickr ? `Flickr could not be reached (${esc(data.errors.flickr)}).` : null,
+      data.flickr === false ? 'Flickr is not searched: add a free FLICKR_API_KEY to .env to include it.' : null,
+    ].filter(Boolean);
+    const whyHtml = why.length ? `<p class="note">${why.join(' ')}</p>` : '';
+    el.innerHTML = whyHtml + (drawn
       ? drawn +
         `<p class="note"><a href="https://commons.wikimedia.org/wiki/Special:Nearby#/coord/${tour.lat},${tour.lon}" target="_blank" rel="noopener">Browse Commons near this summit</a>` +
         ` — and your own photos can go in with the tour editor.</p>`
       : `<p class="note">${data.error ? 'Photos could not be loaded right now.' : 'No openly licensed photo of this summit yet, and no terrain grid to draw one from.'}` +
-        ` <a href="https://commons.wikimedia.org/wiki/Special:Nearby#/coord/${tour.lat},${tour.lon}" target="_blank" rel="noopener">Browse Commons nearby</a>.</p>`;
+        ` <a href="https://commons.wikimedia.org/wiki/Special:Nearby#/coord/${tour.lat},${tour.lon}" target="_blank" rel="noopener">Browse Commons nearby</a>.</p>`);
     return;
   }
   const q = encodeURIComponent(tour.name);

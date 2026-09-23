@@ -102,9 +102,9 @@
       </label>
     </div>
     <div style="position:relative">
-      <svg class="map" id="map" viewBox="0 0 560 760" role="img"
-           aria-label="Map of Norway and Sweden showing avalanche forecast regions and ski touring objectives"></svg>
-      <div class="maphint">Schematic — not for navigation</div>
+      <div class="map mainmap" id="map" role="img"
+           aria-label="Map of Norway and Sweden showing avalanche forecast regions and ski touring objectives"></div>
+      <div class="maphint">Not for navigation · Ctrl + scroll or pinch to zoom</div>
       <div class="zoomctl" role="group" aria-label="Map zoom">
         <button class="zoombtn" data-zoom="in" aria-label="Zoom in">+</button>
         <button class="zoombtn" data-zoom="out" aria-label="Zoom out">−</button>
@@ -112,6 +112,7 @@
       </div>
     </div>
     <div class="legend" id="legend"></div>
+    <p class="attrib mapattrib">Map © OpenTopoMap (CC-BY-SA), © OpenStreetMap contributors; Norway close up © Kartverket</p>
   </section>
 
   <section class="card">

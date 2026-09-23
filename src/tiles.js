@@ -45,6 +45,21 @@ export function tileBounds(z, x, y) {
   return { north: lat, south: lat2, west: lon, east: lon2 };
 }
 
+/**
+ * The overview map on the conditions page (v5.5): coarse zooms 4-8 over the
+ * Nordic mainland only, from OpenTopoMap (which covers both countries). A
+ * fixed, small set of tiles (~700), so still not an open proxy.
+ */
+export const OVERVIEW = { minZ: 4, maxZ: 8, south: 54.5, north: 71.6, west: 3.5, east: 32.5 };
+export function overviewAllowed(src, z, x, y) {
+  if (src !== 'se' || !Number.isInteger(z) || !Number.isInteger(x) || !Number.isInteger(y)) return false;
+  if (z < OVERVIEW.minZ || z > OVERVIEW.maxZ) return false;
+  const n = 2 ** z;
+  if (x < 0 || y < 0 || x >= n || y >= n) return false;
+  const b = tileBounds(z, x, y);
+  return b.south <= OVERVIEW.north && b.north >= OVERVIEW.south && b.west <= OVERVIEW.east && b.east >= OVERVIEW.west;
+}
+
 export function tileAllowed(z, x, y, boxes) {
   if (!Number.isInteger(z) || !Number.isInteger(x) || !Number.isInteger(y)) return false;
   if (z < MIN_Z || z > MAX_Z) return false;
@@ -94,7 +109,7 @@ export async function serveTile(res, src, z, x, y) {
     res.end(body);
   };
   if (!SOURCES[src]) return send(404, 'unknown tile source');
-  if (!tileAllowed(z, x, y, await boxes())) return send(403, 'tile outside tour areas');
+  if (!overviewAllowed(src, z, x, y) && !tileAllowed(z, x, y, await boxes())) return send(403, 'tile outside tour areas');
 
   const file = path.resolve(config.dataDir, 'cache', 'tiles', src, String(z), String(x), `${y}.png`);
   try {

@@ -4,7 +4,7 @@ import { routeFromOsm, snapSummit, nameCandidates, overpassQuery } from '../src/
 import { resample, profileStats } from '../src/sources/elevation.js';
 import { shapeForecast, shapeHourly, describeCode, compass, forecastUrl } from '../src/sources/forecast.js';
 import { parseGpx, toGpx, slugify } from '../src/util/gpx.js';
-import { tileAllowed, tileBounds } from '../src/tiles.js';
+import { tileAllowed, tileBounds, overviewAllowed } from '../src/tiles.js';
 
 /* A small synthetic Overpass response, shaped like `out geom` JSON:
  *
@@ -218,4 +218,19 @@ test('forecast with past days: daily rows start today, hourly keeps the past', (
   assert.equal(f.hourly.time[0], '2027-02-06T00:00');
   assert.deepEqual([f.hourly.wind[0], f.hourly.gust[0], f.hourly.snow[0], f.hourly.fl[0]], [6.4, 12, 0.4, 730]);
   assert.equal(shapeHourly({ time: ['2027-02-08T00:00'], freezing_level_height: [800] }), null, 'freezing level alone is not an hourly forecast');
+});
+
+test('overview tiles: zooms 4-8 over the Nordic mainland only, one source', () => {
+  const tile = (lat, lon, z) => {
+    const n = 2 ** z, r = (lat * Math.PI) / 180;
+    return [Math.floor(((lon + 180) / 360) * n), Math.floor(((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * n)];
+  };
+  for (const z of [4, 6, 8]) {
+    assert.equal(overviewAllowed('se', z, ...tile(63, 12, z)), true, `Jämtland z${z}`);
+    assert.equal(overviewAllowed('se', z, ...tile(69.6, 20, z)), true, `Lyngen z${z}`);
+  }
+  assert.equal(overviewAllowed('se', 9, ...tile(63, 12, 9)), false, 'finer zooms need a tour nearby');
+  assert.equal(overviewAllowed('se', 6, ...tile(48.85, 2.35, 6)), false, 'Paris: outside');
+  assert.equal(overviewAllowed('no', 6, ...tile(63, 12, 6)), false, 'only the source that covers both countries');
+  assert.equal(overviewAllowed('se', 3, 4, 2), false);
 });

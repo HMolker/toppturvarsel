@@ -13,7 +13,9 @@ import { DemStore, tileCells, tileRange, tileCount, mosaic, slopeAspect, mx, my,
 import { analyse, slopeRgb, ASPECT_COLOURS, SLOPE_CLASSES, SLOPE_COLOURS, OCT8, octant, fmtKm, fmtHours } from './analysis.js';
 import { renderProfile } from './profile.js';
 import { simplify, snapNode } from './suggest.js';
-import { hazardFactors, legPath, tourLegs, assembleTour, tourNumbers, partWarnings } from './tour.js';
+import { hazardFactors, legPath, tourLegs, assembleTour, tourNumbers, partWarnings, munterHours } from './tour.js';
+import { planDay, descentAspects, hhmm, TRANSITION_H, rankOrders } from './timing.js';
+import { bulletinFor } from '../planner.js';
 import { classifyPoints } from './nve.js';
 import { Terrain3D } from './view3d.js';
 import { readHash, writeHash, savedRoutes, saveRoute, deleteRoute, FEATURES } from './routeio.js';
@@ -38,7 +40,8 @@ const S = {
   budget: null,
   fine: [],
   // The tour builder (v5.4): a start, descents drawn by hand, legs found.
-  tour: { start: null, descents: [], cur: -1 },
+  // names: each descent keeps its own name ("Descent 2") through reordering.
+  tour: { start: null, descents: [], names: [], cur: -1, next: 1 },
   mode: null, // 'start' | 'descent' while placing them
   built: null, // { key, parts, danger, region, cellM, usedNve }
   detail3d: (() => { try { return localStorage.getItem('fjallskred.detail3d') || 'normal'; } catch { return 'normal'; } })(),
@@ -208,7 +211,7 @@ map.addSvgPainter((m) => {
     d.forEach((p, i) => {
       const [x, y] = m.project(p[0], p[1]);
       if (i === 0 || i === d.length - 1 || cur) out.push(`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${i === 0 ? 5.5 : 4}" class="dpt"/>`);
-      if (i === 0) out.push(`<text x="${(x + 8).toFixed(1)}" y="${(y - 6).toFixed(1)}" class="dlabel">D${k + 1}</text>`);
+      if (i === 0) out.push(`<text x="${(x + 8).toFixed(1)}" y="${(y - 6).toFixed(1)}" class="dlabel">${esc((S.tour.names[k] ?? `Descent ${k + 1}`).replace('Descent ', 'D'))}</text>`);
     });
   });
   if (S.tour.start) {
@@ -585,6 +588,7 @@ function renderPanel({ loading = false } = {}) {
   sec.push(`<p class="attrib">Heights: ${sourceName([S.profile.source], true)}, a point every ${S.profile.spacingM} m, slope from a ${S.profile.crossM * 2} m cross. Time by the Munter method: 1 km or 100 m of height is one unit; 4 units an hour skinning, 10 skiing down.</p>`);
   det.innerHTML = sec.join('');
   loadWeather(a.weatherPoints);
+  if (S.built && S.built.key === routeKey()) renderTourDay();
   det.querySelectorAll('[data-zoomsec]').forEach((b) => {
     b.onclick = () => {
       const s = a.steepSections[+b.dataset.zoomsec];
@@ -743,11 +747,12 @@ $('#descBtn').onclick = () => {
   const t = S.tour;
   if (S.mode === 'descent') {
     // Finish the one being drawn (a single point is not a descent).
-    if (t.descents[t.cur].length < 2) t.descents.splice(t.cur, 1);
+    if (t.descents[t.cur].length < 2) { t.descents.splice(t.cur, 1); t.names.splice(t.cur, 1); }
     setMode(null);
     return;
   }
   t.descents.push([]);
+  t.names.push(`Descent ${t.next++}`);
   t.cur = t.descents.length - 1;
   setMode('descent');
 };
@@ -757,16 +762,17 @@ $('#tourUndoBtn').onclick = () => {
   const i = S.mode === 'descent' ? t.cur : t.descents.length - 1;
   if (i >= 0 && t.descents[i]?.length) {
     t.descents[i].pop();
-    if (!t.descents[i].length && S.mode !== 'descent') t.descents.splice(i, 1);
+    if (!t.descents[i].length && S.mode !== 'descent') { t.descents.splice(i, 1); t.names.splice(i, 1); }
   } else if (i >= 0 && t.descents[i] && S.mode !== 'descent') {
     t.descents.splice(i, 1);
+    t.names.splice(i, 1);
   } else if (t.start) {
     t.start = null;
   }
   tourChanged();
 };
 $('#tourClearBtn').onclick = () => {
-  S.tour = { start: null, descents: [], cur: -1 };
+  S.tour = { start: null, descents: [], names: [], cur: -1, next: 1 };
   S.built = null;
   setMode(null);
   renderPanel();
@@ -779,11 +785,12 @@ $('#buildBtn').onclick = () => buildTour().catch((err) => { message(`Could not b
 
 async function buildTour() {
   const t = S.tour;
-  const start = t.start, descents = t.descents.filter((d) => d.length >= 2);
+  const keep = t.descents.map((d, k) => k).filter((k) => t.descents[k].length >= 2);
+  const start = t.start, descents = keep.map((k) => t.descents[k]), names = keep.map((k) => t.names[k] ?? `Descent ${k + 1}`);
   if (!start || !descents.length) return;
   const all = [start, ...descents.flat()];
   if (!all.every(([la, lo]) => inZone(la, lo))) { message('The start and every descent must be inside the service area (12 km around a tour or ski resort).'); return; }
-  const legs = tourLegs(start, descents);
+  const legs = tourLegs(start, descents, names);
   const box = paddedBox(all, 0.25, 1.2);
   const c = { lat: (box.north + box.south) / 2, lon: (box.east + box.west) / 2 };
   const country = nearest(c.lat, c.lon)?.item.country;
@@ -849,14 +856,14 @@ async function buildTour() {
       pts[pts.length - 1] = leg.to.slice();
       leg.points = pts;
     }
-    tour = assembleTour(start, descents, legs);
+    tour = assembleTour(start, descents, legs, names);
     tol *= 1.5;
   } while (tour.points.length > 300 && tol < 50);
 
   pushUndo();
   S.route = tour.points;
   S.sel = -1;
-  S.built = { parts: tour.parts, key: null, danger, region, cellM: G.cellM, usedNve };
+  S.built = { parts: tour.parts, key: null, danger, region, cellM: G.cellM, usedNve, routing: { G, factors }, descents: descents.map((d) => d.map((p) => p.slice())), names };
   S.built.key = routeKey();
   if (!$('#rname').value) $('#rname').value = `Tour from ${nearest(start[0], start[1], S.tours)?.item.name ?? 'here'}`;
   message('');
@@ -864,6 +871,132 @@ async function buildTour() {
   map.fit(all.map(([lat, lon]) => ({ lat, lon })), 60, 15);
   changed({ analyseNow: true });
   refreshBudget();
+}
+
+/* ---------------- when to go (v5.5) ---------------- */
+
+let outlookP = null;
+const getOutlook = () => (outlookP ??= fetch('/api/outlook').then((r) => (r.ok ? r.json() : null)).catch(() => null));
+
+async function renderTourDay() {
+  const el = $('#tourDay');
+  if (!el || !S.built) return;
+  el.innerHTML = '<h4>When to go</h4><p class="note">Loading the forecast…</p>';
+  const outlook = await getOutlook();
+  const b = S.built;
+  if (!$('#tourDay') || S.built !== b) return;
+  const start = S.route[0];
+  const ref = regionAt(start[0], start[1]); // the nearest listed tour: its summit forecast is the one we have
+  const fc = outlook?.forecasts?.[ref?.tour];
+  if (!fc?.hourly) { el.innerHTML = `<h4>When to go</h4><p class="note">No hourly forecast near here right now${outlook ? '' : ' (the outlook could not be loaded)'}.</p>`; return; }
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Oslo' });
+  const days = [...new Set(fc.hourly.time.map((t) => t.slice(0, 10)))].filter((d) => d >= today).slice(0, 5);
+  if (!days.includes(S.tourDay)) S.tourDay = days[0];
+  const iso = S.tourDay;
+  const nums = tourNumbers(S.profile, b.parts);
+  const smp = S.profile.samples;
+  const idx = new Map(smp.map((x, i) => (x.v !== undefined ? [x.v, i] : null)).filter(Boolean));
+  const parts = nums.rows.map((r) => ({
+    kind: r.kind, label: r.label, hours: r.hours,
+    aspects: r.kind === 'descent' ? descentAspects(smp.slice(idx.get(r.v0), idx.get(r.v1) + 1), octant) : [],
+  }));
+  const eles = smp.map((x) => x.ele).filter(Number.isFinite);
+  const place = { lat: start[0], lon: start[1], vertical_m: eles.length ? Math.max(...eles) - Math.min(...eles) : 600 };
+  const bl = bulletinFor(outlook?.bulletins?.[ref.id] ?? [], iso);
+  const plan = planDay({ parts, place, hourly: fc.hourly, iso, problems: bl?.problems ?? [] });
+  const dayName = (d) => new Date(`${d}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+  const picker = `<label class="note">Day <select id="tourDaySel">${days.map((d) => `<option value="${d}"${d === iso ? ' selected' : ''}>${dayName(d)}</option>`).join('')}</select></label>`;
+  if (!plan) { el.innerHTML = `<h4>When to go</h4>${picker}<p class="note">No hourly forecast for this day.</p>`; }
+  else if (!plan.light) { el.innerHTML = `<h4>When to go</h4>${picker}<p class="warnline">No daylight on this day.</p>`; }
+  else {
+    const fitText = { fits: 'fits in the light', tight: 'tight on light', no: 'does not fit in the light' }[plan.fit];
+    el.innerHTML = `<h4>When to go</h4>${picker}` +
+      `<p class="daysum"><b>Leave ${hhmm(plan.depart)}</b> · back about ${hhmm(plan.finish)} · light ${hhmm(plan.light.start)}–${hhmm(plan.light.end)} · <span class="${plan.fit === 'fits' ? 'okline' : 'warnline'}">${fitText}</span></p>` +
+      dayStrip(plan) +
+      `<table class="tourtbl"><tbody>` +
+      plan.parts.map((p) => `<tr class="${p.kind === 'descent' ? 'desc' : ''}"><td>${esc(p.label)}${p.kind === 'descent' && p.aspects.length ? ` <span class="note">faces ${p.aspects.join(', ')}</span>` : ''}` +
+        `${p.onWet > 0.05 ? `<span class="warn">wet snow from ${hhmm(p.wetFrom)}</span>` : p.wetFrom != null ? `<span class="note wetnote">wet snow from ${hhmm(p.wetFrom)}, off it before</span>` : ''}</td><td>${hhmm(p.from)}–${hhmm(p.to)}</td></tr>`).join('') +
+      `</tbody></table>` +
+      plan.warnings.map((w) => `<p class="warnline">${esc(w)}</p>`).join('') +
+      (plan.parts.some((p) => p.onWet > 0.05) && parts.filter((p) => p.kind === 'descent').length >= 2
+        ? `<div class="linkrow"><button class="btn primary" id="reorderBtn" title="Try every order of the descents, with new legs between them, and time each on this day">Try another order of the descents</button></div><div id="reorderOut"></div>`
+        : '') +
+      `<p class="note">Times by Munter, with ${Math.round(TRANSITION_H * 60)} min at the top and bottom of each descent for skins. The departure keeps the tour in the light and every descent before its wet snow, then picks the best weather, earliest among near-equals. Weather from the summit forecast of ${esc(ref.tour)} (${ref.km.toFixed(0)} km away); wet snow from the planner's rule (warming, and spring sun on the descent's aspect)${bl ? `; ${bl.assumed ? `bulletin of ${bl.from}, the latest for this day` : 'that day’s bulletin'}` : ''}.</p>`;
+  }
+  $('#tourDaySel')?.addEventListener('change', (e) => { S.tourDay = e.target.value; renderTourDay(); });
+  $('#reorderBtn')?.addEventListener('click', () => tryOrders({ parts, place, hourly: fc.hourly, iso, problems: bl?.problems ?? [] }));
+}
+
+/**
+ * Wet snow on the planned day: try every order of the descents (each still
+ * skied as drawn), with new legs between them found on the same terrain
+ * grid, time each on the day, and offer the best.
+ */
+async function tryOrders(day) {
+  const out = $('#reorderOut');
+  const b = S.built;
+  if (!out || !b?.routing) return;
+  out.innerHTML = '<p class="note">Trying the orders…</p>';
+  await new Promise((r) => setTimeout(r, 20));
+  const { G, factors } = b.routing;
+  const memo = new Map();
+  const legHours = (from, to) => {
+    const k = `${from}|${to}`;
+    if (!memo.has(k)) {
+      const a = nodeOf(G, from), c = nodeOf(G, to);
+      const res = a && c ? legPath(G, factors, a, c) : null;
+      let h = null;
+      if (res) {
+        h = 0;
+        for (let i = 1; i < res.path.length; i++) {
+          const [i0, j0] = res.path[i - 1], [i1, j1] = res.path[i];
+          h += munterHours(Math.hypot(i1 - i0, j1 - j0) * G.cellM, G.ele[j1 * G.nx + i1] - G.ele[j0 * G.nx + i0]);
+        }
+      }
+      memo.set(k, h);
+    }
+    return memo.get(k);
+  };
+  const dparts = day.parts.filter((p) => p.kind === 'descent');
+  const descents = b.descents.map((d, k) => ({ label: b.names[k] ?? dparts[k]?.label ?? `Descent ${k + 1}`, hours: dparts[k]?.hours ?? 0.5, aspects: dparts[k]?.aspects ?? [], top: d[0], bottom: d[d.length - 1] }));
+  const ranked = rankOrders({ start: S.route[0], descents, legHours, day });
+  const cur = ranked.find((r) => r.current);
+  const best = ranked[0];
+  const names = (order) => order.map((k) => descents[k].label).join(' → ');
+  const wetText = (h) => (h > 0.05 ? `${Math.round(h * 60)} min on wet snow` : 'no time on wet snow');
+  if (!best || !cur) { out.innerHTML = '<p class="warnline">No other order could be connected on this terrain.</p>'; return; }
+  // Only worth a change when it saves a real stretch on wet snow (15 min+), or all of it.
+  if (best.current || !(best.wetH < cur.wetH - 0.25 || (best.wetH < 0.05 && cur.wetH >= 0.05))) {
+    const thaw = cur.plan.parts.some((p) => p.onWet > 0.05 && p.wetReason === 'thaw');
+    const why = thaw
+      ? `The wet snow here comes from warm air from about ${hhmm(Math.min(...cur.plan.parts.filter((p) => p.wetReason === 'thaw').map((p) => p.wetFrom)))}, which softens every aspect, so the order cannot help: a shorter tour, an earlier start in more light, or a colder day is the way out.`
+      : 'Leaving earlier is limited by the light; skipping the sunniest descent, or a cloudier or colder day, is the way out.';
+    out.innerHTML = `<p class="note">Tried ${ranked.length} orders: none saves more than a few minutes on wet snow (this one: ${wetText(cur.wetH)}${best.current ? '' : `; best other: ${wetText(best.wetH)}`}). ${why}</p>`;
+    return;
+  }
+  const bp = best.plan;
+  out.innerHTML = `<div class="sugbox"><div class="eyebrow">Better order, tried ${ranked.length}</div>` +
+    `<p><b>${esc(names(best.order))}</b>: ${wetText(best.wetH)} (now ${wetText(cur.wetH)}). Leave ${hhmm(bp.depart)}, back about ${hhmm(bp.finish)}.</p>` +
+    `<table class="tourtbl"><tbody>${bp.parts.map((p) => `<tr class="${p.kind === 'descent' ? 'desc' : ''}"><td>${esc(p.label)}${p.onWet > 0.05 ? `<span class="warn">wet snow from ${hhmm(p.wetFrom)}</span>` : p.wetFrom != null ? `<span class="note wetnote">wet snow from ${hhmm(p.wetFrom)}, off it before</span>` : ''}</td><td>${hhmm(p.from)}–${hhmm(p.to)}</td></tr>`).join('')}</tbody></table>` +
+    `<p class="note">Leg times here are estimated on the ${Math.round(G.cellM)} m routing grid; using the order rebuilds the tour and measures it properly.</p>` +
+    `<div class="linkrow"><button class="btn primary" id="useOrderBtn">Use this order</button></div></div>`;
+  $('#useOrderBtn').onclick = () => {
+    S.tour.descents = best.order.map((k) => b.descents[k].map((p) => p.slice()));
+    S.tour.names = best.order.map((k) => b.names[k]);
+    S.tour.cur = -1;
+    buildTour().catch((err) => message(`Could not rebuild the tour: ${err.message}`));
+  };
+}
+
+/** A 24-hour strip: light, each part, and where wet snow starts on the descents. */
+function dayStrip(plan) {
+  const W = 600, H = 34, X = (h) => (Math.max(0, Math.min(24, h)) / 24) * W;
+  const parts = plan.parts.map((p) => `<rect x="${X(p.from).toFixed(1)}" y="10" width="${Math.max(1.5, X(p.to) - X(p.from)).toFixed(1)}" height="12" class="${p.kind === 'descent' ? 'sdesc' : 'sleg'}"><title>${esc(p.label)} ${hhmm(p.from)}–${hhmm(p.to)}</title></rect>`).join('');
+  const wet = plan.parts.filter((p) => p.wetFrom != null).map((p) => `<line x1="${X(p.wetFrom).toFixed(1)}" x2="${X(p.wetFrom).toFixed(1)}" y1="6" y2="26" class="swet"><title>${esc(p.label)}: wet snow from ${hhmm(p.wetFrom)}</title></line>`).join('');
+  const ticks = [0, 6, 12, 18, 24].map((h) => `<text x="${X(h).toFixed(1)}" y="${H - 1}" text-anchor="${h === 0 ? 'start' : h === 24 ? 'end' : 'middle'}" class="plabel">${String(h).padStart(2, '0')}</text>`).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" class="daystrip" role="img" aria-label="The tour on the day: light, legs, descents and wet snow">` +
+    `<rect x="0" y="8" width="${W}" height="16" class="snight"/><rect x="${X(plan.light.start).toFixed(1)}" y="8" width="${(X(plan.light.end) - X(plan.light.start)).toFixed(1)}" height="16" class="slight"/>` +
+    parts + wet + ticks + `</svg>`;
 }
 
 /** The tour section of the route panel: legs, descents, totals, warnings. */
@@ -888,6 +1021,7 @@ function tourSection() {
     nums.rows.map((r, i) => row(r, warn[i])).join('') +
     `<tr class="tot"><td>Total</td><td>${fmtKm(T.distanceM)}</td><td>${T.climbM}</td><td>${nums.rows.reduce((a, r) => a + r.descentM, 0)}</td><td>${fmtHours(T.hours)}</td></tr></tbody></table>` +
     `<p class="note">${dangerText} Legs found on a ${Math.round(b.cellM)} m grid. Munter: 1 km or 100 m of height is one unit, 4 units an hour skinning, 10 skiing down. Descents are as you drew them; red notes show where they (or a leg that had no way round) cross today’s problems or runout zones.</p>` +
+    `<div id="tourDay" class="tourday"></div>` +
     `<p class="note"><strong>Not a safe route:</strong> the legs avoid known avalanche terrain in the terrain model, not cornices, glaciers, small cliffs, forest, water or the snowpack. Read the bulletin and look at the slope you are on.</p></div>`;
 }
 

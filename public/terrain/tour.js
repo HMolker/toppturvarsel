@@ -150,12 +150,12 @@ export function legPath(grid, factors, start, goal, { maxExpand = 2e6 } = {}) {
  * the descent the leg leads to, or -1 for the way back to the start. A leg
  * shorter than ~30 m (a descent ending where the next begins) is left out.
  */
-export function tourLegs(start, descents) {
+export function tourLegs(start, descents, names = descents.map((_, k) => `Descent ${k + 1}`)) {
   const legs = [];
   const near = (a, b) => Math.hypot((a[0] - b[0]) * 111320, (a[1] - b[1]) * 111320 * Math.cos((a[0] * Math.PI) / 180)) < 30;
   let at = start;
   descents.forEach((d, k) => {
-    if (!near(at, d[0])) legs.push({ from: at, to: d[0], label: k === 0 ? 'Up to descent 1' : `To descent ${k + 1}`, before: k });
+    if (!near(at, d[0])) legs.push({ from: at, to: d[0], label: k === 0 ? `Up to ${names[k].toLowerCase()}` : `To ${names[k].toLowerCase()}`, before: k });
     at = d[d.length - 1];
   });
   if (!near(at, start)) legs.push({ from: at, to: start, label: 'Back to the start', before: -1 });
@@ -167,7 +167,7 @@ export function tourLegs(start, descents) {
  * [{ kind: 'leg' | 'descent', label, v0, v1 }]. `legs` are tourLegs() with
  * `points` ([[lat, lon], ...], from its `from` to its `to`) filled in.
  */
-export function assembleTour(start, descents, legs) {
+export function assembleTour(start, descents, legs, names = descents.map((_, k) => `Descent ${k + 1}`)) {
   const pts = [start.slice()];
   const parts = [];
   const add = (list, kind, label) => {
@@ -178,7 +178,7 @@ export function assembleTour(start, descents, legs) {
   descents.forEach((d, k) => {
     const leg = legs.find((l) => l.before === k);
     if (leg?.points?.length >= 2) add(leg.points, 'leg', leg.label);
-    add(d, 'descent', `Descent ${k + 1}`);
+    add(d, 'descent', names[k]);
   });
   const back = legs.find((l) => l.before === -1);
   if (back?.points?.length >= 2) add(back.points, 'leg', back.label);

@@ -117,6 +117,26 @@ globalThis.fetch = async (url, opts = {}) => {
   m = u.match(/Bratthet_med_utlop_2024\/MapServer\/tile\/(\d+)\/(\d+)\/(\d+)/);
   if (m) return new Response(drawTile(+m[1], +m[3], +m[2], 'nve'), { status: 200, headers: { 'Content-Type': 'image/png' } });
   if (u.includes('overpass')) return J({ elements: [] });
+  m = u.match(/tile\.opentopomap\.org\/(\d+)\/(\d+)\/(\d+)\.png/);
+  if (m) return new Response(drawTile(+m[1], +m[2], +m[3], 'topo'), { status: 200, headers: { 'Content-Type': 'image/png' } });
+  if (u.includes('/v1/forecast')) {
+    // Open-Meteo, Norwegian local time: clear and calm mornings, spring-mild
+    // afternoons, a front on day 3.
+    const q = new URL(u).searchParams;
+    const days = [];
+    const d0 = new Date(Date.now() - 2 * 86400e3);
+    for (let k = 0; k < 7; k++) days.push(new Date(d0.getTime() + k * 86400e3).toISOString().slice(0, 10));
+    const time = [], t = [], w = [], g = [], dir = [], cl = [], sn = [], pr = [], fl = [];
+    days.forEach((d, k) => { for (let h = 0; h < 24; h++) {
+      time.push(`${d}T${String(h).padStart(2, '0')}:00`);
+      const front = k === 4;
+      t.push(-6 + 5 * Math.sin(((h - 8) / 24) * 2 * Math.PI)); w.push(front ? 16 : 3 + h / 6); g.push(front ? 24 : 6 + h / 4);
+      dir.push(240); cl.push(front ? 100 : 15); sn.push(front ? 1.2 : 0); pr.push(front ? 1.2 : 0); fl.push(800);
+    } });
+    return J({ elevation: +q.get('elevation') || 1000, daily: { time: days, weather_code: days.map(() => 1), temperature_2m_max: days.map(() => -2), temperature_2m_min: days.map(() => -9),
+      precipitation_sum: days.map(() => 0), snowfall_sum: days.map(() => 0), wind_speed_10m_max: days.map(() => 6), wind_gusts_10m_max: days.map(() => 10), wind_direction_10m_dominant: days.map(() => 240) },
+      hourly: { time, temperature_2m: t, wind_speed_10m: w, wind_gusts_10m: g, wind_direction_10m: dir, cloud_cover: cl, snowfall: sn, precipitation: pr, freezing_level_height: fl } });
+  }
   if (u.includes('api.met.no')) {
     // MET Norway's GeoJSON: a cold front with snow showers and rising wind.
     const q = new URL(u).searchParams;
@@ -285,12 +305,80 @@ await shot('6b-weather', '#rweather');
   await page.waitForFunction(() => { const s = window.fjallskredTerrain.state; return s.built && s.analysis && s.profileKey === s.built.key; }, null, { timeout: 180000 });
   await page.waitForTimeout(400);
   await shot('8-tour-map', '.tmapcard');
-  await page.locator('#rdetail .tourtbl').scrollIntoViewIfNeeded();
+  await page.locator('#rdetail .tourtbl').first().scrollIntoViewIfNeeded();
   await shot('8b-tour-panel', '.tside');
+  // When to go.
+  await page.waitForSelector('#tourDay .daystrip, #tourDay .note', { timeout: 120000 });
+  await page.waitForFunction(() => !/Loading the forecast/.test(document.querySelector('#tourDay')?.textContent ?? ''), null, { timeout: 120000 });
+  await page.locator('#tourDay').scrollIntoViewIfNeeded();
+  await shot('8c-when-to-go', '#tourDay');
+  console.log('when to go:', (await page.textContent('#tourDay .daysum').catch(() => 'no plan')).trim());
+  if (await page.locator('#reorderBtn').count()) {
+    await page.click('#reorderBtn');
+    await page.waitForFunction(() => !/Trying the orders/.test(document.querySelector('#reorderOut')?.textContent ?? 'Trying'), null, { timeout: 120000 });
+    await page.locator('#reorderOut').scrollIntoViewIfNeeded();
+    await shot('8d-reorder', '#tourDay');
+    console.log('reorder:', (await page.textContent('#reorderOut')).replace(/\s+/g, ' ').slice(0, 220));
+    if (await page.locator('#useOrderBtn').count()) {
+      const before = await page.evaluate(() => window.fjallskredTerrain.state.built);
+      await page.click('#useOrderBtn');
+      await page.waitForFunction((b) => { const s = window.fjallskredTerrain.state; return s.built && s.built.key !== b && s.analysis && s.profileKey === s.built.key; }, before.key, { timeout: 180000 });
+      await page.waitForFunction(() => /Leave/.test(document.querySelector('#tourDay .daysum')?.textContent ?? ''), null, { timeout: 120000 });
+      console.log('after reorder:', (await page.textContent('#tourDay .daysum')).trim(), '·', await page.evaluate(() => window.fjallskredTerrain.state.built.parts.map((p) => p.label).join(' → ')));
+      await shot('8e-reordered', '#tourDay');
+    }
+  }
   console.log('tour', await page.evaluate(() => {
     const s = window.fjallskredTerrain.state;
     return { points: s.route.length, parts: s.built.parts.map((p) => `${p.kind}:${p.label}`), danger: s.built.danger, cellM: Math.round(s.built.cellM), text: document.querySelector('.tourtbl tr.tot')?.textContent };
   }));
+}
+
+// Wet snow on the drawn order: a north face first, a south face second.
+{
+  await page.click('#tourClearBtn');
+  await page.click('#clearBtn');
+  await page.locator('#tmap').scrollIntoViewIfNeeded();
+  const click = async ([lat, lon]) => {
+    const mb = await page.locator('#tmap').boundingBox(); // the page may have scrolled
+    const [x, y] = await page.evaluate(([a, b]) => window.fjallskredTerrain.map.project(a, b), [lat, lon]);
+    await page.mouse.click(mb.x + x, mb.y + y);
+    await page.waitForTimeout(80);
+  };
+  const S0 = [H.lat - 0.02, H.lon];
+  const DN = [[H.lat + 0.001, H.lon], [H.lat + 0.008, H.lon], [H.lat + 0.016, H.lon]]; // skis north
+  const DS = [[H.lat - 0.001, H.lon], [H.lat - 0.006, H.lon], [H.lat - 0.012, H.lon]]; // skis south
+  await page.evaluate((p) => window.fjallskredTerrain.map.fit(p.map(([lat, lon]) => ({ lat, lon })), 80, 15), [S0, ...DN, ...DS]);
+  await page.click('#startBtn'); await click(S0);
+  await page.click('#descBtn'); for (const p of DN) await click(p); await page.click('#descBtn');
+  await page.click('#descBtn'); for (const p of DS) await click(p); await page.click('#descBtn');
+  console.log('N+S input:', JSON.stringify(await page.evaluate(() => { const s = window.fjallskredTerrain.state; return { start: !!s.tour.start, d: s.tour.descents.map((d) => d.length), mode: s.mode, hint: document.querySelector('#tourHint').textContent }; })));
+  await page.click('#buildBtn');
+  await page.waitForFunction(() => { const s = window.fjallskredTerrain.state; return s.built && s.analysis && s.profileKey === s.built.key; }, null, { timeout: 180000 });
+  await page.waitForFunction(() => /Leave/.test(document.querySelector('#tourDay .daysum')?.textContent ?? ''), null, { timeout: 120000 });
+  // Pick the first forecast day with wet snow in the plan.
+  const opts = await page.$$eval('#tourDaySel option', (o) => o.map((x) => x.value));
+  for (const d of opts) {
+    await page.selectOption('#tourDaySel', d);
+    await page.waitForFunction(() => /Leave|No hourly/.test(document.querySelector('#tourDay')?.textContent ?? ''), null, { timeout: 60000 });
+    if (await page.locator('#reorderBtn').count()) break;
+  }
+  console.log('N+S tour:', (await page.textContent('#tourDay .daysum')).trim(), '· reorder button:', await page.locator('#reorderBtn').count());
+  if (await page.locator('#reorderBtn').count()) {
+    await page.click('#reorderBtn');
+    await page.waitForFunction(() => !/Trying the orders/.test(document.querySelector('#reorderOut')?.textContent ?? 'Trying'), null, { timeout: 120000 });
+    console.log('N+S reorder:', (await page.textContent('#reorderOut')).replace(/\s+/g, ' ').slice(0, 160));
+    await page.locator('#reorderOut').scrollIntoViewIfNeeded();
+    await shot('8f-reorder-better', '#tourDay');
+    if (await page.locator('#useOrderBtn').count()) {
+      const before = await page.evaluate(() => window.fjallskredTerrain.state.built.key);
+      await page.click('#useOrderBtn');
+      await page.waitForFunction((b) => { const s = window.fjallskredTerrain.state; return s.built && s.built.key !== b && s.analysis && s.profileKey === s.built.key; }, before, { timeout: 180000 });
+      await page.waitForFunction(() => /Leave/.test(document.querySelector('#tourDay .daysum')?.textContent ?? ''), null, { timeout: 120000 });
+      console.log('N+S after:', await page.evaluate(() => window.fjallskredTerrain.state.built.parts.map((p) => p.label).join(' → ')), '·', (await page.textContent('#tourDay .daysum')).trim(), '· wet warnings:', await page.locator('#tourDay .warnline').count());
+      await shot('8g-reordered', '#tourDay');
+    }
+  }
 }
 
 // 3D.
@@ -301,6 +389,39 @@ await page.waitForTimeout(800);
 await shot('9-3d', '#t3d');
 console.log('3d note:', await page.textContent('#t3dNote'));
 await page.click('#t3dClose');
+
+// The conditions page: the real map.
+{
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto(`${base}/`);
+  await page.waitForFunction(() => document.querySelectorAll('#map .slippy-svg g.reg').length > 5, null, { timeout: 60000 });
+  await page.waitForTimeout(1500);
+  await shot('14-main-map', '.mapbox');
+  // Zoom in twice on the buttons and click a tour pin.
+  await page.click('.zoombtn[data-zoom="in"]');
+  await page.click('.zoombtn[data-zoom="in"]');
+  await page.waitForTimeout(800);
+  // A pin well inside the visible map (not under the zoom buttons).
+  const target = await page.evaluate(() => {
+    const m = document.querySelector('#map').getBoundingClientRect();
+    for (const g of document.querySelectorAll('#map g.tourpin')) {
+      const b = g.getBoundingClientRect();
+      const x = b.x + b.width / 2, y = b.y + b.height / 2;
+      if (x > m.x + 80 && x < m.right - 40 && y > m.y + 60 && y < m.bottom - 40 && document.elementFromPoint(x, y)?.closest('g.tourpin') === g) return { x, y, name: g.dataset.tour };
+    }
+    return null;
+  });
+  const name = target?.name;
+  if (target) await page.mouse.click(target.x, target.y);
+  await page.waitForTimeout(600);
+  console.log('main map: regions', await page.locator('#map g.reg').count(), '· clicked', name, '→ detail:', await page.textContent('#detailTitle'));
+  // Drag to pan.
+  const mb = await page.locator('#map').boundingBox();
+  await page.mouse.move(mb.x + 300, mb.y + 300); await page.mouse.down(); await page.mouse.move(mb.x + 380, mb.y + 340, { steps: 5 }); await page.mouse.up();
+  await page.locator('#showResorts').check().catch(() => {});
+  await page.waitForTimeout(800);
+  await shot('15-main-map-zoomed', '.mapbox');
+}
 
 // Same frame on every sub-page.
 for (const [name, url] of [['11-skill', '/skill'], ['12-editor', '/editor'], ['13-terrain', '/terrain']]) {

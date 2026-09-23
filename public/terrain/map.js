@@ -15,7 +15,13 @@ export class SlippyMap {
   /**
    * el: container. layers: [{ id, url(z, x, y) -> string|null, minZ, maxZ, opacity, visible }]
    */
-  constructor(el, { center = { lat: 63, lon: 12 }, zoom = 11, minZoom = 9, maxZoom = 16.5, layers = [] } = {}) {
+  /**
+   * cooperative: on a page that scrolls (the conditions page), plain wheel
+   * and one-finger vertical drags scroll the page; Ctrl/⌘ + wheel, pinch
+   * and horizontal drags move the map.
+   */
+  constructor(el, { center = { lat: 63, lon: 12 }, zoom = 11, minZoom = 9, maxZoom = 16.5, layers = [], cooperative = false } = {}) {
+    this.cooperative = cooperative;
     this.el = el;
     this.minZoom = minZoom;
     this.maxZoom = maxZoom;
@@ -189,13 +195,14 @@ export class SlippyMap {
     const el = this.el;
     const pts = new Map();
     let drag = null, pinch = null, downAt = null;
+    if (this.cooperative) el.style.touchAction = 'pan-y';
 
     el.addEventListener('pointerdown', (e) => {
       if (e.button !== 0 && e.pointerType === 'mouse') return;
       if (e.target.closest?.('[data-grab]')) return; // route handles manage themselves
       el.setPointerCapture(e.pointerId);
       pts.set(e.pointerId, [e.clientX, e.clientY]);
-      downAt = { x: e.clientX, y: e.clientY, t: Date.now(), moved: false };
+      downAt = { x: e.clientX, y: e.clientY, t: Date.now(), moved: false, target: e.target };
       if (pts.size === 1) drag = { x: e.clientX, y: e.clientY, cx: this.cx, cy: this.cy };
       if (pts.size === 2) {
         const [a, b] = [...pts.values()];
@@ -231,7 +238,7 @@ export class SlippyMap {
         if (downAt && !downAt.moved && Date.now() - downAt.t < 600 && e.type === 'pointerup') {
           const r = el.getBoundingClientRect();
           const x = e.clientX - r.left, y = e.clientY - r.top;
-          this.emit('click', { ...this.unproject(x, y), x, y });
+          this.emit('click', { ...this.unproject(x, y), x, y, target: downAt.target });
         }
         drag = null;
         downAt = null;
@@ -243,6 +250,7 @@ export class SlippyMap {
     el.addEventListener('pointerup', end);
     el.addEventListener('pointercancel', end);
     el.addEventListener('wheel', (e) => {
+      if (this.cooperative && !e.ctrlKey && !e.metaKey) return; // let the page scroll
       e.preventDefault();
       const r = el.getBoundingClientRect();
       const step = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;

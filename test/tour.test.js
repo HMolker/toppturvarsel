@@ -73,6 +73,9 @@ test('tourLegs: start, each descent, and back; touching ends need no leg', () =>
   assert.deepEqual(legs.map((l) => [l.label, l.before]), [['Up to descent 1', 0], ['Back to the start', -1]]);
   const legs2 = T.tourLegs(S0, [d1, [[61.06, 8.06], [61.03, 8.05]]]);
   assert.deepEqual(legs2.map((l) => l.label), ['Up to descent 1', 'To descent 2', 'Back to the start']);
+  // Reordered descents keep their own names.
+  const legs3 = T.tourLegs(S0, [[[61.06, 8.06], [61.03, 8.05]], d1], ['Descent 2', 'Descent 1']);
+  assert.deepEqual(legs3.map((l) => l.label), ['Up to descent 2', 'To descent 1', 'Back to the start']);
 });
 
 test('assembleTour joins legs and descents and marks every part', () => {

@@ -3,6 +3,29 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v5.5.0 — when to go, and a real map on the conditions page (2026-09-24)
+
+- **When to go**, under a built tour on Plan a tour: pick a day and the tour
+  is laid out on it — when to leave, when you are at the top and bottom of
+  each descent, when you are back — keeping it in the light and every
+  descent off before wet snow on its aspect, with the best weather among
+  those. A 24-hour strip shows light, legs, descents and where wet snow
+  starts; warnings say plainly when a descent cannot be off in time or the
+  tour does not fit in the day. Built on the planner's daylight, hourly
+  weather and wet-snow rules, so the two agree.
+- **Try another order of the descents**, when the plan has a descent on wet
+  snow: every order is tried with new legs between the descents, timed on
+  the day, and the best offered when it saves 15 minutes or more on wet snow
+  — e.g. the south face first while it is still frozen. *Use this order*
+  rebuilds the tour; descents keep their own names. When the wet snow is a
+  thaw that softens every aspect, it says so instead.
+- **The conditions page map is a real map** — the same one as Plan a tour —
+  with the regions, tours, resorts and huts on top, grey tiles underneath.
+  Drag or pinch to move, Ctrl/⌘ + scroll to zoom, the page still scrolls.
+  Replaces the schematic outline.
+- The tile proxy now also serves OpenTopoMap's overview (zooms 4–8) for the
+  Nordic mainland only (~700 tiles), which the new map needs far from tours.
+
 ## v5.4.0 — build a whole tour, and one frame for every page (2026-09-24)
 
 - **Build a tour** on Plan a tour: *Set start*, *Add descent* (two or more

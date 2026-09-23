@@ -1,4 +1,4 @@
-import { COAST, BORDER } from './geo.js';
+import { SlippyMap } from './terrain/map.js';
 import { planTrip } from './areaplan.js';
 import { snowHistoryModel, snowHistorySvg, linkSnowHistoryHover } from './snowhistory.js';
 import { renderRouteMap, renderProfile, routeSummary, renderForecast, renderPhotos, renderOwnPhotos, renderResortMap } from './route.js';
@@ -9,7 +9,7 @@ import { aspectRose } from './aspect.js';
 import { factsHtml, DIFF_NAMES } from './resortfacts.js';
 import { simulate, simulateResorts, simulateHuts } from './simulate.js';
 import { dangerChip, problemIcons, problemIcon, problemRose, elevationDiagram, elevationText, initAvalancheTips, problemKey, PROBLEMS } from './avalanche.js';
-import { COUNTRIES, GROUPS, countryName, joinNames, normaliseSelection, fitFrame } from './countries.js';
+import { COUNTRIES, GROUPS, countryName, joinNames, normaliseSelection } from './countries.js';
 
 /* ------------------------------------------------------------------ *
  * state
@@ -27,7 +27,6 @@ const state = {
   planDay: 0,
   resorts: null,
   // Map zoom: scale k about the centre (cx, cy) in unzoomed map units.
-  view: { k: 1, cx: 280, cy: 380 },
   sel: null,
   selRegion: null,
   q: '',
@@ -138,43 +137,63 @@ function renderFreshness() {
  * map
  * ------------------------------------------------------------------ */
 
-// The frame follows the country selection (see countries.js); the width is
-// fixed and the height follows the shape of what is selected.
-const MAP_W = 560;
-let MAP_H = 760;
-let frame = fitFrame([COUNTRIES.NO.frame, COUNTRIES.SE.frame], { width: MAP_W });
-const baseProj = (lat, lon) => ({
-  x: frame.ox + (lon - frame.lon0) * Math.cos((lat * Math.PI) / 180) * frame.s,
-  y: frame.oy - lat * frame.s,
-});
+/* ------------------------------------------------------------------ *
+ * the map (v5.5): a real map you can pan and zoom, as on Plan a tour
+ *
+ * Zoomed out it shows OpenTopoMap's overview of the Nordic mainland (zooms
+ * 4-8, the only tiles the service serves far from a tour); zoomed in,
+ * Kartverket's grey topo (Norway) or OpenTopoMap (Sweden) near the tours
+ * and resorts. Both are drawn in grey so the data on top reads first.
+ * ------------------------------------------------------------------ */
 
-/** Re-frame the map to the selected countries and reset the zoom. */
+const tileInZoneMain = (z, x, y) => {
+  const n = 2 ** z, R = Math.PI / 180, M = 12;
+  const west = (x / n) * 360 - 180, east = ((x + 1) / n) * 360 - 180;
+  const north = Math.atan(Math.sinh(Math.PI * (1 - (2 * y) / n))) / R, south = Math.atan(Math.sinh(Math.PI * (1 - (2 * (y + 1)) / n))) / R;
+  const near = (lat, lon) => lat + M / 111 >= south && lat - M / 111 <= north && lon + M / (111 * Math.cos(lat * R)) >= west && lon - M / (111 * Math.cos(lat * R)) <= east;
+  return (state.snapshot?.tours ?? []).some((t) => near(t.lat, t.lon)) || (state.resorts?.resorts ?? []).some((r) => near(r.lat, r.lon));
+};
+const tileCountryMain = (z, x, y) => {
+  const n = 2 ** z, lat = (Math.atan(Math.sinh(Math.PI * (1 - (2 * (y + 0.5)) / n))) * 180) / Math.PI, lon = ((x + 0.5) / n) * 360 - 180;
+  let best = null, bd = Infinity;
+  for (const r of state.snapshot?.regions ?? []) {
+    const d = (r.lat - lat) ** 2 + ((r.lon - lon) * Math.cos((lat * Math.PI) / 180)) ** 2;
+    if (d < bd) { bd = d; best = r.country; }
+  }
+  return best;
+};
+// The overview tiles the service serves (src/tiles.js, OVERVIEW): the Nordic mainland.
+const overviewTile = (z, x, y) => {
+  const n = 2 ** z, R = 180 / Math.PI;
+  const west = (x / n) * 360 - 180, east = ((x + 1) / n) * 360 - 180;
+  const north = Math.atan(Math.sinh(Math.PI * (1 - (2 * y) / n))) * R, south = Math.atan(Math.sinh(Math.PI * (1 - (2 * (y + 1)) / n))) * R;
+  return south <= 71.6 && north >= 54.5 && west <= 32.5 && east >= 3.5;
+};
+const mainMap = new SlippyMap($('#map'), {
+  center: { lat: 64.5, lon: 15 }, zoom: 4.5, minZoom: 3.5, maxZoom: 15, cooperative: true,
+  layers: [
+    // Overview: always there, scaled up underneath when zoomed in past 8.
+    { id: 'base', url: (z, x, y) => (overviewTile(z, x, y) ? `/tiles/se/${z}/${x}/${y}.png` : null), minZ: 4, maxZ: 8 },
+    { id: 'detail', url: (z, x, y) => (tileInZoneMain(z, x, y) ? `/tiles/${tileCountryMain(z, x, y) === 'SE' ? 'se' : 'no'}/${z}/${x}/${y}.png` : null), minZ: 9, maxZ: 15 },
+  ],
+});
+let baseZoom = 4.5;
+/** How far in from the countries' frame: 1 at the frame, 2 one zoom in, … (was the SVG map's k). */
+const viewK = () => 2 ** Math.max(0, mainMap.zoom - baseZoom);
+
+/** Frame the map on the selected countries. */
 function reframe() {
-  const boxes = state.countries.map((c) => COUNTRIES[c]?.frame).filter(Boolean);
-  frame = fitFrame(boxes, { width: MAP_W });
-  MAP_H = frame.height;
-  state.view = { k: 1, cx: MAP_W / 2, cy: MAP_H / 2 };
-  $('#map').setAttribute('viewBox', `0 0 ${MAP_W} ${MAP_H}`);
+  const pts = state.countries.flatMap((c) => COUNTRIES[c]?.frame ?? []).map(([lat, lon]) => ({ lat, lon }));
+  if (pts.length) mainMap.fit(pts, 16, 8);
+  baseZoom = mainMap.zoom;
 }
 const inSel = (country) => state.countries.includes(country);
-// Zoom moves the geography, not the markers: positions scale, marker and
-// text sizes stay the same, so zooming in separates crowded resorts.
 const proj = (lat, lon) => {
-  const b = baseProj(lat, lon), v = state.view;
-  return { x: (b.x - v.cx) * v.k + MAP_W / 2, y: (b.y - v.cy) * v.k + MAP_H / 2 };
+  const [x, y] = mainMap.project(lat, lon);
+  return { x, y };
 };
 // Resorts get their icons and names from this zoom on.
 const DETAIL_K = 3;
-
-function pathFrom(pts, close) {
-  const d = pts
-    .map((p, i) => {
-      const q = proj(p[0], p[1]);
-      return `${i ? 'L' : 'M'}${q.x.toFixed(1)} ${q.y.toFixed(1)}`;
-    })
-    .join(' ');
-  return close ? `${d} Z` : d;
-}
 
 /* ------------------------------------------------------------------ *
  * colour — Molker graphical profile
@@ -261,25 +280,18 @@ function radiusFor(r) {
 }
 
 function drawMap() {
-  const map = $('#map');
   if (!state.snapshot) return;
+  mainMap.render();
+  drawLegend();
+}
+
+/** Everything drawn on top of the map tiles, as SVG. Runs on every pan and zoom. */
+function mapOverlay() {
+  if (!state.snapshot) return '';
+  const MAP_W = mainMap.W, MAP_H = mainMap.H;
   const firing = new Set((state.alerts?.firing ?? []).map((a) => a.regionId));
   const parts = [];
   const labels = [];
-
-  // White ground, thin grey lines: the profile's plot background.
-  parts.push(
-    `<path d="${pathFrom(COAST, true)}" fill="var(--land)" stroke="var(--coast)" stroke-width=".9" stroke-linejoin="round"/>`,
-    `<path d="${pathFrom(BORDER, false)}" fill="none" stroke="var(--coast)" stroke-width=".8" stroke-dasharray="3 3"/>`
-  );
-
-  // Latitude ticks on the right edge, every 5° (every 2° in a small frame).
-  const latStep = frame.s > 70 ? 2 : 5;
-  for (let la = -90; la <= 90; la += latStep) {
-    const y = proj(la, frame.lon0).y;
-    if (y < 40 || y > MAP_H - 12) continue;
-    parts.push(`<text x="${MAP_W - 34}" y="${(y + 4).toFixed(1)}" class="mono" font-size="9" fill="var(--muted)">${la}°N</text>`);
-  }
 
   // Biggest first, so a small marker inside a crowded cluster stays clickable
   // and its label is not buried under a neighbour.
@@ -359,13 +371,13 @@ function drawMap() {
     const pts = state.resorts.resorts.filter((r) => inSel(r.country)).map((r) => ({ r, ...proj(r.lat, r.lon) }));
     // Keep icons and names clear of the zoom buttons and the map note.
     const blocked = [[0, 0, 46, 116], [MAP_W - 210, 0, MAP_W, 34]];
-    const layout = layoutResorts(pts, { detail: state.view.k >= DETAIL_K, width: MAP_W, height: MAP_H, blocked });
+    const layout = layoutResorts(pts, { detail: viewK() >= DETAIL_K, width: MAP_W, height: MAP_H, blocked });
     parts.push(`<g class="resorts">${resortSvg(layout)}</g>`);
   }
 
   // Huts, lodges and remote cafés: only zoomed in, where they can be told apart.
-  if (state.showHuts && state.huts?.places && state.view.k >= DETAIL_K) {
-    const named = state.view.k >= 6;
+  if (state.showHuts && state.huts?.places && viewK() >= DETAIL_K) {
+    const named = viewK() >= 6;
     const marks = state.huts.places
       .map((h) => ({ h, ...proj(h.lat, h.lon) }))
       .filter((p) => p.x > -10 && p.y > -10 && p.x < MAP_W + 10 && p.y < MAP_H + 10);
@@ -403,12 +415,9 @@ function drawMap() {
     );
   }
 
-  map.innerHTML = parts.concat(labels).join('');
-  // Zoomed in, one-finger drags pan the map; zoomed out they scroll the page.
-  map.style.touchAction = state.view.k > 1 ? 'none' : 'pan-y';
-  map.dataset.view = `${state.view.k.toFixed(2)} ${state.view.cx.toFixed(1)} ${state.view.cy.toFixed(1)}`;
-  drawLegend();
+  return parts.concat(labels).join('');
 }
+mainMap.addSvgPainter(mapOverlay);
 
 function drawLegend() {
   const bands =
@@ -443,7 +452,7 @@ function hutLegend() {
     `<div class="legend-row"><span class="eyebrow">Huts &amp; cafés</span>` +
     `<span>${icon('open', 'hut')}open in winter</span><span>${icon('unknown', 'hut')}not known, check</span><span>${icon('closed', 'hut')}summer only</span>` +
     `<span>${icon('unknown', 'hut')}cabin</span><span>${icon('unknown', 'shelter')}open hut</span><span>${icon('unknown', 'lodge')}lodge</span><span>${icon('unknown', 'cafe')}café</span><span>${icon('unknown', 'restaurant')}restaurant</span></div>` +
-    `<div class="legend-row note">${state.huts ? (state.huts.simulated ? `${n} simulated places (the real list from OpenStreetMap could not be loaded)` : state.huts.error && !n ? `could not be loaded right now (${esc(state.huts.error)})` : `${n} places within 15 km of the tours, from OpenStreetMap`) : 'loading…'}${state.view.k < DETAIL_K ? ' · zoom in to see them' : ''}</div>`
+    `<div class="legend-row note">${state.huts ? (state.huts.simulated ? `${n} simulated places (the real list from OpenStreetMap could not be loaded)` : state.huts.error && !n ? `could not be loaded right now (${esc(state.huts.error)})` : `${n} places within 15 km of the tours, from OpenStreetMap`) : 'loading…'}${viewK() < DETAIL_K ? ' · zoom in to see them' : ''}</div>`
   );
 }
 
@@ -461,7 +470,7 @@ function resortLegend() {
     OPEN_BANDS.map(([, bg, , l], i) => `<span><i class="sw"${i === 0 ? ' style="border-color:var(--steel)"' : ` style="background:${bg}"`}></i>${l}</span>`).join('') +
     `<span><i class="sw sw-none"></i>no status</span>` +
     `<span class="legend-key">left icon slopes · right icon lifts · click for the resort's map and facts</span></div>` +
-    `<div class="legend-row note">${status}${state.view.k < DETAIL_K ? ' · zoom in for icons and names' : ''}</div>`
+    `<div class="legend-row note">${status}${viewK() < DETAIL_K ? ' · zoom in for icons and names' : ''}</div>`
   );
 }
 
@@ -469,92 +478,16 @@ function resortLegend() {
  * zoom and pan
  * ------------------------------------------------------------------ */
 
-function svgPoint(e) {
-  const svg = $('#map');
-  const pt = svg.createSVGPoint();
-  pt.x = e.clientX;
-  pt.y = e.clientY;
-  return pt.matrixTransform(svg.getScreenCTM().inverse());
-}
-
-function zoomAt(factor, sx = MAP_W / 2, sy = MAP_H / 2) {
-  const v = state.view;
-  const k = Math.max(1, Math.min(40, v.k * factor));
-  // Keep the map point under (sx, sy) where it is.
-  const bx = (sx - MAP_W / 2) / v.k + v.cx;
-  const by = (sy - MAP_H / 2) / v.k + v.cy;
-  v.cx = bx - (sx - MAP_W / 2) / k;
-  v.cy = by - (sy - MAP_H / 2) / k;
-  v.k = k;
-  if (k === 1) Object.assign(v, { cx: MAP_W / 2, cy: MAP_H / 2 });
-  drawMap();
-}
-
-let drag = null;
-let dragged = false;
-const pointers = new Map();
-$('#map').addEventListener('pointerdown', (e) => {
-  if (e.target.closest('a')) return;
-  const pt = svgPoint(e);
-  pointers.set(e.pointerId, pt);
-  // DOMPoint's x/y are prototype getters, so copy them (spreading gives {}).
-  if (pointers.size === 1) drag = { x: pt.x, y: pt.y };
-  dragged = false;
-});
-$('#map').addEventListener('pointermove', (e) => {
-  if (!pointers.has(e.pointerId)) return;
-  const prev = pointers.get(e.pointerId);
-  const now = svgPoint(e);
-  if (pointers.size === 2) {
-    const [a, b] = [...pointers.values()];
-    const other = a === prev ? b : a;
-    const d0 = Math.hypot(prev.x - other.x, prev.y - other.y);
-    const d1 = Math.hypot(now.x - other.x, now.y - other.y);
-    pointers.set(e.pointerId, now);
-    if (d0 > 0) zoomAt(d1 / d0, (now.x + other.x) / 2, (now.y + other.y) / 2);
-    dragged = true;
-    return;
-  }
-  pointers.set(e.pointerId, now);
-  if (!drag || state.view.k === 1) return;
-  const dx = now.x - drag.x, dy = now.y - drag.y;
-  if (Math.hypot(dx, dy) > 4) dragged = true;
-  if (dragged) {
-    // svgPoint is in screen units of the current view; convert to map units.
-    state.view.cx -= dx / state.view.k;
-    state.view.cy -= dy / state.view.k;
-    drag.x = now.x;
-    drag.y = now.y;
-    drawMap();
-  }
-});
-const endPointer = (e) => {
-  pointers.delete(e.pointerId);
-  if (!pointers.size) drag = null;
-};
-$('#map').addEventListener('pointerup', endPointer);
-$('#map').addEventListener('pointercancel', endPointer);
-$('#map').addEventListener('pointerleave', endPointer);
-// Plain scrolling keeps scrolling the page; Ctrl/⌘ + scroll (and trackpad
-// pinch, which the browser reports the same way) zooms the map.
-$('#map').addEventListener(
-  'wheel',
-  (e) => {
-    if (!e.ctrlKey && !e.metaKey) return;
-    e.preventDefault();
-    const p = svgPoint(e);
-    zoomAt(Math.exp(-e.deltaY * 0.004), p.x, p.y);
-  },
-  { passive: false }
-);
-$('#map').addEventListener('dblclick', (e) => {
-  e.preventDefault();
-  const p = svgPoint(e);
-  zoomAt(2, p.x, p.y);
-});
+// Zoom buttons; dragging, wheel (Ctrl/⌘) and pinch are the map's own.
 $$('.zoombtn').forEach((b) =>
-  b.addEventListener('click', () => (b.dataset.zoom === 'reset' ? zoomAt(1 / 1e9) : zoomAt(b.dataset.zoom === 'in' ? 2 : 0.5)))
+  b.addEventListener('click', () => (b.dataset.zoom === 'reset' ? reframe() : mainMap.zoomAt(b.dataset.zoom === 'in' ? 1 : -1)))
 );
+// The legend's "zoom in" notes change with the zoom.
+let legendZoom = null;
+mainMap.on('move', () => {
+  const detail = viewK() >= DETAIL_K;
+  if (detail !== legendZoom) { legendZoom = detail; drawLegend(); }
+});
 
 async function loadResorts() {
   try {
@@ -689,8 +622,7 @@ function focusResort(lat, lon) {
     cb.checked = true;
     cb.dispatchEvent(new Event('change'));
   }
-  const b = baseProj(lat, lon);
-  Object.assign(state.view, { k: 6, cx: b.x, cy: b.y });
+  mainMap.setView({ lat, lon }, baseZoom + Math.log2(6));
   drawMap();
   $('.mapbox')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
@@ -709,18 +641,16 @@ function resortsNear(tourNames, { km = 45, max = 2 } = {}) {
     .slice(0, max);
 }
 
-$('#map').addEventListener('click', (e) => {
-  if (dragged) {
-    dragged = false;
-    return;
-  }
-  const tour = e.target.closest('g.tourpin');
+mainMap.on('click', (e) => {
+  const el = e.target instanceof Element ? e.target : null;
+  if (!el) return;
+  const tour = el.closest('g.tourpin');
   if (tour) return selectTour(tour.dataset.tour);
-  const resort = e.target.closest('[data-resort]');
+  const resort = el.closest('[data-resort]');
   if (resort) return selectResort(resort.dataset.resort);
-  const hut = e.target.closest('[data-hut]');
+  const hut = el.closest('[data-hut]');
   if (hut) return selectHut(hut.dataset.hut);
-  const reg = e.target.closest('g.reg');
+  const reg = el.closest('g.reg');
   if (reg) selectRegion(reg.dataset.region);
 });
 

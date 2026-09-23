@@ -199,6 +199,23 @@ Skida / FATMAP part of Fjällskred:
   today's problems or runout zones. The legs avoid known avalanche terrain;
   they are not a safe route — no cornices, glaciers, small cliffs, forest,
   water or snowpack in the model.
+- **When to go** (v5.5): under a built tour, pick a day (today and the
+  next four). It lays the tour out on that day: the departure that keeps
+  the tour in the light and every descent finished before wet snow starts
+  on its aspect (the planner's rule: warming, and spring sun on the
+  slope), with the best weather among those, earliest among near-equals.
+  You get the time you leave, when you are at the top and bottom of each
+  descent (15 min changeovers for skins), when you are back, a 24-hour
+  strip of it all, and a plain warning when a descent cannot be off before
+  it softens or the tour does not fit in the light. Weather is the summit
+  forecast of the nearest listed tour.
+- **Try another order of the descents**: shown when a descent in the plan
+  runs into wet snow. It tries every order (up to six descents), finds new
+  legs between them on the same terrain grid, times each on the day and
+  offers the best when it saves 15 minutes or more on wet snow (or all of
+  it) — typically skiing the sun-facing descent first. *Use this order*
+  rebuilds the tour; each descent keeps its own name. When the wet snow is
+  a general thaw (warm air, every aspect), it says that no order can help.
 - **Time** everywhere on the page is by the **Munter method**: 1 km of
   distance or 100 m of height is one unit; 4 units an hour skinning and on
   the flat, 10 skiing downhill.
@@ -271,6 +288,17 @@ from the measurement and no timestamps, for maps and for watches.
 `node demo/terrain-check.mjs <outdir>` runs the page offline against a
 made-up terrain (the advert's Hallingdal) in a headless browser and takes
 screenshots of each part.
+
+## The map on the conditions page (v5.5)
+
+The map is the same pan-and-zoom map as on Plan a tour, with the forecast
+regions (coloured by snow depth, new snow or danger), tours, ski resorts and
+huts on top. Zoomed out it shows OpenTopoMap's overview of the Nordic
+mainland; zoomed in near the tours and resorts, Kartverket's topo (Norway)
+or OpenTopoMap (Sweden). Tiles are drawn in grey so the data reads first.
+Drag or pinch to move it; Ctrl/⌘ + scroll zooms, a plain scroll scrolls
+the page. The tile proxy serves the overview (zooms 4–8) for the Nordic
+mainland only, about 700 tiles in all, so it is still not an open proxy.
 
 ## Trip planner
 

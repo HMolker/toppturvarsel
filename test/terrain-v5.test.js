@@ -248,9 +248,12 @@ test('analyse: distance, climb, slope classes, steep sections and problem hits',
   assert.equal(ro.runoutSections.length, 1);
 });
 
-test('routeHours follows the planner rule plus 4 km/h on the flat', () => {
-  assert.equal(A.routeHours({ ascentM: 800, descentM: 0, flatM: 0 }), 2);
-  assert.equal(A.routeHours({ ascentM: 0, descentM: 1500, flatM: 4000 }), 2);
+test('route time is by the Munter method', () => {
+  // 4 km flat, then 800 m up over 2 km, then 800 m down over 2 km.
+  const S = [{ d: 0 }, { d: 4000 }, { d: 6000 }, { d: 8000 }];
+  const h = A.munterRouteHours(S, [1000, 1000, 1800, 1000]);
+  // flat: 4/4 = 1 h; up: (2 + 8)/4 = 2.5 h; down skiing: (2 + 8)/10 = 1 h
+  assert.ok(Math.abs(h - 4.5) < 1e-9, `${h}`);
   assert.equal(A.fmtHours(2.25), '2 h 15 min');
 });
 

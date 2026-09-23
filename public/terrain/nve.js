@@ -52,9 +52,9 @@ const mercY = (lat) => {
 
 /**
  * Classes at many points, reading tiles at zoom z (max 16). A point takes the
- * "worst" class within a pixel or two, so a thin zone is not missed.
+ * "worst" class within `radius` pixels, so a thin zone is not missed.
  */
-export async function classifyPoints(points, z = 15) {
+export async function classifyPoints(points, z = 15, radius = 1) {
   const n = 2 ** z;
   const need = new Map();
   const where = points.map((p) => {
@@ -71,8 +71,8 @@ export async function classifyPoints(points, z = 15) {
     const im = data.get(k);
     if (!im) return null;
     let best = null, runout = false;
-    for (let dy = -1; dy <= 1; dy++) {
-      for (let dx = -1; dx <= 1; dx++) {
+    for (let dy = -radius; dy <= radius; dy++) {
+      for (let dx = -radius; dx <= radius; dx++) {
         const x = Math.min(255, Math.max(0, px + dx)), y = Math.min(255, Math.max(0, py + dy));
         const o = (y * 256 + x) * 4;
         const c = classifyPixel(im.data[o], im.data[o + 1], im.data[o + 2], im.data[o + 3]);

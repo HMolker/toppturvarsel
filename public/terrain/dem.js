@@ -273,3 +273,20 @@ export function combine3d(plan, getTile) {
   fineG.surroundCellM = coarse.cellM;
   return fineG;
 }
+
+/**
+ * A grid k times finer, heights interpolated (bilinear) from `g`: for
+ * routing, so a path can bend between the terrain model's own points while
+ * NVE's finer slope map (Norway) decides what is steep.
+ */
+export function upsampleGrid(g, k) {
+  if (k <= 1) return g;
+  const nx = (g.nx - 1) * k + 1, ny = (g.ny - 1) * k + 1;
+  const ele = new Float32Array(nx * ny);
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) ele[j * nx + i] = sampleGrid(g, i / k, j / k);
+  return {
+    ...g, nx, ny, ele, cellM: g.cellM / k,
+    toLatLon: (i, j) => g.toLatLon(i / k, j / k),
+    fromLatLon: (lat, lon) => g.fromLatLon(lat, lon).map((v) => v * k),
+  };
+}

@@ -12,7 +12,7 @@
 
 .twrap {
   display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(320px, 1fr);
-  gap: 20px; padding: 24px 20px 40px; max-width: 1440px; margin: 0 auto; align-items: start;
+  gap: 20px; padding: 28px 20px 48px; max-width: 1440px; margin: 0 auto; align-items: start;
 }
 @media (max-width: 1020px) {
   .twrap { grid-template-columns: 1fr; padding: 16px; gap: 16px; }
@@ -159,3 +159,24 @@ dialog.t3d::backdrop { background: rgba(0,0,0,.45); }
 .wtable .wt { font-weight: 600; }
 .wtable .note { font-size: 11px; margin-left: 2px; }
 .t3dhd select { background: var(--paper); border: 1px solid var(--line-2); color: var(--ink); border-radius: var(--r-ctl); padding: 4px 6px; font: inherit; font-size: 12.5px; max-width: 60vw; }
+
+/* tour builder (v5.4) */
+.terrainpage { --desc: #2F4F9E; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .terrainpage { --desc: #8FA8E8; } }
+:root[data-theme="dark"] .terrainpage { --desc: #8FA8E8; }
+.tourtools { border-top: 0; padding-top: 0; }
+.tourtools .eyebrow { margin-right: 4px; }
+.dline { fill: none; stroke: var(--desc); stroke-width: 4.5; stroke-linecap: round; stroke-linejoin: round; }
+.dline.cur { stroke-dasharray: 8 5; }
+.dhalo { fill: none; stroke: var(--route-halo); stroke-width: 8; stroke-linecap: round; stroke-linejoin: round; opacity: .9; }
+.dpt { fill: var(--paper); stroke: var(--desc); stroke-width: 2.5; }
+.dlabel { font: 700 11px var(--mono); fill: var(--desc); paint-order: stroke; stroke: var(--paper); stroke-width: 3px; }
+.startmk { fill: var(--ink); stroke: var(--route-halo); stroke-width: 2.5; }
+.startlabel { font: 700 11px var(--mono); fill: var(--paper); }
+.tourtbl { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.tourtbl th, .tourtbl td { padding: 5px 6px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+.tourtbl th:first-child, .tourtbl td:first-child { text-align: left; white-space: normal; }
+.tourtbl thead th { font: 600 10.5px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.tourtbl tr.desc td:first-child { color: var(--desc); font-weight: 600; }
+.tourtbl tr.tot td { font-weight: 700; border-bottom: 0; border-top: 2px solid var(--ink); }
+.tourtbl .warn { color: var(--red-ink); font-size: 11.5px; display: block; font-weight: 400; }

@@ -182,12 +182,26 @@ Skida / FATMAP part of Fjällskred:
   aspect and heights, a rose of which way the steep parts face, which
   stretches meet today's avalanche problems, and (Norway) where the route
   crosses NVE's runout zones.
-- **Suggest a way up**: the cheapest way on skins between the route's ends
-  (or two points you click) when steep ground, runout zones and today's
-  problem slopes cost extra (A* on the terrain grid; in Norway it also reads
-  NVE's finer slope map). "More cautious" weighs them harder. Marked
-  unverified: it knows nothing about cornices, glaciers, small cliffs,
-  forest, water or the snow.
+- **Build a tour** (v5.4): *Set start*, then *Add descent* for each line
+  you want to ski (two or more points down it; *Undo last point* takes the
+  last click back), then *Build tour*. Your descents stay exactly as drawn;
+  the legs between them are found: from the start up to the first descent,
+  from the bottom of each descent to the top of the next, and back to the
+  start (skiing down where that is the way). Each leg is the quickest by the
+  Munter method, with steep ground, today's problem slopes (aspect and
+  height) and NVE's runout zones costing extra, much more at danger 3 and
+  up. At **danger 1** problems and runout zones are not considered, but skin
+  tracks still keep off 35° and steeper. Legs are found on a ~40 m grid (the
+  terrain model interpolated, with NVE's 10 m slope map deciding what is
+  steep in Norway). The panel gives the tour length, the climb, the vertical
+  on your descents and the Munter time per leg and descent and in total,
+  and marks in red where a descent (or a leg with no way round) crosses
+  today's problems or runout zones. The legs avoid known avalanche terrain;
+  they are not a safe route — no cornices, glaciers, small cliffs, forest,
+  water or snowpack in the model.
+- **Time** everywhere on the page is by the **Munter method**: 1 km of
+  distance or 100 m of height is one unit; 4 units an hour skinning and on
+  the flat, 10 skiing downhill.
 - **3D view**: the area around the route (or the view) as a WebGL mesh with
   the map, the overlays and the route draped over it. Drag to turn, scroll
   to zoom, a slider for height exaggeration. **Detail** (v5.3): *Low* is the

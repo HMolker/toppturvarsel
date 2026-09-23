@@ -60,11 +60,18 @@ export function problemsAt(sample, problems) {
 }
 
 /**
- * Hours on the route: 400 vertical metres an hour up and 1500 down (the
- * rule the planner uses), plus 4 km/h over the parts that are nearly flat.
+ * Hours on the route by the Munter method (v5.4): one unit is 1 km of
+ * distance or 100 m of height difference; skinning and flat travel at 4
+ * units an hour, skiing downhill at 10. Summed step by step along the
+ * (lightly smoothed) profile.
  */
-export function routeHours({ ascentM, descentM, flatM }) {
-  return ascentM / 400 + descentM / 1500 + flatM / 4000;
+export function munterRouteHours(samples, ele) {
+  let h = 0;
+  for (let i = 1; i < samples.length; i++) {
+    const dd = samples[i].d - samples[i - 1].d, dz = ele[i] - ele[i - 1];
+    h += dz < -0.05 * dd ? (dd / 1000 - dz / 100) / 10 : (dd / 1000 + Math.max(0, dz) / 100) / 4;
+  }
+  return h;
 }
 
 /**
@@ -114,9 +121,10 @@ export function analyse(profile, { problems = [], runout = null } = {}) {
   // Metres of route per sample: half the gap to each neighbour.
   const w = S.map((s, i) => ((S[i + 1]?.d ?? s.d) - (S[i - 1]?.d ?? s.d)) / 2);
 
-  let ascentM = 0, descentM = 0, flatM = 0;
+  let ascentM = 0, descentM = 0, flatM = 0, hours = null;
   if (known) {
     const sm = ele.map((e, i) => (i === 0 || i === ele.length - 1 ? e : median3(ele[i - 1], e, ele[i + 1])));
+    hours = munterRouteHours(S, sm);
     for (let i = 1; i < sm.length; i++) {
       const dz = sm[i] - sm[i - 1];
       const dd = S[i].d - S[i - 1].d || 1;
@@ -173,7 +181,7 @@ export function analyse(profile, { problems = [], runout = null } = {}) {
     ascentM: Math.round(ascentM),
     descentM: Math.round(descentM),
     flatM: Math.round(flatM),
-    hours: known ? routeHours({ ascentM, descentM, flatM }) : null,
+    hours,
     minEle: lowest?.ele ?? null,
     maxEle: highest?.ele ?? null,
     classes: classes.map((c) => ({ ...c, m: Math.round(c.m) })),

@@ -256,13 +256,42 @@ await shot('6b-weather', '#rweather');
   console.log('dragged point 2 ok');
 }
 
-// Suggested way up between the same ends.
-await page.click('#suggestBtn');
-await page.waitForFunction(() => window.fjallskredTerrain.state.suggestion?.analysis || window.fjallskredTerrain.state.suggestion?.error || /warnline/.test(document.querySelector('#rsuggest').innerHTML), null, { timeout: 120000 });
-await page.waitForTimeout(300);
-await shot('7-suggestion-map', '.tmapcard');
-await shot('8-suggestion-panel', '#rsuggest');
-console.log('suggestion', await page.evaluate(() => { const s = window.fjallskredTerrain.state.suggestion; return s && { n: s.points.length, steepest: s.analysis?.steepest?.slope, problems: s.analysis?.problemSections.length, err: s.error }; }));
+// A whole tour: start in the valley, two descents, build it.
+{
+  await page.click('#clearBtn');
+  const click = async ([lat, lon]) => {
+    const [x, y] = await page.evaluate(([a, b]) => window.fjallskredTerrain.map.project(a, b), [lat, lon]);
+    await page.mouse.click(box.x + x, box.y + y);
+    await page.waitForTimeout(80);
+  };
+  const S0 = [H.lat - 0.03, H.lon + 0.03];
+  const D1 = [[H.lat - 0.001, H.lon + 0.001], [H.lat - 0.006, H.lon - 0.008], [H.lat - 0.014, H.lon - 0.012]];
+  const D2 = [[H.lat - 0.004, H.lon + 0.004], [H.lat - 0.012, H.lon + 0.012], [H.lat - 0.02, H.lon + 0.02]];
+  await page.evaluate((p) => window.fjallskredTerrain.map.fit(p.map(([lat, lon]) => ({ lat, lon })), 80, 15), [S0, ...D1, ...D2]);
+  await page.click('#startBtn');
+  await click(S0);
+  await page.click('#descBtn');
+  for (const p of D1) await click(p);
+  await page.click('#descBtn'); // finish descent 1
+  await page.click('#descBtn'); // start descent 2
+  for (const p of D2) await click(p);
+  await click([H.lat - 0.025, H.lon + 0.025]); // one point too many...
+  await page.click('#tourUndoBtn'); // ...undone
+  await page.click('#descBtn'); // finish descent 2
+  const t = await page.evaluate(() => window.fjallskredTerrain.state.tour);
+  console.log('tour input', { start: !!t.start, descents: t.descents.map((d) => d.length) });
+  await shot('7-tour-input', '.tmapcard');
+  await page.click('#buildBtn');
+  await page.waitForFunction(() => { const s = window.fjallskredTerrain.state; return s.built && s.analysis && s.profileKey === s.built.key; }, null, { timeout: 180000 });
+  await page.waitForTimeout(400);
+  await shot('8-tour-map', '.tmapcard');
+  await page.locator('#rdetail .tourtbl').scrollIntoViewIfNeeded();
+  await shot('8b-tour-panel', '.tside');
+  console.log('tour', await page.evaluate(() => {
+    const s = window.fjallskredTerrain.state;
+    return { points: s.route.length, parts: s.built.parts.map((p) => `${p.kind}:${p.label}`), danger: s.built.danger, cellM: Math.round(s.built.cellM), text: document.querySelector('.tourtbl tr.tot')?.textContent };
+  }));
+}
 
 // 3D.
 await page.selectOption('#lyrShade', 'slope');
@@ -272,6 +301,17 @@ await page.waitForTimeout(800);
 await shot('9-3d', '#t3d');
 console.log('3d note:', await page.textContent('#t3dNote'));
 await page.click('#t3dClose');
+
+// Same frame on every sub-page.
+for (const [name, url] of [['11-skill', '/skill'], ['12-editor', '/editor'], ['13-terrain', '/terrain']]) {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto(`${base}${url}`);
+  await page.waitForTimeout(700);
+  await page.screenshot({ path: path.join(outDir, `${name}.png`), clip: { x: 0, y: 0, width: 1440, height: 330 } });
+  const back = await page.locator('a[href="/"]:has-text("Conditions")').count();
+  console.log(url, 'back link:', back);
+}
+await page.goto(`${base}/terrain`);
 
 // Phone width.
 await page.setViewportSize({ width: 390, height: 844 });

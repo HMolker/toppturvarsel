@@ -41,9 +41,14 @@ a { color: var(--ink); text-underline-offset: 2px; text-decoration-color: var(--
 .note { color: var(--muted); font-size: 13px; }
 
 header.top {
-  max-width: 1440px; margin: 0 auto; padding: 32px 20px 20px;
-  display: flex; gap: 20px; align-items: flex-end; flex-wrap: wrap; border-bottom: 2px solid var(--ink);
+  max-width: 1440px; margin: 0 auto; padding: 36px 20px 22px;
+  display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap; border-bottom: 2px solid var(--ink);
 }
+/* The logotype, as on the other pages: on a paper tile in the dark theme. */
+.brandmark { display: block; height: 120px; width: auto; flex: none; align-self: center; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .brandmark { background: #F2EEE3; border-radius: var(--r-ctl); padding: 6px 8px; } }
+:root[data-theme="dark"] .brandmark { background: #F2EEE3; border-radius: var(--r-ctl); padding: 6px 8px; }
+@media (max-width: 980px) { .brandmark { height: 84px; } }
 header.top h1 { font-size: 30px; line-height: 1.15; margin: 6px 0; font-weight: 700; letter-spacing: -.01em; text-wrap: balance; }
 header.top .sub { color: var(--ink-2); font-size: 14.5px; margin: 0; max-width: 680px; }
 .hdact { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
@@ -60,7 +65,7 @@ header.top .sub { color: var(--ink-2); font-size: 14.5px; margin: 0; max-width: 
 
 .wrap {
   display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px;
-  max-width: 1440px; margin: 0 auto; padding: 24px 20px 48px;
+  max-width: 1440px; margin: 0 auto; padding: 28px 20px 48px;
 }
 .full { grid-column: 1 / -1; }
 .span2 { grid-row: span 2; }
@@ -201,6 +206,8 @@ footer { max-width: 1440px; margin: 0 auto; padding: 0 20px 40px; color: var(--m
 </style>
 
 <header class="top">
+  <img class="brandmark" src="/brand/logo-header.png" width="107" height="120"
+       alt="Fjällskred — Molker Digital free-touring monitor" onerror="this.remove()">
   <div>
     <div class="eyebrow">Fjällskred · Molker Digital — tour editor</div>
     <h1>Add your own tour</h1>
@@ -208,6 +215,7 @@ footer { max-width: 1440px; margin: 0 auto; padding: 0 20px 40px; color: var(--m
   </div>
   <div class="hdact">
     <button class="btn" id="newBtn" type="button">Start a new tour</button>
+    <a class="btn" href="/" id="backLink" hidden>← Conditions</a>
   </div>
 </header>
 
@@ -456,6 +464,8 @@ const $ = (s) => document.querySelector(s);
  * able to change the tour list.
  */
 const PREVIEW = !!window.FJALLSKRED_PREVIEW;
+// Served by Fjällskred: the way back to the conditions page, as on every sub-page.
+if (PREVIEW) document.getElementById('backLink').hidden = false;
 function notYet(what) {
   const dlg = $('#nyDlg');
   $('#nyWhat').textContent = what;

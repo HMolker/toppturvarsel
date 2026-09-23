@@ -820,3 +820,10 @@ svg.avrose .avl, svg.avelev .avl { font: 600 8.5px var(--mono); fill: var(--mute
 .maplabel.strong { font-weight: 600; fill: var(--ink); }
 .warnline { border-left: 3px solid var(--own); padding: 6px 10px; background: var(--hs1); margin-bottom: 12px; }
 .btn.on { background: var(--own); border-color: var(--own); color: var(--own-ink); }
+
+/* ---- sub-pages (forecast accuracy, plan a tour): same frame as the main page ---- */
+main.page {
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px;
+  padding: 28px 20px 48px; max-width: 1440px; margin: 0 auto;
+}
+@media (max-width: 980px) { main.page { padding: 16px; gap: 16px; } }

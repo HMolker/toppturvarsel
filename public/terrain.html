@@ -15,7 +15,8 @@
 <body class="terrainpage">
 
 <header class="top">
-  <a href="/" class="brandlink"><img class="brandmark" src="/brand/logo-header.png" width="107" height="120" alt="Fjällskred — back to the conditions"></a>
+  <img class="brandmark" src="/brand/logo-header.png" width="107" height="120"
+       alt="Fjällskred — Molker Digital free-touring monitor">
   <div>
     <div class="eyebrow">Fjällskred · Molker Digital — plan a tour</div>
     <h1>Plan a tour</h1>
@@ -63,11 +64,19 @@
       <button class="btn" id="revBtn" disabled title="Swap start and end">Reverse</button>
       <button class="btn" id="clearBtn" disabled>Clear</button>
       <span class="tsep"></span>
-      <button class="btn" id="suggestBtn" title="Find a way from the start to the end of your route (or two points you click) that keeps off steep ground">Suggest a way up</button>
       <button class="btn" id="view3dBtn" title="See the area in 3D">3D view</button>
       <span class="tsep"></span>
       <button class="btn" id="gpxInBtn" title="Load a track from a GPX file (Garmin Connect, Strava, Suunto…). Stays in your browser.">Import GPX</button>
       <button class="btn" id="gpxOutBtn" disabled title="Download the route as GPX, as a track and as a route">Export GPX</button>
+    </div>
+    <div class="tools tourtools" role="toolbar" aria-label="Tour tools">
+      <span class="eyebrow">Tour</span>
+      <button class="btn" id="startBtn" aria-pressed="false" title="Click on the map where the tour starts (and ends)">Set start</button>
+      <button class="btn" id="descBtn" aria-pressed="false" title="Click two or more points down a line you want to ski; press again for the next descent">Add descent</button>
+      <button class="btn" id="tourUndoBtn" disabled title="Remove the last point of the start or the descents">Undo last point</button>
+      <button class="btn primary" id="buildBtn" disabled title="Find the quickest way from the start to each descent and back, keeping off avalanche terrain">Build tour</button>
+      <button class="btn" id="tourClearBtn" disabled>Clear tour</button>
+      <span class="note" id="tourHint"></span>
     </div>
     <div class="legend tlegend" id="tlegend"></div>
     <p class="attrib" id="tattrib"></p>
@@ -79,7 +88,7 @@
       <button class="btn small" id="saveBtn" disabled>Save</button>
     </div>
     <div class="bd" id="rpanel">
-      <p class="note" id="rempty">Press <strong>Draw route</strong> and click on the map to put down points; drag a point to move it, drag a small ring between two points to add one. Or <strong>Suggest a way up</strong> between two points you pick, or <strong>Import GPX</strong> from your watch. The ground under the route is measured every 25 m or so.</p>
+      <p class="note" id="rempty">Press <strong>Draw route</strong> and click on the map to put down points; drag a point to move it, drag a small ring between two points to add one. Or build a whole tour below the map: <strong>Set start</strong>, <strong>Add descent</strong> for each line you want to ski, then <strong>Build tour</strong>. Or <strong>Import GPX</strong> from your watch. The ground under the route is measured every 25 m or so.</p>
       <div id="rstats" hidden></div>
       <div class="rprofile" id="rprofile"></div>
       <div id="rdetail"></div>
@@ -107,7 +116,7 @@
   <ul>
     <li><strong>Slope and runout, Norway:</strong> NVE's slope-angle map with avalanche runout zones (bratthet med utløp, 2024), from Kartverket's 1 m and 10 m terrain models. Green from 27°, yellow to red and purple above 30°, runout zones in three blues (short, medium, long: roughly one avalanche in two, four and twenty runs further). © NVE, CC BY 4.0.</li>
     <li><strong>Computed shading and the route:</strong> heights from Kartverket (Norway, 1 m / 10 m) and, in Sweden, Lantmäteriet's 1 m terrain model when this service has a Geotorget login (© Lantmäteriet, CC BY 4.0), otherwise Copernicus GLO-90 (90 m), all through this service. The map shading is worked out in your browser from a grid of 17 × 17 heights per map tile, so it gets finer as you zoom in; at low zoom it averages steep faces down. The route is measured every 25 m or more, each point with a small cross of heights around it, so its slope is the ground's, not the route's own gradient. Without Lantmäteriet's model, the Swedish cross spans 90 m cells and steep short faces read flatter than they are.</li>
-    <li><strong>Suggested routes</strong> are the cheapest way on skins from start to end when steep ground, runout zones and today's problem slopes cost extra. They know nothing about cornices, glaciers, cliff bands smaller than a grid cell, forest, open water or the snow. Unverified: a line to look at, not to follow.</li>
+    <li><strong>Built tours</strong> keep the descents exactly as you draw them and find the legs between them: from the start up to the first descent, from the bottom of each descent to the top of the next, and back to the start (skiing down where that is the way). Each leg is the quickest way by the Munter method with steep ground, today's problem slopes and NVE's runout zones costing extra; at avalanche danger 1 problems and runout zones are not considered, but skin tracks still keep off 35° and steeper. They know nothing about cornices, glaciers, cliff bands smaller than a grid cell, forest, open water or the snow: legs that avoid known avalanche terrain, not safe ones.</li>
     <li><strong>Weather on the route:</strong> MET Norway's Locationforecast (the forecast behind yr.no) for the start and the highest point, each at its own height, hour by hour. © MET Norway, CC BY 4.0.</li>
     <li><strong>GPX:</strong> an imported file is read in your browser and never uploaded; long tracks are thinned to 150 points. Export gives the route as both a track and a route, with heights from the measurement.</li>
     <li><strong>Service area:</strong> everything here covers 12 km around the tours and ski resorts in Fjällskred, so this box never becomes a free map or elevation service for the internet. A daily budget caps how many heights it asks for.</li>

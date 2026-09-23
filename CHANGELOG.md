@@ -3,6 +3,28 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v5.4.0 — build a whole tour, and one frame for every page (2026-09-24)
+
+- **Build a tour** on Plan a tour: *Set start*, *Add descent* (two or more
+  points down each line you want to ski, as many descents as you like),
+  *Undo last point*, *Build tour*. Descents stay as drawn; the legs between
+  them are found — start to the first descent, the bottom of each descent to
+  the top of the next, and back to the start, skiing down where that is the
+  way. Replaces "Suggest a way up".
+- Each leg is the quickest by the **Munter method** with avalanche terrain
+  costing extra: steep ground, slopes facing today's problems at their
+  heights, and NVE runout zones (Norway); harder at danger 3+. At danger 1
+  problems and runout are ignored, but skin tracks keep off 35°+. Legs are
+  routed on a ~40 m grid with NVE's slope map deciding what is steep.
+- **Tour numbers** per leg, per descent and in total: length, climb,
+  vertical on your descents, Munter time; descents and legs crossing
+  today's problems or runout zones marked in red.
+- The route's time on the page is now Munter too (was 400 m/h up, 1500 m/h
+  down, 4 km/h flat).
+- **Same frame on every page:** the forecast accuracy page, Plan a tour and
+  the tour editor now have the main page's header, logotype, margins and a
+  "← Conditions" button in the same place.
+
 ## v5.3.0 — Plan a tour, and a 3D view that costs half (2026-09-24)
 
 - The terrain page is now **Plan a tour** ("Plan a tour" on the Tours card,

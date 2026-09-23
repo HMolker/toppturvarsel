@@ -9,10 +9,11 @@
  */
 
 import { SlippyMap } from './map.js';
-import { DemStore, tileCells, tileRange, tileCount, mosaic, slopeAspect, mx, my, DEM_MIN_Z, DEM_MAX_Z, plan3d, combine3d, DETAIL_3D } from './dem.js';
+import { DemStore, tileCells, tileRange, tileCount, mosaic, slopeAspect, mx, my, DEM_MIN_Z, DEM_MAX_Z, plan3d, combine3d, DETAIL_3D, upsampleGrid } from './dem.js';
 import { analyse, slopeRgb, ASPECT_COLOURS, SLOPE_CLASSES, SLOPE_COLOURS, OCT8, octant, fmtKm, fmtHours } from './analysis.js';
 import { renderProfile } from './profile.js';
-import { suggestPath, simplify, snapNode } from './suggest.js';
+import { simplify, snapNode } from './suggest.js';
+import { hazardFactors, legPath, tourLegs, assembleTour, tourNumbers, partWarnings } from './tour.js';
 import { classifyPoints } from './nve.js';
 import { Terrain3D } from './view3d.js';
 import { readHash, writeHash, savedRoutes, saveRoute, deleteRoute, FEATURES } from './routeio.js';
@@ -36,6 +37,10 @@ const S = {
   shade: 'off', nve: true, opacity: 0.7,
   budget: null,
   fine: [],
+  // The tour builder (v5.4): a start, descents drawn by hand, legs found.
+  tour: { start: null, descents: [], cur: -1 },
+  mode: null, // 'start' | 'descent' while placing them
+  built: null, // { key, parts, danger, region, cellM, usedNve }
   detail3d: (() => { try { return localStorage.getItem('fjallskred.detail3d') || 'normal'; } catch { return 'normal'; } })(),
 };
 
@@ -192,6 +197,24 @@ map.addSvgPainter((m) => {
     const p = poly(m, S.suggestion.points);
     out.push(`<polyline points="${p}" class="shalo"/><polyline points="${p}" class="sline"/>`);
   }
+  // The tour's start and descents.
+  S.tour.descents.forEach((d, k) => {
+    if (!d.length) return;
+    const cur = S.mode === 'descent' && k === S.tour.cur;
+    if (d.length > 1) {
+      const pl = poly(m, d);
+      out.push(`<polyline points="${pl}" class="dhalo"/><polyline points="${pl}" class="dline${cur ? ' cur' : ''}"/>`);
+    }
+    d.forEach((p, i) => {
+      const [x, y] = m.project(p[0], p[1]);
+      if (i === 0 || i === d.length - 1 || cur) out.push(`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${i === 0 ? 5.5 : 4}" class="dpt"/>`);
+      if (i === 0) out.push(`<text x="${(x + 8).toFixed(1)}" y="${(y - 6).toFixed(1)}" class="dlabel">D${k + 1}</text>`);
+    });
+  });
+  if (S.tour.start) {
+    const [x, y] = m.project(S.tour.start[0], S.tour.start[1]);
+    out.push(`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="9" class="startmk"><title>Start</title></circle><text x="${x.toFixed(1)}" y="${(y + 4).toFixed(1)}" text-anchor="middle" class="startlabel">S</text>`);
+  }
   for (const pk of S.picks) {
     const [x, y] = m.project(pk[0], pk[1]);
     out.push(`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="7" class="pickpt"/>`);
@@ -258,6 +281,7 @@ function changed({ analyseNow = false } = {}) {
 }
 
 function setDrawing(on) {
+  if (on) setMode(null);
   S.drawing = on;
   $('#drawBtn').setAttribute('aria-pressed', String(on));
   $('#drawBtn').textContent = on ? 'Done drawing' : S.route.length ? 'Edit route' : 'Draw route';
@@ -300,16 +324,15 @@ function hitPin(x, y) {
 }
 
 map.on('click', (e) => {
-  if (S.picking) {
-    S.picks.push([e.lat, e.lon]);
-    if (S.picks.length === 1) message('Now click where you want to get to.');
-    if (S.picks.length === 2) {
-      const [a, b] = S.picks;
-      S.picking = null;
-      $('#tmap').classList.remove('drawing');
-      runSuggestion(a, b);
-    }
-    map.render();
+  if (S.mode === 'start') {
+    S.tour.start = [e.lat, e.lon];
+    setMode(null);
+    tourChanged();
+    return;
+  }
+  if (S.mode === 'descent') {
+    S.tour.descents[S.tour.cur].push([e.lat, e.lon]);
+    tourChanged();
     return;
   }
   if (S.drawing) {
@@ -380,6 +403,7 @@ document.addEventListener('keydown', (e) => {
   if (e.target.closest('input, select, textarea, dialog')) return;
   if ((e.key === 'Delete' || e.key === 'Backspace') && S.sel >= 0) { e.preventDefault(); removeSelected(); }
   else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); }
+  else if (e.key === 'Escape' && S.mode) { setMode(null); }
   else if (e.key === 'Escape') { if (S.picking) { S.picking = null; S.picks = []; $('#tmap').classList.remove('drawing'); message(''); map.render(); } else if (S.drawing) setDrawing(false); }
 });
 
@@ -518,6 +542,7 @@ function renderPanel({ loading = false } = {}) {
 
   const w = S.where;
   const sec = [];
+  if (S.built) sec.push(tourSection());
   sec.push(`<div class="rsec"><h4>Slope under the route</h4>${classBar(a)}` +
     (a.steepest ? `<p class="note">Steepest: ${Math.round(a.steepest.slope)}° at ${fmtKm(a.steepest.d)}, ${a.steepest.ele} m, facing ${octant(a.steepest.aspect) ?? '–'}.</p>` : '') + `</div>`);
 
@@ -557,7 +582,7 @@ function renderPanel({ loading = false } = {}) {
   // Weather at the start and the highest point (v5.1), filled in below.
   sec.push(`<div class="rsec"><h4>Weather on the route</h4><div id="rweather"></div></div>`);
 
-  sec.push(`<p class="attrib">Heights: ${sourceName([S.profile.source], true)}, a point every ${S.profile.spacingM} m, slope from a ${S.profile.crossM * 2} m cross. Time: 400 m climb and 1500 m descent an hour, 4 km/h on the flat.</p>`);
+  sec.push(`<p class="attrib">Heights: ${sourceName([S.profile.source], true)}, a point every ${S.profile.spacingM} m, slope from a ${S.profile.crossM * 2} m cross. Time by the Munter method: 1 km or 100 m of height is one unit; 4 units an hour skinning, 10 skiing down.</p>`);
   det.innerHTML = sec.join('');
   loadWeather(a.weatherPoints);
   det.querySelectorAll('[data-zoomsec]').forEach((b) => {
@@ -678,124 +703,192 @@ async function loadRange(r, onProgress) {
   return { total: keys.length, missing };
 }
 
-$('#suggestBtn').onclick = () => {
-  if (S.route.length >= 2) {
-    runSuggestion(S.route[0], S.route[S.route.length - 1]);
+/* ------------------------------------------------------------------ *
+ * the tour builder (v5.4)
+ * ------------------------------------------------------------------ */
+
+function setMode(mode) {
+  S.mode = mode;
+  if (mode) { S.drawing = false; $('#drawBtn').setAttribute('aria-pressed', 'false'); }
+  $('#startBtn').setAttribute('aria-pressed', String(mode === 'start'));
+  $('#descBtn').setAttribute('aria-pressed', String(mode === 'descent'));
+  $('#tmap').classList.toggle('drawing', Boolean(mode) || S.drawing);
+  updateTourButtons();
+  map.render();
+}
+
+function updateTourButtons() {
+  const t = S.tour;
+  const cur = S.mode === 'descent' ? t.descents[t.cur] : null;
+  const done = t.descents.filter((d) => d.length >= 2);
+  $('#descBtn').textContent = cur ? (cur.length >= 2 ? `Finish descent ${t.cur + 1}` : `Descent ${t.cur + 1}: click points…`) : done.length ? 'Add another descent' : 'Add descent';
+  $('#tourUndoBtn').disabled = !t.start && !t.descents.some((d) => d.length);
+  $('#tourClearBtn').disabled = !t.start && !t.descents.length;
+  $('#buildBtn').disabled = !t.start || !done.length || S.mode === 'descent';
+  $('#tourHint').textContent =
+    S.mode === 'start' ? 'Click where the tour starts and ends.'
+    : cur ? (cur.length < 2 ? 'Click the top of the descent, then points down the line.' : 'Keep clicking down the line; press Finish when it ends.')
+    : !t.start ? 'Set the start, then add the descents you want to ski.'
+    : !done.length ? 'Add at least one descent.'
+    : `${done.length} descent${done.length > 1 ? 's' : ''}: press Build tour.`;
+}
+
+function tourChanged() {
+  updateTourButtons();
+  map.render();
+}
+
+$('#startBtn').onclick = () => setMode(S.mode === 'start' ? null : 'start');
+$('#descBtn').onclick = () => {
+  const t = S.tour;
+  if (S.mode === 'descent') {
+    // Finish the one being drawn (a single point is not a descent).
+    if (t.descents[t.cur].length < 2) t.descents.splice(t.cur, 1);
+    setMode(null);
     return;
   }
-  setDrawing(false);
-  S.picking = 'start';
-  S.picks = [];
-  $('#tmap').classList.add('drawing');
-  message('Click where you start, then where you want to get to. Esc cancels.');
+  t.descents.push([]);
+  t.cur = t.descents.length - 1;
+  setMode('descent');
+};
+$('#tourUndoBtn').onclick = () => {
+  const t = S.tour;
+  // The point placed last: in the descent being drawn, else the last descent, else the start.
+  const i = S.mode === 'descent' ? t.cur : t.descents.length - 1;
+  if (i >= 0 && t.descents[i]?.length) {
+    t.descents[i].pop();
+    if (!t.descents[i].length && S.mode !== 'descent') t.descents.splice(i, 1);
+  } else if (i >= 0 && t.descents[i] && S.mode !== 'descent') {
+    t.descents.splice(i, 1);
+  } else if (t.start) {
+    t.start = null;
+  }
+  tourChanged();
+};
+$('#tourClearBtn').onclick = () => {
+  S.tour = { start: null, descents: [], cur: -1 };
+  S.built = null;
+  setMode(null);
+  renderPanel();
 };
 
-async function runSuggestion(a, b) {
-  const box = $('#rsuggest');
-  const say = (html) => { box.innerHTML = `<div class="sugbox">${html}</div>`; };
-  if (!inZone(a[0], a[1]) || !inZone(b[0], b[1])) {
-    say(`<p class="warnline">Both points must be inside the service area (12 km around a tour or ski resort).</p>`);
-    S.picks = [];
-    map.render();
-    return;
-  }
-  const bbox = paddedBox([a, b]);
+/** Point `p` [lat, lon] in the routing grid, snapped to a node with a height. */
+const nodeOf = (G, p) => snapNode(G, ...G.fromLatLon(p[0], p[1]));
+
+$('#buildBtn').onclick = () => buildTour().catch((err) => { message(`Could not build the tour: ${err.message}`); console.error(err); });
+
+async function buildTour() {
+  const t = S.tour;
+  const start = t.start, descents = t.descents.filter((d) => d.length >= 2);
+  if (!start || !descents.length) return;
+  const all = [start, ...descents.flat()];
+  if (!all.every(([la, lo]) => inZone(la, lo))) { message('The start and every descent must be inside the service area (12 km around a tour or ski resort).'); return; }
+  const legs = tourLegs(start, descents);
+  const box = paddedBox(all, 0.25, 1.2);
+  const c = { lat: (box.north + box.south) / 2, lon: (box.east + box.west) / 2 };
+  const country = nearest(c.lat, c.lon)?.item.country;
+  const fineHere = S.fine.includes(country);
+
+  // The terrain for the whole tour area, once: every leg is found in it.
   let r = null;
-  for (let z = DEM_MAX_Z; z >= 12; z--) {
-    r = tileRange(bbox, z);
-    if (tileCount(r) <= 30) break;
+  for (let z = DEM_MAX_Z; z >= DEM_MIN_Z; z--) {
+    r = tileRange(box, z);
+    if (tileCount(r) <= (fineHere ? 90 : 30)) break;
   }
-  if (tileCount(r) > 30) { say(`<p class="warnline">Too far apart for a suggestion; try points within about 10 km.</p>`); return; }
-  say(`<p class="note">Loading the terrain model… 0/${tileCount(r)}</p>`);
-  message('Finding a way up…');
-  const got = await loadRange(r, (d, t) => say(`<p class="note">Loading the terrain model… ${d}/${t}</p>`));
-  if (got.missing > got.total / 3) {
-    say(`<p class="warnline">Could not load enough of the terrain model (${got.missing} of ${got.total} tiles missing). ${esc(dem.lastError ?? '')}</p>`);
-    message('');
-    S.picks = [];
-    map.render();
-    return;
-  }
-  const g = mosaic(r, (z, x, y) => dem.get(z, x, y));
-  const { slope, aspect } = slopeAspect(g.ele, g.nx, g.ny, g.cellM);
-  const where = regionAt((a[0] + b[0]) / 2, (a[1] + b[1]) / 2);
-  const problems = where?.bulletin?.problems ?? [];
-  const probs = problems.map((p) => ({ aspects: new Set(problemAspects(p.aspects)), bands: problemBands(p.heights) }));
-  const N = g.nx * g.ny;
-  const problem = new Uint8Array(N), runout = new Uint8Array(N);
-  for (let k = 0; k < N; k++) {
-    const o = octant(aspect[k]);
-    if (o && slope[k] >= 25 && probs.some((p) => p.aspects.has(o) && p.bands.some(([lo, hi]) => g.ele[k] >= lo && g.ele[k] <= hi))) problem[k] = 1;
-  }
-  const country = nearest(a[0], a[1])?.item.country;
+  const newHeights = (() => { let n = 0; for (let x = r.x0; x <= r.x1; x++) for (let y = r.y0; y <= r.y1; y++) if (!dem.get(r.z, x, y)?.ele) n += 289; return n; })();
+  if (!fineHere && S.budget && newHeights > S.budget.left) { message(`Building this tour needs ${newHeights.toLocaleString('en')} new heights and ${S.budget.left.toLocaleString('en')} are left today. Try a smaller area, or tomorrow.`); return; }
+  $('#buildBtn').disabled = true;
+  message(`Building the tour: loading the terrain… 0/${tileCount(r)}`);
+  const got = await loadRange(r, (d, n) => message(`Building the tour: loading the terrain… ${d}/${n}`));
+  if (got.missing > got.total / 3) throw new Error(`too little terrain loaded (${got.missing} of ${got.total} tiles missing). ${dem.lastError ?? ''}`);
+
+  // Route on a grid of ~45 m cells: the terrain model interpolated, with
+  // NVE's finer slope and runout map deciding what is steep (Norway).
+  const g0 = mosaic(r, (z, x, y) => dem.get(z, x, y));
+  const G = upsampleGrid(g0, Math.max(1, Math.min(4, Math.round(g0.cellM / 45))));
+  const { slope, aspect } = slopeAspect(G.ele, G.nx, G.ny, G.cellM);
+  const runout = new Uint8Array(G.nx * G.ny);
   let usedNve = false;
   if (country === 'NO' && S.nveReadable) {
-    // NVE's finer slope map raises the slope where it shows 27°+ and marks runout.
+    message('Building the tour: reading NVE’s slope and runout map…');
     const nodes = [];
-    for (let j = 0; j < g.ny; j++) for (let i = 0; i < g.nx; i++) nodes.push(g.toLatLon(i, j));
-    const cls = await classifyPoints(nodes, Math.min(16, r.z + 1)).catch(() => null);
+    for (let j = 0; j < G.ny; j++) for (let i = 0; i < G.nx; i++) nodes.push(G.toLatLon(i, j));
+    let zN = 16;
+    while (zN > 12 && tileCount(tileRange(box, zN)) > 120) zN--;
+    const pxM = (40075016.686 * Math.cos((c.lat * Math.PI) / 180)) / 2 ** zN / 256;
+    const cls = await classifyPoints(nodes, zN, Math.max(1, Math.min(6, Math.round(G.cellM / 2 / pxM)))).catch(() => null);
     if (cls) {
       usedNve = true;
-      cls.forEach((c, k) => {
-        if (!c) return;
-        if (c.runout) runout[k] = 1;
-        if (c.slope === 'steep') slope[k] = Math.max(slope[k] || 0, 27);
-        if (c.slope === 'steeper') slope[k] = Math.max(slope[k] || 0, 32);
+      cls.forEach((cl, k) => {
+        if (!cl) return;
+        if (cl.runout) runout[k] = 1;
+        if (cl.slope === 'steep') slope[k] = Math.max(slope[k] || 0, 27);
+        if (cl.slope === 'steeper') slope[k] = Math.max(slope[k] || 0, 32);
       });
     }
   }
-  const sN = snapNode(g, ...g.fromLatLon(a[0], a[1])), gN = snapNode(g, ...g.fromLatLon(b[0], b[1]));
-  if (!sN || !gN) { say(`<p class="warnline">No terrain heights at one of the points.</p>`); message(''); return; }
-  const cautious = S.sugProfile === 'cautious';
-  const res = suggestPath({ ...g, slope, runout, problem }, sN, gN, { profile: cautious ? 'cautious' : 'normal' });
-  S.picks = [];
-  message('');
-  if (!res) { say(`<p class="warnline">No way found between the two points.</p>`); map.render(); return; }
-  const simple = simplify(res.path, 0.9);
-  const pts = simple.map(([i, j]) => { const p = g.toLatLon(i, j); return [p.lat, p.lon]; });
-  pts[0] = a.slice();
-  pts[pts.length - 1] = b.slice();
-  S.suggestion = { points: pts, cellM: g.cellM, z: r.z, usedNve, problems: problems.length, where };
-  map.render();
-  say(`<p class="note">Measuring the suggestion…</p>`);
-  try {
-    const prof = await postProfile(pts);
-    const ro = await runoutFor(prof);
-    S.suggestion.analysis = analyse(prof, { problems, runout: ro });
-  } catch (err) {
-    S.suggestion.error = err.message;
+  const region = regionAt(c.lat, c.lon);
+  const danger = region?.bulletin?.danger ?? null;
+  const factors = hazardFactors({ slope, aspect, ele: G.ele, runout, problems: region?.bulletin?.problems ?? [], danger });
+
+  message('Building the tour: finding the legs…');
+  await new Promise((res) => setTimeout(res, 20)); // let the message paint
+  for (const leg of legs) {
+    const a = nodeOf(G, leg.from), b = nodeOf(G, leg.to);
+    if (!a || !b) throw new Error(`no terrain heights at ${leg.label.toLowerCase()}`);
+    const res = legPath(G, factors, a, b);
+    if (!res) throw new Error(`no way found for “${leg.label}”`);
+    leg.grid = res.path;
   }
-  renderSuggestion();
+  // Thin the legs until the whole tour fits in 300 points.
+  let tol = 0.9, tour;
+  do {
+    for (const leg of legs) {
+      const pts = simplify(leg.grid, tol).map(([i, j]) => { const p = G.toLatLon(i, j); return [p.lat, p.lon]; });
+      pts[0] = leg.from.slice();
+      pts[pts.length - 1] = leg.to.slice();
+      leg.points = pts;
+    }
+    tour = assembleTour(start, descents, legs);
+    tol *= 1.5;
+  } while (tour.points.length > 300 && tol < 50);
+
+  pushUndo();
+  S.route = tour.points;
+  S.sel = -1;
+  S.built = { parts: tour.parts, key: null, danger, region, cellM: G.cellM, usedNve };
+  S.built.key = routeKey();
+  if (!$('#rname').value) $('#rname').value = `Tour from ${nearest(start[0], start[1], S.tours)?.item.name ?? 'here'}`;
+  message('');
+  setMode(null);
+  map.fit(all.map(([lat, lon]) => ({ lat, lon })), 60, 15);
+  changed({ analyseNow: true });
+  refreshBudget();
 }
 
-function renderSuggestion() {
-  const sg = S.suggestion, box = $('#rsuggest');
-  if (!sg) { box.innerHTML = ''; return; }
-  const a = sg.analysis;
-  const steep = a ? a.classes.filter((c) => c.lo >= 30).reduce((s, c) => s + c.m, 0) : null;
-  box.innerHTML = `<div class="sugbox">` +
-    `<div class="unv">Suggestion — unverified</div>` +
-    `<h4 style="margin:4px 0 6px">A way up that keeps off steep ground</h4>` +
-    (a ? `<p>${fmtKm(a.distanceM)} · ↑ ${a.ascentM} m · ${fmtHours(a.hours)} · steepest ${a.steepest ? Math.round(a.steepest.slope) : '–'}° · ${steep ? `${fmtKm(steep)} at 30°+` : 'nothing measured at 30°+'}` +
-      `${a.problemSections.length ? ` · <span class="hot">${a.problemSections.length} stretch${a.problemSections.length > 1 ? 'es' : ''} in today's problems</span>` : ''}${a.runoutM ? ` · ${fmtKm(a.runoutM)} in runout zones` : ''}</p>` : sg.error ? `<p class="warnline">${esc(sg.error)}</p>` : '') +
-    `<p class="note">Worked out on a ${Math.round(sg.cellM)} m grid${sg.usedNve ? ' with NVE’s slope and runout map' : ''}${sg.problems ? ", avoiding today's problem slopes" : ''}. It knows nothing about cornices, glaciers, small cliffs, forest, water or the snow.</p>` +
-    `<div class="linkrow">` +
-    `<button class="btn primary" id="sugUse">Use as my route</button>` +
-    `<label class="note"><input type="checkbox" id="sugCautious" ${S.sugProfile === 'cautious' ? 'checked' : ''}> more cautious</label>` +
-    `<button class="btn" id="sugDrop">Discard</button></div></div>`;
-  $('#sugUse').onclick = () => {
-    pushUndo();
-    S.route = sg.points.map((p) => p.slice());
-    S.suggestion = null;
-    renderSuggestion();
-    changed({ analyseNow: true });
-  };
-  $('#sugDrop').onclick = () => { S.suggestion = null; renderSuggestion(); map.render(); };
-  $('#sugCautious').onchange = (e) => {
-    S.sugProfile = e.target.checked ? 'cautious' : 'normal';
-    const p = sg.points;
-    runSuggestion(p[0], p[p.length - 1]);
-  };
+/** The tour section of the route panel: legs, descents, totals, warnings. */
+function tourSection() {
+  const b = S.built;
+  if (!b) return '';
+  if (b.key !== routeKey()) return `<div class="rsec"><h4>Tour</h4><p class="note">The route has been edited since the tour was built. Press <strong>Build tour</strong> again to split it into legs and descents.</p></div>`;
+  const nums = tourNumbers(S.profile, b.parts);
+  const warn = partWarnings(nums.rows, S.analysis);
+  const dangerText = b.danger === 1
+    ? 'Danger 1 (low): today’s problem aspects and runout zones were not considered; skin tracks still keep off 35° and steeper.'
+    : b.danger ? `Danger ${b.danger} in ${esc(b.region?.name ?? '')}: the legs avoid steep ground, today’s problem slopes${b.usedNve ? ' and NVE runout zones' : ''} where the terrain allows.`
+    : `No bulletin today: the legs avoid steep ground${b.usedNve ? ' and NVE runout zones' : ''}; there were no problems to test.`;
+  const row = (r, w) => `<tr class="${r.kind === 'descent' ? 'desc' : ''}"><td>${esc(r.label)}` +
+    (w.problemM ? `<span class="warn">${fmtKm(w.problemM)} in today’s problems</span>` : '') +
+    (w.runoutM ? `<span class="warn">${fmtKm(w.runoutM)} in runout zones</span>` : '') +
+    `</td><td>${fmtKm(r.distanceM)}</td><td>${r.climbM}</td><td>${r.descentM}</td><td>${fmtHours(r.hours)}</td></tr>`;
+  const T = nums.total;
+  return `<div class="rsec"><h4>Tour</h4>` +
+    `<div class="rgrid"><div><b>${fmtKm(T.distanceM)}</b><span>tour length</span></div><div><b>↑ ${T.climbM} m</b><span>to climb</span></div><div><b>↓ ${T.skiedM} m</b><span>on your descents</span></div><div><b>${fmtHours(T.hours)}</b><span>Munter time</span></div></div>` +
+    `<table class="tourtbl"><thead><tr><th></th><th>km</th><th>↑ m</th><th>↓ m</th><th>time</th></tr></thead><tbody>` +
+    nums.rows.map((r, i) => row(r, warn[i])).join('') +
+    `<tr class="tot"><td>Total</td><td>${fmtKm(T.distanceM)}</td><td>${T.climbM}</td><td>${nums.rows.reduce((a, r) => a + r.descentM, 0)}</td><td>${fmtHours(T.hours)}</td></tr></tbody></table>` +
+    `<p class="note">${dangerText} Legs found on a ${Math.round(b.cellM)} m grid. Munter: 1 km or 100 m of height is one unit, 4 units an hour skinning, 10 skiing down. Descents are as you drew them; red notes show where they (or a leg that had no way round) cross today’s problems or runout zones.</p>` +
+    `<p class="note"><strong>Not a safe route:</strong> the legs avoid known avalanche terrain in the terrain model, not cornices, glaciers, small cliffs, forest, water or the snowpack. Read the bulletin and look at the slope you are on.</p></div>`;
 }
 
 /* ------------------------------------------------------------------ *
@@ -1145,6 +1238,7 @@ async function init() {
   renderLegend();
   renderSaved();
   updateButtons();
+  updateTourButtons();
   map.render();
   if (S.route.length >= 2) runAnalysis();
   else renderPanel();

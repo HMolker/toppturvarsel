@@ -383,7 +383,7 @@ async function crossCheck(resort, lifts, boundary, centre) {
       const { lifts: named, areas } = await ssrLifts(resort.lat, resort.lon);
       const here = named.filter(belongs);
       const { matched, missing } = matchToLifts(here, lifts);
-      facts.ssr = { total: here.length, matched: matched.length, missing: missing.map((m) => m.name), area: areas[0]?.name ?? null, source: 'Kartverket (SSR)' };
+      facts.ssr = { total: here.length, matched: matched.length, missingCount: missing.length, missing: missing.map((m) => m.name).filter(Boolean), area: areas[0]?.name ?? null, source: 'Kartverket (SSR)' };
       for (const m of missing) extras.push({ source: 'Kartverket', name: m.name, kind: m.type, lat: m.lat, lon: m.lon });
     } catch (err) {
       log.warn(`resortmap: SSR lift names for ${resort.name}: ${err.message}`);
@@ -396,7 +396,7 @@ async function crossCheck(resort, lifts, boundary, centre) {
   if (file.length) {
     const mids = file.map((l) => ({ ...l, ...l.points[Math.floor(l.points.length / 2)] }));
     const { matched, missing } = matchToLifts(mids, lifts, { withinM: 250 });
-    facts.file = { total: file.length, matched: matched.length, missing: missing.map((m) => m.name).filter(Boolean), source: agency };
+    facts.file = { total: file.length, matched: matched.length, missingCount: missing.length, missing: missing.map((m) => m.name).filter(Boolean), source: agency };
     for (const m of missing) extras.push({ source: agency, name: m.name, kind: m.kind, points: m.points, lengthM: lengthM(m.points) });
   }
   return { extras, facts };

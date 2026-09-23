@@ -3,6 +3,18 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v5.2.1 — v4.19.1 merged into the v5 line (2026-09-24)
+
+A combined release: v5.2.0 plus the one change made on the v4 line after
+v5 branched off. Nothing else is new.
+
+- From **v4.19.1**: Lantmäteriet's 635 Swedish lift lines ship in
+  `data/lifts-SE.geojson`, so Swedish resort maps draw their lifts without
+  any export of your own, and nine positions in the built-in Swedish resort
+  list are corrected from them.
+- v4.15.3 – v4.19.0 were already part of v5.0.0 (it was built on v4.19.0),
+  so the merge brings no second copy of them.
+
 ## v5.2.0 — Sweden's terrain at 1 m, from Lantmäteriet (2026-09-23)
 
 - With a Geotorget login that has ordered *Markhöjdmodell Nedladdning*
@@ -73,6 +85,21 @@ A new page, **/terrain** ("Terrain & routes" on the Tours card, "Terrain &
   plan is in `docs/v5.1.md`.
 - `demo/terrain-check.mjs`: the page driven offline in a headless browser
   against made-up terrain, with screenshots.
+## v4.19.1 — Sweden's lifts, from Lantmäteriet (2026-09-23)
+
+- `data/lifts-SE.geojson` now ships with the app: all 635 *Lintrafik* lines
+  (lifts, gondolas, funiculars) from Lantmäteriet's Topografi 50, converted
+  from SWEREF 99 TM to WGS 84. © Lantmäteriet. Every Swedish resort map is
+  checked against it with nothing to set up — lifts it knows and
+  OpenStreetMap does not are drawn and counted, as Kartverket's register
+  already does for Norway.
+- The lines carry no names in that dataset, so the facts say how many are
+  missing rather than naming them.
+- Nine resorts in the built-in Swedish fallback list had positions off by 2
+  to 8 km; they are now taken from the mapped lifts themselves (Åre Björnen,
+  Björnrike, Storhogna, Tänndalen, Kläppen, Orsa Grönklitt, Hassela,
+  Branäs, Ski Sunne).
+
 ## v4.19.0 — forecast accuracy, as a tool of its own (2026-09-22)
 
 - New page at **/skill**, linked from the resorts box: how good the forecast

@@ -646,12 +646,19 @@ names around the resort and matches them against the mapped lifts. Whatever
 is registered but not mapped is ringed in red on the map and listed in the
 fun facts. Open data, no key, CC BY 4.0 — © Kartverket.
 
-**Sweden — a file you export yourself.** Lantmäteriet's lift lines live in
+**Sweden — included.** `data/lifts-SE.geojson` ships with the app: the 635
+*Lintrafik* lines (lifts, gondolas, funiculars) from Lantmäteriet's
+Topografi 50, converted to WGS 84. © Lantmäteriet. Nothing to set up — every
+Swedish resort map checks against it. To refresh it from a newer download,
+follow the steps below and overwrite that file.
+
+**Sweden — refreshing it yourself.** Lantmäteriet's lift lines live in
 *Topografi 50*, theme *Byggnadsverk*, layer `Byggnadsanläggningslinje`,
 object type **Lintrafik** (code 1978: lifts, gondolas and funiculars).
 That product is not on Lantmäteriet's open STAC API; it needs a free
-Geotorget account and is delivered as a GeoPackage, so the app cannot fetch
-it for you. Once you have it:
+Geotorget account and is delivered as a GeoPackage (download
+`byggnadsverk_sverige.zip`, about 110 MB, not the whole 5 GB set), so the
+app cannot fetch it for you. Once you have it:
 
 1. Open the GeoPackage in QGIS and select the `byggnadsanlaggningslinje`
    layer; filter to `objekttyp = 'Lintrafik'`.

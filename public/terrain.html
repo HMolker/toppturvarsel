@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Fjällskred — terrain &amp; routes</title>
+<title>Fjällskred — plan a tour</title>
 <meta name="description" content="Slope angle, aspect and avalanche runout on the map, draw a ski tour and see what it crosses, in 3D and against today's avalanche problems.">
 <link rel="stylesheet" href="/styles.css">
 <link rel="stylesheet" href="/terrain/terrain.css">
@@ -17,8 +17,8 @@
 <header class="top">
   <a href="/" class="brandlink"><img class="brandmark" src="/brand/logo-header.png" width="107" height="120" alt="Fjällskred — back to the conditions"></a>
   <div>
-    <div class="eyebrow">Fjällskred · Molker Digital — terrain &amp; routes</div>
-    <h1>Plan a line</h1>
+    <div class="eyebrow">Fjällskred · Molker Digital — plan a tour</div>
+    <h1>Plan a tour</h1>
     <p class="sub">Slope angle, aspect and avalanche runout on the map. Draw a tour and see how steep the ground under it is, which way it faces, how long it takes and where it meets today's avalanche problems.</p>
   </div>
   <div class="status">
@@ -94,6 +94,7 @@
 <dialog class="t3d" id="t3d" aria-label="3D view">
   <div class="t3dhd">
     <strong id="t3dTitle">3D view</strong>
+    <label class="note">Detail <select id="detail3d" title="How fine the terrain is, and how many new heights it costs today. Cached terrain is free."></select></label>
     <label class="note">Height ×<span id="exagVal">1.3</span> <input type="range" id="exag" min="10" max="30" value="13"></label>
     <span class="note" id="t3dNote"></span>
     <button class="btn small" id="t3dClose">Close</button>

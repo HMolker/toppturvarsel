@@ -3,6 +3,26 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v5.3.0 — Plan a tour, and a 3D view that costs half (2026-09-24)
+
+- The terrain page is now **Plan a tour** ("Plan a tour" on the Tours card,
+  "Plan this tour" in a tour panel). The address stays `/terrain`.
+- **3D detail:** *Low*, *Normal* (default) or *High*, each shown with what it
+  would cost today before anything loads. Normal loads the whole area coarse
+  and a corridor about 150 m either side of the route two zooms finer: for a
+  5 km tour 2 300 new heights where v5.0 took 4 600, and twice as sharp along
+  the route. High goes three zooms finer along the route (74 m at 61°N) for
+  3 800, where v5.0 needed 12 100 for that. Terrain already loaded is free,
+  and a level that needs more than today's budget says so instead of loading
+  half. Sweden with Lantmäteriet (no point budget) may use three times the
+  tiles at every level.
+- **Map shading** uses terrain one zoom coarser than the map, drawn smoothly:
+  a quarter of the heights per screenful (about 1 700 instead of 7 000),
+  which was what emptied the daily budget. At the closest zoom the cells are
+  still 37 m (29 m in the far north).
+- The status line shows how much of the day's height budget is left once
+  half is used.
+
 ## v5.2.1 — v4.19.1 merged into the v5 line (2026-09-24)
 
 A combined release: v5.2.0 plus the one change made on the v4 line after

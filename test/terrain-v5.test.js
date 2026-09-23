@@ -183,7 +183,7 @@ test('GET /terrain serves the page', async () => {
   await withServer(async (base) => {
     const res = await fetch(`${base}/terrain`);
     assert.equal(res.status, 200);
-    assert.match(await res.text(), /Plan a line/);
+    assert.match(await res.text(), /Plan a tour/);
     const js = await fetch(`${base}/terrain/app.js`);
     assert.equal(js.status, 200);
   });
@@ -316,4 +316,58 @@ test('encoded polylines round-trip', () => {
   const back = IO.decodePolyline(IO.encodePolyline(pts));
   back.forEach((p, i) => { assert.ok(Math.abs(p[0] - pts[i][0]) < 1e-5 && Math.abs(p[1] - pts[i][1]) < 1e-5); });
   assert.equal(IO.encodePolyline([[38.5, -120.2], [40.7, -120.95], [43.252, -126.453]]), '_p~iF~ps|U_ulLnnqC_mqNvxq`@');
+});
+
+test('plan3d: normal detail loads a fine corridor along the route and a coarse surround', () => {
+  // A 5 km route up to Høgeloft-ish latitude, box padded like the page does.
+  const route = [[61.02, 8.26], [61.035, 8.24], [61.0539, 8.2143]];
+  const box = { south: 61.005, north: 61.07, west: 8.17, east: 8.30 };
+  const low = D.plan3d({ box, route, detail: 'low' });
+  const normal = D.plan3d({ box, route, detail: 'normal' });
+  const high = D.plan3d({ box, route, detail: 'high' });
+  assert.ok(D.tileCount(low.surround) <= 6 && !low.corridor);
+  assert.ok(normal.corridor, 'a corridor along the route');
+  assert.ok(normal.corridor.range.z > normal.surround.z);
+  assert.ok(normal.corridor.keys.size <= 12);
+  assert.ok(high.corridor && high.corridor.range.z >= normal.corridor.range.z);
+  // The corridor is a thin band: far fewer tiles than the box at that zoom.
+  assert.ok(normal.corridor.keys.size < D.tileCount(normal.corridor.range) / 2);
+  assert.ok(normal.newHeights < high.newHeights, `normal ${normal.newHeights} vs high ${high.newHeights}`);
+  assert.ok(low.newHeights <= normal.newHeights);
+  // Cached tiles cost nothing.
+  const all = D.plan3d({ box, route, detail: 'normal', cached: () => true });
+  assert.equal(all.newHeights, 0);
+  // With terrain from files, three times the tiles are allowed.
+  const fine = D.plan3d({ box, route, detail: 'normal', fine: true });
+  assert.ok(fine.corridor.range.z >= normal.corridor.range.z);
+  // No route: no corridor.
+  assert.equal(D.plan3d({ box, detail: 'normal' }).corridor, null);
+});
+
+test('combine3d fills the fine grid from the surround outside the corridor', () => {
+  const route = [[61.02, 8.26], [61.0539, 8.2143]];
+  const box = { south: 61.005, north: 61.07, west: 8.17, east: 8.30 };
+  const plan = D.plan3d({ box, route, detail: 'normal' });
+  // A tilted plane, the same function at every zoom.
+  const plane = (lat, lon) => 1000 + (lat - 61) * 20000 + (lon - 8) * 5000;
+  const tile = (z, x, y) => {
+    const ele = [];
+    for (let j = 0; j < 17; j++) for (let i = 0; i < 17; i++) {
+      const lat = D.unmy((y + j / 16) / 2 ** z), lon = D.unmx((x + i / 16) / 2 ** z);
+      ele.push(plane(lat, lon));
+    }
+    return { z, x, y, ele, source: 'kartverket-dtm' };
+  };
+  const g = D.combine3d(plan, tile);
+  assert.equal(g.z, plan.corridor.range.z);
+  assert.ok(g.surroundCellM > g.corridorCellM);
+  let worst = 0, nan = 0;
+  for (let j = 0; j < g.ny; j += 7) for (let i = 0; i < g.nx; i += 7) {
+    const v = g.ele[j * g.nx + i];
+    if (!Number.isFinite(v)) { nan++; continue; }
+    const p = g.toLatLon(i, j);
+    worst = Math.max(worst, Math.abs(v - plane(p.lat, p.lon)));
+  }
+  assert.equal(nan, 0, 'every node has a height');
+  assert.ok(worst < 1, `worst ${worst}`);
 });

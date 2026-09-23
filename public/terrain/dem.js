@@ -183,3 +183,93 @@ export function tileCells(tile) {
   }
   return { slope, aspect, elev, cellM: cell };
 }
+
+/* ------------------------------------------------------------------ *
+ * how much terrain a 3D view loads (v5.3)
+ * ------------------------------------------------------------------ */
+
+/** Tile limits per detail level; `fine` (terrain from files) can afford 3x. */
+export const DETAIL_3D = {
+  // surround: most tiles for the whole area; corridor: most tiles along the
+  // route, `step` zooms finer than the surround, within `reach` metres of it.
+  low: { label: 'Low', surround: 6, corridor: 0 },
+  normal: { label: 'Normal', surround: 4, corridor: 12, step: 2, reach: 150 },
+  high: { label: 'High', surround: 4, corridor: 30, step: 3, reach: 250 },
+};
+
+/** Distance in tiles from a tile's centre to a polyline given in tile coordinates. */
+function tileDistance(cx, cy, line) {
+  let best = Infinity;
+  for (let k = 1; k < line.length; k++) {
+    const [ax, ay] = line[k - 1], [bx, by] = line[k];
+    const dx = bx - ax, dy = by - ay;
+    const L = dx * dx + dy * dy;
+    const t = L ? Math.max(0, Math.min(1, ((cx - ax) * dx + (cy - ay) * dy) / L)) : 0;
+    best = Math.min(best, Math.hypot(cx - (ax + t * dx), cy - (ay + t * dy)));
+  }
+  return line.length === 1 ? Math.hypot(cx - line[0][0], cy - line[0][1]) : best;
+}
+
+/**
+ * What to load for a 3D view of `box`:
+ *   surround: the whole box at the finest zoom that fits in `surround` tiles;
+ *   corridor (with a route): `step` zooms finer (fewer if that is too many
+ *     tiles), only the tiles within `reach` metres of the route.
+ * Returns { surround: range, corridor: { range, keys: Set } | null,
+ *           tiles: [[z, x, y]], newHeights } — newHeights counts only tiles
+ * not already cached (`cached(z, x, y)`), 289 heights each.
+ */
+export function plan3d({ box, route = null, detail = 'normal', fine = false, cached = () => false, n = DEM_N }) {
+  const d = DETAIL_3D[detail] ?? DETAIL_3D.normal;
+  const k = fine ? 3 : 1;
+  let surround = null;
+  for (let z = DEM_MAX_Z; z >= DEM_MIN_Z; z--) {
+    surround = tileRange(box, z);
+    if (tileCount(surround) <= d.surround * k) break;
+  }
+  let corridor = null;
+  if (d.corridor && route?.length >= 2 && surround.z < DEM_MAX_Z) {
+    for (let z = Math.min(DEM_MAX_Z, surround.z + d.step); z > surround.z; z--) {
+      const range = tileRange(box, z);
+      const nT = 2 ** z;
+      const line = route.map(([lat, lon]) => [mx(lon) * nT, my(lat) * nT]);
+      const tileM = 40075016.686 * Math.cos((((box.north + box.south) / 2) * Math.PI) / 180) / nT;
+      const reach = Math.SQRT1_2 + d.reach / tileM;
+      const keys = new Set();
+      for (let x = range.x0; x <= range.x1; x++) {
+        for (let y = range.y0; y <= range.y1; y++) {
+          if (tileDistance(x + 0.5, y + 0.5, line) <= reach) keys.add(`${z}/${x}/${y}`);
+        }
+      }
+      if (keys.size <= d.corridor * k) { corridor = { range, keys }; break; }
+    }
+  }
+  const tiles = [];
+  for (let x = surround.x0; x <= surround.x1; x++) for (let y = surround.y0; y <= surround.y1; y++) tiles.push([surround.z, x, y]);
+  if (corridor) for (const key of corridor.keys) tiles.push(key.split('/').map(Number));
+  const newHeights = tiles.filter(([z, x, y]) => !cached(z, x, y)).length * n * n;
+  return { surround, corridor, tiles, newHeights };
+}
+
+/**
+ * The 3D grid: the corridor's fine grid where it has data, the surround
+ * (bilinear) everywhere else; or just the surround.
+ */
+export function combine3d(plan, getTile) {
+  const coarse = mosaic(plan.surround, getTile);
+  if (!plan.corridor) return coarse;
+  const fineG = mosaic(plan.corridor.range, (z, x, y) => (plan.corridor.keys.has(`${z}/${x}/${y}`) ? getTile(z, x, y) : null));
+  for (let j = 0; j < fineG.ny; j++) {
+    for (let i = 0; i < fineG.nx; i++) {
+      const q = j * fineG.nx + i;
+      if (Number.isFinite(fineG.ele[q])) continue;
+      const p = fineG.toLatLon(i, j);
+      const [ci, cj] = coarse.fromLatLon(p.lat, p.lon);
+      fineG.ele[q] = sampleGrid(coarse, ci, cj);
+    }
+  }
+  fineG.sources = [...new Set([...fineG.sources, ...coarse.sources])];
+  fineG.corridorCellM = fineG.cellM;
+  fineG.surroundCellM = coarse.cellM;
+  return fineG;
+}

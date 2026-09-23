@@ -9,7 +9,7 @@
  */
 
 import { SlippyMap } from './map.js';
-import { DemStore, tileCells, tileRange, tileCount, mosaic, slopeAspect, mx, my, DEM_MIN_Z, DEM_MAX_Z } from './dem.js';
+import { DemStore, tileCells, tileRange, tileCount, mosaic, slopeAspect, mx, my, DEM_MIN_Z, DEM_MAX_Z, plan3d, combine3d, DETAIL_3D } from './dem.js';
 import { analyse, slopeRgb, ASPECT_COLOURS, SLOPE_CLASSES, SLOPE_COLOURS, OCT8, octant, fmtKm, fmtHours } from './analysis.js';
 import { renderProfile } from './profile.js';
 import { suggestPath, simplify, snapNode } from './suggest.js';
@@ -36,6 +36,7 @@ const S = {
   shade: 'off', nve: true, opacity: 0.7,
   budget: null,
   fine: [],
+  detail3d: (() => { try { return localStorage.getItem('fjallskred.detail3d') || 'normal'; } catch { return 'normal'; } })(),
 };
 
 const dem = new DemStore();
@@ -141,11 +142,14 @@ let shadeNote = '';
 map.addCanvasPainter((ctx, m) => {
   shadeNote = '';
   if (S.shade === 'off') return;
-  const z = Math.round(m.zoom);
+  // One zoom coarser than the map (32 screen pixels per terrain cell, drawn
+  // smoothly): a quarter of the heights per screenful, which is what used up
+  // the daily budget. Still 37 m cells at the closest zoom.
+  const z = Math.round(m.zoom) - 1;
   if (z < DEM_MIN_Z) { shadeNote = 'zoom in to see the shading'; return; }
   const dz = Math.min(DEM_MAX_Z, z);
   const tiles = m.visibleTiles(dz, dz).filter((t) => tileInZone(t.z, t.x, t.y));
-  if (tiles.length > 60) { shadeNote = 'zoom in to see the shading'; return; }
+  if (tiles.length > 24) { shadeNote = 'zoom in to see the shading'; return; }
   const problems = regionAt(m.center().lat, m.center().lon)?.bulletin?.problems ?? [];
   problemSig = JSON.stringify(problems.map((p) => [p.aspects, p.heights]));
   const want = new Set(tiles.map((t) => `${t.z}/${t.x}/${t.y}`));
@@ -661,7 +665,8 @@ function paddedBox(pts, padFrac = 0.35, minKm = 1.2) {
 
 async function loadRange(r, onProgress) {
   const keys = [];
-  for (let x = r.x0; x <= r.x1; x++) for (let y = r.y0; y <= r.y1; y++) keys.push([r.z, x, y]);
+  if (Array.isArray(r)) keys.push(...r);
+  else for (let x = r.x0; x <= r.x1; x++) for (let y = r.y0; y <= r.y1; y++) keys.push([r.z, x, y]);
   keys.forEach(([z, x, y]) => protect.add(`${z}/${x}/${y}`));
   let done = 0;
   try {
@@ -814,22 +819,33 @@ async function open3d() {
   const vb = map.bounds();
   const box = pts ? paddedBox(pts, 0.2, 1) : vb;
   // Where the terrain comes from files (Sweden with Lantmäteriet's 1 m model),
-  // a fine grid is cheap: allow more tiles, so the 3D view gets finer cells.
+  // heights cost no budget: each detail level may use three times the tiles.
   const fineHere = S.fine.includes(nearest((box.north + box.south) / 2, (box.east + box.west) / 2)?.item.country);
-  const maxTiles = fineHere ? 80 : 30;
-  let r = null;
-  for (let z = DEM_MAX_Z; z >= 11; z--) {
-    r = tileRange(box, z);
-    if (tileCount(r) <= maxTiles) break;
-  }
+  const cached = (z, x, y) => Boolean(dem.get(z, x, y)?.ele);
+  const plans = Object.fromEntries(Object.keys(DETAIL_3D).map((d) => [d, plan3d({ box, route: pts, detail: d, fine: fineHere, cached })]));
+  // The choice shows what each level would cost now (cached tiles are free).
+  const sel = $('#detail3d');
+  sel.innerHTML = Object.entries(DETAIL_3D).map(([d, v]) => {
+    const pl = plans[d];
+    const cell = Math.round(cellAt(pl.corridor?.range ?? pl.surround, box));
+    const cost = fineHere ? 'from Lantmäteriet' : pl.newHeights ? `${pl.newHeights.toLocaleString('en')} new heights` : 'cached';
+    return `<option value="${d}"${d === S.detail3d ? ' selected' : ''}>${v.label} — ${cell} m${pl.corridor ? ' along the route' : ''} · ${cost}</option>`;
+  }).join('');
+  const plan = plans[S.detail3d] ?? plans.normal;
   const c = { lat: (box.north + box.south) / 2, lon: (box.east + box.west) / 2 };
   if (!inZone(c.lat, c.lon)) { message('The 3D view needs the area to be inside the service area.'); return; }
+  if (!fineHere && S.budget && plan.newHeights > S.budget.left) {
+    if (!dlg.open) dlg.showModal();
+    note(`this detail needs ${plan.newHeights.toLocaleString('en')} new heights, and ${S.budget.left.toLocaleString('en')} are left today: choose a lower detail`);
+    return;
+  }
   if (!dlg.open) dlg.showModal();
   $('#t3dTitle').textContent = pts ? '3D — your route' : '3D — this view';
-  note(`loading the terrain model… 0/${tileCount(r)}`);
-  const got = await loadRange(r, (d, t) => note(`loading the terrain model… ${d}/${t}`));
+  note(`loading the terrain model… 0/${plan.tiles.length}`);
+  const got = await loadRange(plan.tiles, (d, t) => note(`loading the terrain model… ${d}/${t}`));
   if (got.missing === got.total) { note(`no terrain here: ${dem.lastError ?? 'nothing loaded'}`); return; }
-  const g = mosaic(r, (z, x, y) => dem.get(z, x, y));
+  const g = combine3d(plan, (z, x, y) => dem.get(z, x, y));
+  const r = plan.corridor?.range ?? plan.surround;
 
   // The texture: topo tiles at up to two levels finer, then overlays and the route.
   const tx = r.x1 - r.x0 + 1, ty = r.y1 - r.y0 + 1;
@@ -912,9 +928,26 @@ async function open3d() {
   if (!viewer) return;
   viewer.exag = +$('#exag').value / 10;
   viewer.setScene(g, cv);
-  note(`${Math.round(g.cellM)} m grid · ${sourceName(g.sources)} · drag to turn, scroll to zoom`);
+  note(`${g.surroundCellM ? `${Math.round(g.cellM)} m along the route, ${Math.round(g.surroundCellM)} m around` : `${Math.round(g.cellM)} m grid`} · ${sourceName(g.sources)} · drag to turn, scroll to zoom`);
+  refreshBudget();
+}
+/** Metres per terrain cell of a tile range, at the box's latitude. */
+function cellAt(range, box) {
+  return (40075016.686 * Math.cos((((box.north + box.south) / 2) * Math.PI) / 180)) / 2 ** range.z / 16;
+}
+/** The height budget, re-read after heavy work so the status line is true. */
+async function refreshBudget() {
+  try {
+    const z = await fetch('/api/terrain/zone').then((r) => r.json());
+    if (z?.budget) { S.budget = z.budget; updateStatus(); }
+  } catch { /* not important */ }
 }
 $('#view3dBtn').onclick = open3d;
+$('#detail3d').onchange = (e) => {
+  S.detail3d = e.target.value;
+  try { localStorage.setItem('fjallskred.detail3d', S.detail3d); } catch { /* private mode */ }
+  open3d();
+};
 $('#t3dClose').onclick = () => $('#t3d').close();
 $('#exag').oninput = (e) => {
   $('#exagVal').textContent = (e.target.value / 10).toFixed(1);
@@ -952,7 +985,7 @@ function updateStatus() {
   const bits = [];
   if (dem.busy) bits.push(`terrain model: ${dem.busy} tile${dem.busy > 1 ? 's' : ''} loading`);
   if (shadeNote) bits.push(shadeNote);
-  if (S.budget && S.budget.left < S.budget.limit * 0.2) bits.push(`${S.budget.left.toLocaleString('en')} height points left today`);
+  if (S.budget && S.budget.left < S.budget.limit * 0.5) bits.push(`${S.budget.left.toLocaleString('en')} of ${S.budget.limit.toLocaleString('en')} heights left today`);
   $('#tstatus').textContent = bits.join(' · ');
 }
 

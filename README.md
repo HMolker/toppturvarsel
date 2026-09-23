@@ -157,8 +157,8 @@ Norwegian resort status Fnugg · Swedish resorts © OpenStreetMap contributors.
 
 ## Terrain & routes (v5)
 
-`/terrain`, linked from the Tours card and from every tour panel
-("Terrain & 3D"), is a page of its own, like the tour editor. It is the
+`/terrain` (**Plan a tour**), linked from the Tours card and from every tour
+panel ("Plan this tour"), is a page of its own, like the tour editor. It is the
 Skida / FATMAP part of Fjällskred:
 
 - **A map you can pan and zoom** (no library): Kartverket's grey topo in
@@ -190,7 +190,13 @@ Skida / FATMAP part of Fjällskred:
   forest, water or the snow.
 - **3D view**: the area around the route (or the view) as a WebGL mesh with
   the map, the overlays and the route draped over it. Drag to turn, scroll
-  to zoom, a slider for height exaggeration.
+  to zoom, a slider for height exaggeration. **Detail** (v5.3): *Low* is the
+  whole area coarse (~300–600 m cells, ~1 200 heights); *Normal* adds a
+  corridor about 150 m either side of the route two zooms finer (~150 m
+  cells in southern Norway, ~110 m in the north; ~2 300–4 600 heights);
+  *High* goes three zooms finer along the route (~75 / 55 m; ~3 800–7 500).
+  Each choice shows what it would cost today before anything loads, and
+  terrain already loaded is free.
 - Routes live in the page's address (share or bookmark the link) and in a
   list saved in this browser. A tour's own route (your GPX or OpenStreetMap)
   is shown dotted and can be taken over as your route.
@@ -202,8 +208,10 @@ Open-Meteo (Sweden, 100 per request); every point asked for counts against
 `TERRAIN_DAILY_POINTS` (default 60 000 a day, about 1 200 Kartverket
 requests) and past it the page is told to try tomorrow. Terrain grids are
 kept on disk for a year (`data/cache/dem/`), so an area costs once. A first
-look at a new area takes a while: a screenful of shading is about 20 grid
-tiles of 289 points, a suggestion or 3D view up to 30.
+look at a new area takes a while. Map shading uses terrain one zoom coarser
+than the map (v5.3), about 6 grid tiles of 289 points a screenful (1 700
+heights, a quarter of v5.0's); a suggestion up to 30 tiles; the 3D view as
+above.
 
 **Sweden at 1 m (v5.2).** With a Geotorget account that has ordered
 *Markhöjdmodell Nedladdning*, set `LANTMATERIET_USER` and

@@ -267,7 +267,7 @@ console.log('suggestion', await page.evaluate(() => { const s = window.fjallskre
 // 3D.
 await page.selectOption('#lyrShade', 'slope');
 await page.click('#view3dBtn');
-await page.waitForFunction(() => /grid/.test(document.querySelector('#t3dNote').textContent) || /WebGL/.test(document.querySelector('#t3dNote').textContent), null, { timeout: 120000 });
+await page.waitForFunction(() => /grid|along the route/.test(document.querySelector('#t3dNote').textContent) || /WebGL/.test(document.querySelector('#t3dNote').textContent), null, { timeout: 120000 });
 await page.waitForTimeout(800);
 await shot('9-3d', '#t3d');
 console.log('3d note:', await page.textContent('#t3dNote'));

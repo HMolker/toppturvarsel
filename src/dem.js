@@ -119,7 +119,7 @@ async function elevationsCached(points, country, { spacingM = 10 } = {}) {
     // up front, even ones Lantmäteriet then answered.
     const b = budgetStatus();
     const left = b.limit - b.used;
-    if (left <= 0 && !lmEnabled()) spend(missing.length); // throws the usual 429
+    if (left <= 0 && !elevation.lmUsable()) spend(missing.length); // throws the usual 429
     const res = await queued(() => bestElevations(missing.map((i) => points[i]), country, { spacingM, maxCharged: left }));
     budget.used += res.charged ?? 0;
     source = res.source;
@@ -367,7 +367,7 @@ export async function zoneInfo() {
     count: list.length,
     // Countries whose terrain comes from files (cheap to read finely): the
     // 3D view can use a finer grid there.
-    fine: lm.enabled ? ['SE'] : [],
-    lantmateriet: { enabled: lm.enabled, traffic: lm.traffic, lastError: elevation.lmLastError },
+    fine: elevation.lmUsable() ? ['SE'] : [],
+    lantmateriet: { enabled: lm.enabled, usable: elevation.lmUsable(), traffic: lm.traffic, lastError: elevation.lmLastError },
   };
 }

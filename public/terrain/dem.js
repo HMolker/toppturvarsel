@@ -45,7 +45,10 @@ export class DemStore {
   /** Ask for a tile; resolves to the tile or null (outside the area, budget used, …). */
   load(z, x, y) {
     const k = this.key(z, x, y);
-    if (this.tiles.has(k)) return Promise.resolve(this.tiles.get(k).error ? null : this.tiles.get(k));
+    const had = this.tiles.get(k);
+    // A 429 (budget or an upstream limit) is kept for two minutes, then asked again.
+    if (had?.error && had.status === 429 && Date.now() - (had.at ?? 0) > 120000) this.tiles.delete(k);
+    else if (had) return Promise.resolve(had.error ? null : had);
     if (this.pending.has(k)) return this.pending.get(k);
     const p = new Promise((resolve) => {
       this.queue.push({ k, url: `/api/dem/${z}/${x}/${y}`, resolve });
@@ -63,7 +66,7 @@ export class DemStore {
         .catch((e) => {
           this.lastError = e.message;
           // 403 (outside) and 429 (budget) are answers; keep them. Others retry later.
-          if (e.status === 403 || e.status === 429 || e.status === 400) this.tiles.set(job.k, { error: e.message, status: e.status });
+          if (e.status === 403 || e.status === 429 || e.status === 400) this.tiles.set(job.k, { error: e.message, status: e.status, at: Date.now() });
           job.resolve(null);
         })
         .finally(() => {

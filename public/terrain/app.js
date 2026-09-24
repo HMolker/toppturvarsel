@@ -794,20 +794,25 @@ async function buildTour() {
   const box = paddedBox(all, 0.25, 1.2);
   const c = { lat: (box.north + box.south) / 2, lon: (box.east + box.west) / 2 };
   const country = nearest(c.lat, c.lon)?.item.country;
+  await refreshBudget(); // is Lantmäteriet answering right now?
   const fineHere = S.fine.includes(country);
+  // Sweden without Lantmäteriet: Copernicus' 90 m model via Open-Meteo, whose
+  // free service allows only so many heights a minute. Finer than ~75 m
+  // cells adds nothing there, so ask for fewer, coarser tiles.
+  const coarse = country === 'SE' && !fineHere;
 
   // The terrain for the whole tour area, once: every leg is found in it.
   let r = null;
-  for (let z = DEM_MAX_Z; z >= DEM_MIN_Z; z--) {
+  for (let z = coarse ? DEM_MAX_Z - 1 : DEM_MAX_Z; z >= DEM_MIN_Z; z--) {
     r = tileRange(box, z);
-    if (tileCount(r) <= (fineHere ? 90 : 30)) break;
+    if (tileCount(r) <= (fineHere ? 90 : coarse ? 16 : 30)) break;
   }
   const newHeights = (() => { let n = 0; for (let x = r.x0; x <= r.x1; x++) for (let y = r.y0; y <= r.y1; y++) if (!dem.get(r.z, x, y)?.ele) n += 289; return n; })();
   if (!fineHere && S.budget && newHeights > S.budget.left) { message(`Building this tour needs ${newHeights.toLocaleString('en')} new heights and ${S.budget.left.toLocaleString('en')} are left today. Try a smaller area, or tomorrow.`); return; }
   $('#buildBtn').disabled = true;
   message(`Building the tour: loading the terrain… 0/${tileCount(r)}`);
   const got = await loadRange(r, (d, n) => message(`Building the tour: loading the terrain… ${d}/${n}`));
-  if (got.missing > got.total / 3) throw new Error(`too little terrain loaded (${got.missing} of ${got.total} tiles missing). ${dem.lastError ?? ''}`);
+  if (got.missing > got.total / 3) throw new Error(`too little terrain loaded (${got.missing} of ${got.total} tiles missing). ${dem.lastError ?? ''}${coarse ? ' — Sweden is on the 90 m fallback because Lantmäteriet is not in use on the server (see the status line).' : ''}`);
 
   // Route on a grid of ~45 m cells: the terrain model interpolated, with
   // NVE's finer slope and runout map deciding what is steep (Norway).
@@ -1166,7 +1171,10 @@ function cellAt(range, box) {
 async function refreshBudget() {
   try {
     const z = await fetch('/api/terrain/zone').then((r) => r.json());
-    if (z?.budget) { S.budget = z.budget; updateStatus(); }
+    if (z?.budget) S.budget = z.budget;
+    if (Array.isArray(z?.fine)) S.fine = z.fine;
+    S.lmError = z?.lantmateriet?.enabled ? z.lantmateriet.lastError : null;
+    updateStatus();
   } catch { /* not important */ }
 }
 $('#view3dBtn').onclick = open3d;
@@ -1213,7 +1221,7 @@ function updateStatus() {
   if (dem.busy) bits.push(`terrain model: ${dem.busy} tile${dem.busy > 1 ? 's' : ''} loading`);
   if (shadeNote) bits.push(shadeNote);
   if (!S.fine.includes('SE') && S.zoneLoaded && nearest(map.center().lat, map.center().lon)?.item.country === 'SE') {
-    bits.push('Sweden: 90 m heights from the daily budget — no Lantmäteriet login on the server');
+    bits.push(S.lmError ? `Sweden: 90 m heights for now — Lantmäteriet failed: ${S.lmError}` : 'Sweden: 90 m heights from the daily budget — no Lantmäteriet login on the server');
   }
   if (S.budget && S.budget.left < S.budget.limit * 0.5) bits.push(`${S.budget.left.toLocaleString('en')} of ${S.budget.limit.toLocaleString('en')} heights left today`);
   $('#tstatus').textContent = bits.join(' · ');
@@ -1372,6 +1380,7 @@ async function init() {
   if (zone?.budget) S.budget = zone.budget;
   S.fine = zone?.fine ?? [];
   S.zoneLoaded = !!zone;
+  S.lmError = zone?.lantmateriet?.enabled ? zone.lantmateriet.lastError : null;
   if (zone?.lantmateriet?.lastError) message(`Lantmäteriet's terrain model is not being used: ${zone.lantmateriet.lastError}`);
   renderLegend();
   updateStatus();

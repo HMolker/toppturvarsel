@@ -3,6 +3,24 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v5.5.2 — gentler on Open-Meteo, and says why Sweden is coarse (2026-09-24)
+
+- **Open-Meteo is paced and rested.** Its free service counts every point
+  and refuses (429) past its per-minute and daily limits; a tour in Sweden
+  without Lantmäteriet asked for ~16 000 heights at once and every tile
+  failed. Heights now go at most `OPEN_METEO_POINTS_PER_MIN` (500) a minute,
+  and after a 429 Open-Meteo is left alone for 2 minutes, doubling up to an
+  hour, with a plain message instead of a stream of refusals.
+- **Lantmäteriet is rested after a failure** (a refused login, an order not
+  yet active, the download cap) for 10 minutes instead of being retried for
+  every tile, and the reason is carried into the error the page shows.
+  `/api/terrain/zone` reports `lantmateriet.usable`.
+- **Tours in Sweden on the 90 m fallback ask for fewer, coarser tiles**
+  (at most 16, one zoom coarser — finer adds nothing to a 90 m model), and
+  the tour builder checks whether Lantmäteriet is answering before it plans.
+- Tiles refused with 429 are asked again after two minutes instead of only
+  after a reload.
+
 ## v5.5.1 — Sweden no longer eats the height budget (2026-09-24)
 
 - **Lantmäteriet first, wherever it may have ground.** A tile's country

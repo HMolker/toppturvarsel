@@ -208,6 +208,7 @@ const calls = { kv: 0, kvPoints: [], om: 0, commons: 0, commonsByName: 0, flickr
 const realFetch = globalThis.fetch;
 const J = (b, status = 200) => new Response(JSON.stringify(b), { status, headers: { 'Content-Type': 'application/json' } });
 let kvDown = false;
+let omLimited = false;
 let commonsDown = false;
 let lastUA = null;
 
@@ -226,6 +227,7 @@ globalThis.fetch = async (url, opts = {}) => {
   }
   if (u.includes('/v1/elevation')) {
     calls.om++;
+    if (omLimited) return J({ error: true, reason: 'Minutely API request limit exceeded' }, 429);
     const lats = new URL(u).searchParams.get('latitude').split(',');
     return J({ elevation: lats.map(() => 7) });
   }
@@ -286,6 +288,20 @@ test('Kartverket outage and Sweden both fall back to Copernicus', async () => {
   const b = await bestElevations([{ lat: 63.4, lon: 13.1 }], 'SE');
   assert.equal(b.source, 'copernicus-glo90');
   assert.equal(calls.kv, kv, 'Kartverket not asked about Sweden');
+});
+
+test('Open-Meteo 429: a clear error, then it is left alone for a while instead of asked again', async () => {
+  const el = await import('../src/sources/elevation.js');
+  el._resetElevation();
+  omLimited = true;
+  const before = calls.om;
+  await assert.rejects(bestElevations([{ lat: 63.4, lon: 13.1 }], 'SE'), (e) => e.status === 429 && /Open-Meteo/.test(e.message));
+  await assert.rejects(bestElevations([{ lat: 63.41, lon: 13.1 }], 'SE'), (e) => e.status === 429);
+  assert.equal(calls.om, before + 1, 'not asked again while resting');
+  omLimited = false;
+  el._resetElevation();
+  const ok = await bestElevations([{ lat: 63.42, lon: 13.1 }], 'SE');
+  assert.deepEqual(ok.values, [7]);
 });
 
 async function withServer(fn) {

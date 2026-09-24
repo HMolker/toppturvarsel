@@ -395,7 +395,17 @@ export function lmStatus() {
   return { enabled: lmEnabled(), configured: Boolean(lmCredentials()), traffic: lmTraffic(), filesOpen: headers.size, tilesInMemory: tileMemo.size };
 }
 
+// After Lantmäteriet fails (a refused login, an order not yet active, the
+// day's download cap), it is left alone for a while instead of being tried
+// again for every tile, and the page is told Sweden is coarse for now.
+export const LM_PAUSE_MS = 10 * 60 * 1000;
+let lmDownUntil = 0;
+export const lmPause = () => { lmDownUntil = Date.now() + LM_PAUSE_MS; };
+/** Lantmäteriet configured and not resting after a failure. */
+export const lmUsable = () => lmEnabled() && Date.now() >= lmDownUntil;
+
 export function _resetLm() {
+  lmDownUntil = 0;
   stacMemo.clear();
   headers.clear();
   tileMemo.clear();

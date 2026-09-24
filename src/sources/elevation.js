@@ -1,10 +1,37 @@
 import { UA } from '../util/ua.js';
 import { haversineKm } from '../util/utm.js';
-import { lmEnabled, lmElevations } from './lmcog.js';
+import { lmEnabled, lmElevations, lmUsable, lmPause, LM_PAUSE_MS } from './lmcog.js';
 import { log } from '../util/log.js';
 
 /** The last reason Lantmäteriet's terrain model could not be used, for the status. */
 export let lmLastError = null;
+
+export { lmUsable };
+
+// Open-Meteo's free API limits how many heights it gives a minute and a day,
+// and each point counts. Asked too fast it answers 429; then it is left
+// alone for a while (2 min, doubling up to an hour) so the page gets a clear
+// answer at once instead of a stream of refusals.
+const OM_PER_MIN = Math.max(50, Number(process.env.OPEN_METEO_POINTS_PER_MIN) || 500);
+let omBlockedUntil = 0, omBackoffMs = 0;
+const omWindow = []; // [time, points] of the last minute's requests
+export function _resetElevation() {
+  omBlockedUntil = 0; omBackoffMs = 0; omWindow.length = 0; lmLastError = null;
+}
+function omBlockedError() {
+  const min = Math.max(1, Math.ceil((omBlockedUntil - Date.now()) / 60000));
+  return Object.assign(new Error(`Open-Meteo's free height service is refusing more heights for now (too many today or this hour); try again in about ${min} min`), { status: 429, retryAfterS: min * 60 });
+}
+/** Wait until sending `n` more points keeps under the per-minute limit. */
+async function omPace(n) {
+  for (;;) {
+    const now = Date.now();
+    while (omWindow.length && now - omWindow[0][0] > 60000) omWindow.shift();
+    const used = omWindow.reduce((a, [, k]) => a + k, 0);
+    if (!omWindow.length || used + n <= OM_PER_MIN) { omWindow.push([now, n]); return; }
+    await new Promise((r) => setTimeout(r, Math.min(60000, 60000 - (now - omWindow[0][0]) + 50)));
+  }
+}
 
 /**
  * Elevation along a route, from Open-Meteo's elevation API
@@ -88,7 +115,8 @@ export async function bestElevations(points, country, { spacingM = 50, maxCharge
     todo = todo.filter((i) => !Number.isFinite(values[i]));
   };
 
-  if (lmEnabled() && (country === 'SE' || country === 'NO' || !country)) {
+  let lmFailed = null;
+  if (lmUsable() && (country === 'SE' || country === 'NO' || !country)) {
     try {
       const lm = await lmElevations(points, { spacingM });
       lm.forEach((z, i) => (values[i] = Number.isFinite(z) ? z : null));
@@ -96,8 +124,12 @@ export async function bestElevations(points, country, { spacingM = 50, maxCharge
       done('lantmateriet-mhm');
     } catch (err) {
       lmLastError = err.message;
-      log.warn(`elevation: Lantmäteriet failed (${err.message}); using the point services`);
+      lmFailed = err.message;
+      lmPause();
+      log.warn(`elevation: Lantmäteriet failed (${err.message}); using the point services, trying it again in ${LM_PAUSE_MS / 60000} min`);
     }
+  } else if (lmEnabled() && country === 'SE' && lmLastError) {
+    lmFailed = lmLastError;
   }
   if (!todo.length) return { values, source: source ?? 'lantmateriet-mhm', charged: 0 };
 
@@ -117,7 +149,14 @@ export async function bestElevations(points, country, { spacingM = 50, maxCharge
     }
   }
   if (todo.length) {
-    const fill = await fetchElevationsBatched(todo.map((i) => points[i]));
+    let fill;
+    try {
+      fill = await fetchElevationsBatched(todo.map((i) => points[i]));
+    } catch (err) {
+      // Say why the finer source was not used, too: that is the thing to fix.
+      if (lmFailed) err.message = `${err.message}. Lantmäteriet (Sweden's 1 m model) was not used: ${lmFailed}`;
+      throw err;
+    }
     todo.forEach((idx, k) => (values[idx] = fill[k]));
     done('copernicus-glo90');
   }
@@ -157,13 +196,22 @@ export function resample(points, n = MAX_POINTS) {
 }
 
 export async function fetchElevations(samples) {
+  if (Date.now() < omBlockedUntil) throw omBlockedError();
+  await omPace(samples.length);
   const lat = samples.map((p) => p.lat.toFixed(5)).join(',');
   const lon = samples.map((p) => p.lon.toFixed(5)).join(',');
   const res = await fetch(`${API}?latitude=${lat}&longitude=${lon}`, {
     headers: { 'User-Agent': UA },
     signal: AbortSignal.timeout(20000),
   });
+  if (res.status === 429) {
+    omBackoffMs = Math.min(60 * 60000, omBackoffMs ? omBackoffMs * 2 : 2 * 60000);
+    omBlockedUntil = Date.now() + omBackoffMs;
+    log.warn(`elevation: Open-Meteo says 429 (rate limit); leaving it alone for ${omBackoffMs / 60000} min`);
+    throw omBlockedError();
+  }
   if (!res.ok) throw new Error(`elevation HTTP ${res.status}`);
+  omBackoffMs = 0;
   const body = await res.json();
   if (!Array.isArray(body?.elevation) || body.elevation.length !== samples.length) {
     throw new Error('elevation: unexpected response shape');

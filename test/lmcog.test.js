@@ -191,6 +191,7 @@ test('a refused login falls back to Copernicus and says why', async () => {
     const res = await bestElevations([pixelToLatLon(60, 60)], 'SE', { spacingM: 1 });
     assert.equal(res.source, 'copernicus-glo90');
     assert.match(el.lmLastError, m === '401' ? /refused the login/ : /no access/);
+    assert.equal(el.lmUsable(), false, 'left alone for a while after failing');
   }
   mode = 'ok';
 });

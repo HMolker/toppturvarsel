@@ -513,6 +513,7 @@ The ones that matter:
 | `ALERT_COUNTRIES` | `all` | Or e.g. `NO` or `NO,SE`: which countries you are notified about. The country buttons on the page only change what you see. |
 | `ALERT_QUIET_FROM` / `_TO` | `22` / `6` | Alerts found overnight are **held, not dropped**, and sent when the window ends. |
 | `TERRAIN_DAILY_POINTS` | `60000` | Heights the terrain page may ask Kartverket / Open-Meteo for per day (UTC). |
+| `OPEN_METEO_POINTS_PER_MIN` | `500` | Heights sent to Open-Meteo per minute at most; after a 429 it is rested 2 min, doubling up to an hour. |
 | `LANTMATERIET_USER` / `_PASSWORD` | – | Geotorget login with access to *Markhöjdmodell Nedladdning*: Sweden's terrain at 1 m. |
 | `LANTMATERIET_DAILY_MB` | `1000` | Most MB a day downloaded from Lantmäteriet's terrain files. |
 

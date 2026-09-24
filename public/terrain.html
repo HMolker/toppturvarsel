@@ -80,7 +80,7 @@
     <div class="desclist" id="descList" aria-label="The tour's descents"></div>
     <div class="tools runtools" role="toolbar" aria-label="Find runs">
       <span class="eyebrow">Runs</span>
-      <button class="btn" id="runBoxBtn" aria-pressed="false" title="Click two opposite corners of an area; the best runs in it are found for your settings and today's bulletin">Find runs in an area</button>
+      <button class="btn" id="runBoxBtn" aria-pressed="false" title="Click two opposite corners of an area (up to 15 × 15 km); the best runs in it are found for your settings and today's bulletin">Find runs in an area</button>
       <button class="btn" id="runAgainBtn" disabled title="Find again in the same area, with the settings as they are now">Find again</button>
       <button class="btn" id="runDemoBtn" title="Städjan (Idre): an area marked and searched with the settings below">Demo: Städjan</button>
       <button class="btn" id="runClearBtn" disabled>Clear runs</button>
@@ -92,7 +92,7 @@
         <label>Rider <select id="rs_skill">
           <option value="easy">Easy</option><option value="intermediate" selected>Intermediate</option><option value="advanced">Advanced</option><option value="expert">Expert</option><option value="custom">Own angles</option>
         </select></label>
-        <label>Runs to find <input type="number" id="rs_count" min="1" max="8" step="1"></label>
+        <label>Runs to find <input type="number" id="rs_count" min="1" max="25" step="1"></label>
         <label>Min angle ° <input type="number" id="rs_minSlope" min="5" max="40" step="1"></label>
         <label>Max angle ° <input type="number" id="rs_maxSlope" min="15" max="45" step="1"></label>
         <label title="On slopes facing today's avalanche problems, at their heights">Problem slopes max ° <input type="number" id="rs_hazardMax" min="10" max="40" step="1"></label>

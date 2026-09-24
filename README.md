@@ -291,8 +291,8 @@ screenshots of each part.
 
 ## Find runs (v5.7)
 
-On Plan a tour, **Find runs in an area**: click two corners (up to 6 km
-across) and the best runs in it are found for the **Run settings** and
+On Plan a tour, **Find runs in an area**: click two corners (up to 15 × 15
+km, up to 25 runs) and the best runs in it are found for the **Run settings** and
 today's bulletin — angle band (set by rider skill or by hand), a lower
 max angle on the aspects and heights of today's
 problems, a run-out allowed after the run, a minimum vertical, runs kept

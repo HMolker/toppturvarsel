@@ -3,6 +3,18 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v5.7.4 — bigger areas, more runs, problem icons (2026-09-25)
+
+- **Find runs in areas up to 15 × 15 km** (was 6). Where heights are free
+  (Sweden: Lantmäteriet or GLO-30) the finest terrain (~35 m) is used even
+  for the biggest area; on Norway's height budget a big area is read one
+  zoom coarser (~70 m) and says how many heights it needs if the day's
+  budget would not cover it.
+- **Up to 25 runs** per search (Runs to find).
+- **Avalanche problem icons**: the result list shows today's danger and
+  problems for the area, and each run shows the icons of the problems whose
+  aspects and heights it crosses (hover or tap an icon for what it means).
+
 ## v5.7.3 — no target average in Find runs (2026-09-25)
 
 - The "Average about °" setting is gone: too fine a control. Runs are now

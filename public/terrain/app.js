@@ -757,7 +757,7 @@ function setMode(mode) {
   $('#descBtn').setAttribute('aria-pressed', String(mode === 'descent'));
   $('#runBoxBtn').setAttribute('aria-pressed', String(mode === 'runbox'));
   if (mode !== 'runbox') S.runCorner = null;
-  $('#runHint').textContent = mode === 'runbox' ? (S.runCorner ? 'Now the opposite corner.' : 'Click one corner of the area (up to 6 km across).') : runHintText();
+  $('#runHint').textContent = mode === 'runbox' ? (S.runCorner ? 'Now the opposite corner.' : 'Click one corner of the area (up to 15 × 15 km).') : runHintText();
   $('#tmap').classList.toggle('drawing', Boolean(mode) || S.drawing);
   updateTourButtons();
   map.render();
@@ -859,7 +859,7 @@ $('#buildBtn').onclick = () => buildTour().catch((err) => { message(`Could not b
  * slope classes and runout zones on top. Null (with a message) when the
  * height budget would not cover it.
  */
-async function loadAreaGrid(box, what, { cellM = 45 } = {}) {
+async function loadAreaGrid(box, what, { cellM = 45, maxTiles = null } = {}) {
   const c = { lat: (box.north + box.south) / 2, lon: (box.east + box.west) / 2 };
   const country = nearest(c.lat, c.lon)?.item.country;
   await refreshBudget(); // is Lantmäteriet (or GLO-30) answering right now?
@@ -869,7 +869,8 @@ async function loadAreaGrid(box, what, { cellM = 45 } = {}) {
   let r = null;
   for (let z = coarse ? DEM_MAX_Z - 1 : DEM_MAX_Z; z >= DEM_MIN_Z; z--) {
     r = tileRange(box, z);
-    if (tileCount(r) <= (fineHere ? 90 : coarse ? 16 : 30)) break;
+    const lim = maxTiles ? (fineHere ? maxTiles.fine : coarse ? maxTiles.coarse : maxTiles.budget) : fineHere ? 90 : coarse ? 16 : 30;
+    if (tileCount(r) <= lim) break;
   }
   const newHeights = (() => { let n = 0; for (let x = r.x0; x <= r.x1; x++) for (let y = r.y0; y <= r.y1; y++) if (!dem.get(r.z, x, y)?.ele) n += 289; return n; })();
   if (!fineHere && S.budget && newHeights > S.budget.left) { message(`${what} needs ${newHeights.toLocaleString('en')} new heights and ${S.budget.left.toLocaleString('en')} are left today. Try a smaller area, or tomorrow.`); return null; }
@@ -1016,7 +1017,7 @@ $('#runDemoBtn').onclick = () => {
 async function runFinder(box) {
   const km = (a, b) => Math.hypot((a.lat - b.lat) * 111.2, (a.lon - b.lon) * 111.2 * Math.cos((a.lat * Math.PI) / 180));
   const wKm = km({ lat: box.south, lon: box.west }, { lat: box.south, lon: box.east }), hKm = km({ lat: box.south, lon: box.west }, { lat: box.north, lon: box.west });
-  if (wKm > 6.5 || hKm > 6.5) { message(`That area is ${wKm.toFixed(1)} × ${hKm.toFixed(1)} km: mark one up to 6 km across.`); return; }
+  if (wKm > 15.5 || hKm > 15.5) { message(`That area is ${wKm.toFixed(1)} × ${hKm.toFixed(1)} km: mark one up to 15 × 15 km.`); return; }
   if (wKm < 0.4 || hKm < 0.4) { message('Mark a bigger area: at least 400 m across.'); return; }
   const mid = { lat: (box.north + box.south) / 2, lon: (box.east + box.west) / 2 };
   if (!inZone(mid.lat, mid.lon)) { message('The area must be inside the service area: 12 km around a tour, a ski resort or a place found with Go to.'); return; }
@@ -1026,7 +1027,10 @@ async function runFinder(box) {
   map.render();
   $('#runBoxBtn').disabled = true;
   try {
-    const area = await loadAreaGrid(box, 'Finding runs', { cellM: 25 });
+    // Up to 15 × 15 km (v5.7.4): with free heights (Lantmäteriet, GLO-30) the
+    // finest tiles (~35 m) even for the biggest area; on Norway's point
+    // budget one zoom coarser for big areas (~70 m).
+    const area = await loadAreaGrid(box, 'Finding runs', { cellM: 30, maxTiles: { fine: 720, budget: 220, coarse: 16 } });
     if (!area) return;
     const { G, slope, aspect, runout, region, danger } = area;
     message('Finding runs…');
@@ -1051,6 +1055,14 @@ async function runFinder(box) {
     const t0 = performance.now();
     const runs = findRuns(G, { slope, aspect, runout, inside, hazard: (k) => onProblem(k), windLee: (k) => onProblem(k, (p) => p.wind), slabDay }, S.runSet);
     const ms = Math.round(performance.now() - t0);
+    // Which of today's problems each run meets: a cell facing a problem aspect at a problem height.
+    const rawProblems = region?.bulletin?.problems ?? [];
+    for (const r of runs) {
+      r.problems = rawProblems.filter((_, pi) => [...r.cells, ...r.runout].some((k) => {
+        const p = problems[pi];
+        return p.aspects.has(octantOf(aspect[k])) && p.bands.some(([lo, hi]) => G.ele[k] >= lo && G.ele[k] <= hi);
+      }));
+    }
     // Runs from an earlier search that are in the tour keep their line, under another name.
     S.tour.names = S.tour.names.map((nm) => (/^Run \d+$/.test(nm ?? '') ? `Earlier ${nm.toLowerCase()}` : nm));
     tourChanged();
@@ -1071,15 +1083,16 @@ function renderRuns() {
   const runs = S.runs ?? [];
   if (!runs.length) { out.innerHTML = ''; return; }
   const a = S.runArea;
-  const day = a.region?.bulletin
-    ? `Today’s bulletin for ${esc(a.region.name)}: danger ${a.danger ?? '–'}${a.problems.length ? `, ${esc(a.problems.join(', ').toLowerCase())}` : ''}. ${a.slabDay && S.runSet.avoidConvex ? 'Convex rolls avoided. ' : ''}`
+  const b = a.region?.bulletin;
+  const day = b
+    ? `Today’s bulletin for ${esc(a.region.name)}: ${a.danger ? dangerChip(a.danger, { small: true }) : 'danger –'} ${b.problems?.length ? problemIcons(b.problems, { danger: a.danger, size: 20 }) : 'no avalanche problems named'}. ${a.slabDay && S.runSet.avoidConvex ? 'Convex rolls avoided. ' : ''}`
     : 'No bulletin for this day: only your angle settings apply. ';
   out.innerHTML =
-    `<p class="note">${day}Terrain ${Math.round(a.cellM)} m cells. Runs start where they are numbered; dotted is the run-out.</p>` +
+    `<p class="note runday">${day}Terrain ${Math.round(a.cellM)} m cells. Runs start where they are numbered; dotted is the run-out.</p>` +
     `<div class="runlist">${runs.map((r, n) => {
       const st = r.stats;
       return `<div class="runitem"><span class="num" style="background:${RUN_COLOURS[n % RUN_COLOURS.length]}">${n + 1}</span>` +
-        `<div><div class="facts"><b>${st.octant ?? '–'}</b> · ${fmtKm(st.lengthM)}${st.runoutM ? ` + ${st.runoutM} m run-out` : ''} · <b>${st.verticalM} m</b> down (${st.topEle}→${st.bottomEle} m) · average <b>${st.avgSlope}°</b>, steepest ${st.maxSlope}°</div>` +
+        `<div><div class="facts">${r.problems?.length ? `<span class="runprobs" title="Today’s avalanche problems on this run’s aspects and heights">${problemIcons(r.problems, { danger: a.danger, size: 20 })}</span> ` : ''}<b>${st.octant ?? '–'}</b> · ${fmtKm(st.lengthM)}${st.runoutM ? ` + ${st.runoutM} m run-out` : ''} · <b>${st.verticalM} m</b> down (${st.topEle}→${st.bottomEle} m) · average <b>${st.avgSlope}°</b>, steepest ${st.maxSlope}°</div>` +
         (r.notes.length ? `<ul>${r.notes.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : '') + `</div>` +
         (S.tour.names.includes(`Run ${n + 1}`)
           ? `<button type="button" class="btn small" data-rmrun="${n}">Remove from tour</button></div>`
@@ -1607,7 +1620,7 @@ $('#rname').onchange = () => writeHash({ points: S.route, name: $('#rname').valu
  * ------------------------------------------------------------------ */
 
 // For the browser checks in demo/terrain-check.mjs, and for poking around in devtools.
-window.fjallskredTerrain = { map, state: S, dem };
+window.fjallskredTerrain = { map, state: S, dem, findRunsIn: (box) => runFinder(box) };
 
 async function init() {
   initAvalancheTips?.();

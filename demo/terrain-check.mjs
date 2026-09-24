@@ -32,6 +32,7 @@ process.env.DATA_DIR = dataDir;
 process.env.LOG_LEVEL = 'error';
 process.env.TRACKS_WARMUP = 'false';
 process.env.RESORTS_ENABLED = 'false';
+process.env.TERRAIN_DAILY_POINTS = '1000000';
 
 const tours = JSON.parse(await readFile(path.join(repo, 'data/tours.json'), 'utf8'));
 const regions = JSON.parse(await readFile(path.join(repo, 'data/regions.json'), 'utf8'));
@@ -499,6 +500,19 @@ await page.click('#t3dClose');
   await page.waitForFunction(() => window.fjallskredTerrain.state.built?.parts?.length || /Could not/.test(document.querySelector('#tmsg').textContent), null, { timeout: 180000 });
   await page.waitForTimeout(1500);
   await shot('21-runs-tour', '.tmapcard');
+
+  // A big area in Hallingdal, with today's (made-up) wind slab on N–E above 1300 m.
+  const hog = tours.find((t) => t.name === 'Høgeloft');
+  await page.evaluate(async ({ lat, lon }) => {
+    const dLat = 7 / 111, dLon = 7 / (111 * Math.cos((lat * Math.PI) / 180));
+    const S = window.fjallskredTerrain.state;
+    S.runSet.count = 25;
+    window.fjallskredTerrain.map.fit([{ lat: lat - dLat, lon: lon - dLon }, { lat: lat + dLat, lon: lon + dLon }], 20, 15);
+    await window.fjallskredTerrain.findRunsIn({ south: lat - dLat, north: lat + dLat, west: lon - dLon, east: lon + dLon });
+  }, hog);
+  await page.waitForTimeout(1200);
+  await shot('22-runs-big', '.tmapcard');
+  console.log('big area:', await page.evaluate(() => { const S = window.fjallskredTerrain.state; return JSON.stringify({ n: S.runs?.length, cellM: Math.round(S.runArea?.cellM ?? 0), ms: S.runArea?.ms, withProblems: S.runs?.filter((r) => r.problems?.length).length, icons: document.querySelectorAll('#runsOut .runprobs .avprob').length, msg: document.querySelector('#tmsg').hidden ? '' : document.querySelector('#tmsg').textContent }); }));
   console.log('runs tour:', await page.evaluate(() => { const S = window.fjallskredTerrain.state; return JSON.stringify({ parts: S.built?.parts?.map((p) => p.label), msg: document.querySelector('#tmsg').hidden ? '' : document.querySelector('#tmsg').textContent }); }));
   console.log('goto Sweden:', await page.evaluate(() => { const S = window.fjallskredTerrain.state; return JSON.stringify({ places: S.zone.filter((t) => t.kind === 'place').map((t) => t.name), centre: window.fjallskredTerrain.map?.center?.() }); }));
 }

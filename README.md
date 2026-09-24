@@ -293,8 +293,8 @@ screenshots of each part.
 
 On Plan a tour, **Find runs in an area**: click two corners (up to 6 km
 across) and the best runs in it are found for the **Run settings** and
-today's bulletin — angle band, an average angle to aim for (set by rider
-skill or by hand), a lower max angle on the aspects and heights of today's
+today's bulletin — angle band (set by rider skill or by hand), a lower
+max angle on the aspects and heights of today's
 problems, a run-out allowed after the run, a minimum vertical, runs kept
 apart by distance or aspect, and checkboxes to avoid convex rolls (danger
 2+ with a slab problem), NVE runout zones, terrain traps, narrow lines and

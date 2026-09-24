@@ -1,14 +1,13 @@
 /**
  * Find runs (v5.7): mark an area, get the best descents in it for the
- * settings — angle band, a target average angle, today's avalanche
+ * settings — angle band, today's avalanche
  * problems, convex rolls, runout zones, terrain traps, narrow lines,
  * cornices — spread over the area and over aspects.
  *
  * How: a descent always goes downhill, so the grid is a one-way network from
  * high to low. Walking the cells from the highest down, each cell keeps the
  * best-scoring run that reaches it (dynamic programming, one pass). A step
- * scores its length, less the further its angle is from the target average,
- * less what the settings ask to avoid. The best end cell gives the run; its
+ * scores its length, less what the settings ask to avoid. The best end cell gives the run; its
  * surroundings (of the same aspect) are then set aside and the next run is
  * found, and so on. Where a run's slope drops under the minimum, a run-out
  * on gentler ground is added (not counted in its angles).
@@ -22,7 +21,6 @@ export const RUN_DEFAULTS = {
   count: 4,
   minSlope: 15,
   maxSlope: 35,
-  targetAvg: 28,
   hazardMax: 25, // on today's problem aspects and heights
   runoutM: 200,
   minVerticalM: 150,
@@ -39,10 +37,10 @@ export const RUN_DEFAULTS = {
 
 /** Rider skill: the angles that suit, as starting points for the settings. */
 export const SKILL_PRESETS = {
-  easy: { label: 'Easy', minSlope: 12, maxSlope: 30, targetAvg: 22 },
-  intermediate: { label: 'Intermediate', minSlope: 15, maxSlope: 35, targetAvg: 28 },
-  advanced: { label: 'Advanced', minSlope: 18, maxSlope: 40, targetAvg: 32 },
-  expert: { label: 'Expert', minSlope: 20, maxSlope: 44, targetAvg: 36 },
+  easy: { label: 'Easy', minSlope: 12, maxSlope: 30 },
+  intermediate: { label: 'Intermediate', minSlope: 15, maxSlope: 35 },
+  advanced: { label: 'Advanced', minSlope: 18, maxSlope: 40 },
+  expert: { label: 'Expert', minSlope: 20, maxSlope: 44 },
 };
 
 const R = Math.PI / 180;
@@ -138,10 +136,9 @@ export function cellRules(grid, { slope, aspect, runout = null, hazard = () => f
 const PENALTY = { 1: 0.9, 2: 1.2, 4: 0.6, 8: 0.5 }; // per metre, subtracted from the metre's score
 
 function stepGain(s, d, set, flag) {
-  // Every metre in the band counts (runs go on down to the minimum angle);
-  // metres near the target average count most, so it steers the line.
-  const off = (s - set.targetAvg) / 7;
-  let g = d * Math.max(0.1, 1 - 0.6 * off * off);
+  // Every metre in the angle band counts the same: runs as long as the
+  // terrain allows, down to the minimum angle (v5.7.3: no target average).
+  let g = d;
   for (const [bit, p] of Object.entries(PENALTY)) if (flag & +bit) g -= d * p;
   return g;
 }
@@ -343,7 +340,6 @@ function smooth(pts) {
 /** Plain words on what shaped a run and what to look at. */
 export function runNotes(st, set = RUN_DEFAULTS) {
   const n = [];
-  if (st.avgSlope !== null && Math.abs(st.avgSlope - set.targetAvg) > 3) n.push(`averages ${st.avgSlope}°, ${st.avgSlope < set.targetAvg ? 'gentler' : 'steeper'} than the ${set.targetAvg}° asked for: nothing closer here`);
   if (st.flagM.capped > 0) n.push(`${st.flagM.capped} m on a slope facing today's problems, kept under ${set.hazardMax}°`);
   if (st.flagM.convex > 0) n.push(`crosses a convex roll (${st.flagM.convex} m): look at it before committing`);
   if (st.flagM.runoutZone > 0) n.push(`${st.flagM.runoutZone} m in an avalanche runout zone`);

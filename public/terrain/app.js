@@ -960,7 +960,7 @@ async function buildTour() {
 
 const RUN_COLOURS = ['#1F6FB2', '#B8430F', '#2E7D4F', '#7B3FA0', '#A0761D', '#0F7C80', '#9C2F55', '#4A5A6A'];
 const RS_KEY = 'fjallskred.runSettings';
-const RS_NUM = ['count', 'minSlope', 'maxSlope', 'targetAvg', 'hazardMax', 'runoutM', 'minVerticalM', 'separationM', 'aspectDiff', 'traverseDeg', 'minWidthM', 'corniceM'];
+const RS_NUM = ['count', 'minSlope', 'maxSlope', 'hazardMax', 'runoutM', 'minVerticalM', 'separationM', 'aspectDiff', 'traverseDeg', 'minWidthM', 'corniceM'];
 const RS_BOOL = ['avoidConvex', 'avoidRunoutZones', 'avoidTraps', 'avoidNarrow'];
 
 S.runSet = (() => {
@@ -975,7 +975,7 @@ function saveRunSet() { try { localStorage.setItem(RS_KEY, JSON.stringify(S.runS
 $('#rs_skill').onchange = (e) => {
   const p = SKILL_PRESETS[e.target.value];
   S.runSet.skill = e.target.value;
-  if (p) Object.assign(S.runSet, { minSlope: p.minSlope, maxSlope: p.maxSlope, targetAvg: p.targetAvg });
+  if (p) Object.assign(S.runSet, { minSlope: p.minSlope, maxSlope: p.maxSlope });
   fillRunForm();
   saveRunSet();
 };
@@ -983,7 +983,7 @@ for (const k of RS_NUM) {
   $(`#rs_${k}`).onchange = (e) => {
     const v = Number(e.target.value);
     if (Number.isFinite(v)) S.runSet[k] = v;
-    if (['minSlope', 'maxSlope', 'targetAvg'].includes(k)) S.runSet.skill = 'custom';
+    if (['minSlope', 'maxSlope'].includes(k)) S.runSet.skill = 'custom';
     fillRunForm();
     saveRunSet();
   };

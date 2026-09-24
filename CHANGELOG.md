@@ -3,6 +3,13 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v5.7.3 — no target average in Find runs (2026-09-25)
+
+- The "Average about °" setting is gone: too fine a control. Runs are now
+  simply as long as the terrain allows inside the angle band (rider skill
+  or your own min and max), less what the settings ask to avoid. Each run
+  still shows its average and steepest angle.
+
 ## v5.7.2 — runs stay inside the marked area (2026-09-25)
 
 - Find runs searched all the terrain it had loaded, which is whole map

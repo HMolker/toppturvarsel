@@ -195,3 +195,26 @@ dialog.t3d::backdrop { background: rgba(0,0,0,.45); }
 .daystrip .swet { stroke: var(--wet); stroke-width: 3; }
 .daystrip .plabel { font: 10px var(--mono); fill: var(--muted); }
 .tourtbl .wetnote { display: block; font-weight: 400; }
+
+/* ---- find runs (v5.7) ---- */
+.runtools { border-top: 1px solid var(--line); }
+.runset { padding: 0 20px 10px; font-size: 13px; }
+.runset summary { cursor: pointer; color: var(--ink-2); padding: 6px 0; }
+.runform { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px 16px; align-items: center; padding-top: 6px; }
+.runform label { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--ink-2); }
+.runform label.chk { justify-content: flex-start; grid-column: span 2; }
+.runform input[type="number"] { width: 70px; padding: 5px 6px; border: 1px solid var(--line-2); border-radius: 6px; background: var(--paper); color: var(--ink); font: inherit; }
+.runform select { padding: 5px 6px; border: 1px solid var(--line-2); border-radius: 6px; background: var(--paper); color: var(--ink); font: inherit; }
+@media (max-width: 700px) { .runform label.chk { grid-column: auto; } }
+.runsout { padding: 0 20px; }
+.runsout:empty { display: none; }
+.runlist { display: grid; gap: 8px; padding: 8px 0 12px; }
+.runitem { display: grid; grid-template-columns: 26px 1fr auto; gap: 4px 10px; align-items: start; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 13px; }
+.runitem .num { width: 22px; height: 22px; border-radius: 50%; color: #fff; display: grid; place-items: center; font: 600 12px var(--mono); }
+.runitem .facts { color: var(--ink-2); }
+.runitem .facts b { color: var(--ink); }
+.runitem ul { margin: 4px 0 0; padding-left: 16px; color: var(--muted); font-size: 12px; }
+.runbox { fill: rgba(40, 40, 40, .06); stroke: var(--ink); stroke-width: 1.5; stroke-dasharray: 6 4; }
+.runline { fill: none; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
+.runout { fill: none; stroke-width: 3; stroke-dasharray: 2 5; stroke-linecap: round; }
+.runlabel { font: 700 12px var(--mono); fill: #fff; }

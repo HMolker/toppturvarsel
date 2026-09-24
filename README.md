@@ -289,6 +289,20 @@ from the measurement and no timestamps, for maps and for watches.
 made-up terrain (the advert's Hallingdal) in a headless browser and takes
 screenshots of each part.
 
+## Find runs (v5.7)
+
+On Plan a tour, **Find runs in an area**: click two corners (up to 6 km
+across) and the best runs in it are found for the **Run settings** and
+today's bulletin — angle band, an average angle to aim for (set by rider
+skill or by hand), a lower max angle on the aspects and heights of today's
+problems, a run-out allowed after the run, a minimum vertical, runs kept
+apart by distance or aspect, and checkboxes to avoid convex rolls (danger
+2+ with a slab problem), NVE runout zones, terrain traps, narrow lines and
+cornice edges. Cliffs are never used. The runs become the tour's descents
+with one click. They are found on the terrain model, 25–45 m cells: steep
+steps shorter than that are smoothed out, and nothing here knows the snow.
+**Demo: Städjan** tries it on Städjan.
+
 ## The map on the conditions page (v5.6)
 
 A sketch — coastline, the Norway/Sweden border and the forecast regions —

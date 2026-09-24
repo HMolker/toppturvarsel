@@ -3,6 +3,34 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v5.7.0 — find runs in an area (2026-09-24)
+
+- **Find runs in an area**, on Plan a tour: click two corners of an area
+  (up to 6 km across) and the best descents in it are found and numbered on
+  the map, with length, vertical, average and steepest angle and aspect.
+  **Add as descent** / **Use all as the tour's descents** hands them to the
+  tour builder: set the start, Build tour, and "when to go" works as before.
+- How: the terrain as one-way network from high to low, one pass from the
+  top down keeping the best-scoring line to each cell; a metre scores most
+  near the average angle asked for, every metre in the band counts (so runs
+  are as long as the terrain allows), and what the settings ask to avoid
+  costs. The best line is taken, the ground near it facing the same way set
+  aside, and the next found.
+- **Run settings** (kept in the browser): rider (easy / intermediate /
+  advanced / expert set the angles), runs to find, min and max angle,
+  average about, max angle on today's problem aspects and heights (from the
+  bulletin), run-out allowed below the min angle, min vertical, runs apart
+  (m) or aspects apart (°), traverse off the fall line, and — as checkboxes —
+  avoid convex rolls (danger 2+ with a slab problem), avoid NVE runout
+  zones, avoid terrain traps (gullies), avoid lines narrower than a width,
+  and keep a distance below cornices on lee slopes of a wind slab. Cliffs
+  (45°+) and the ground next to them are never used.
+- Each run says what shaped it: capped on a problem slope, crosses a convex
+  roll, in a runout zone or a gully, narrow, or an average away from the one
+  asked for because nothing closer exists there.
+- **Demo: Städjan** marks the area around Städjan (Idre) and searches it —
+  free terrain in Sweden (Lantmäteriet or GLO-30).
+
 ## v5.6.2 — Sweden's terrain at 30 m without Lantmäteriet, and faster (2026-09-24)
 
 - **Copernicus GLO-30 replaces Open-Meteo's 90 m heights.** The same

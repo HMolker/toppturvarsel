@@ -77,6 +77,39 @@
       <button class="btn" id="tourClearBtn" disabled>Clear tour</button>
       <span class="note" id="tourHint"></span>
     </div>
+    <div class="tools runtools" role="toolbar" aria-label="Find runs">
+      <span class="eyebrow">Runs</span>
+      <button class="btn" id="runBoxBtn" aria-pressed="false" title="Click two opposite corners of an area; the best runs in it are found for your settings and today's bulletin">Find runs in an area</button>
+      <button class="btn" id="runAgainBtn" disabled title="Find again in the same area, with the settings as they are now">Find again</button>
+      <button class="btn" id="runDemoBtn" title="Städjan (Idre): an area marked and searched with the settings below">Demo: Städjan</button>
+      <button class="btn" id="runClearBtn" disabled>Clear runs</button>
+      <span class="note" id="runHint"></span>
+    </div>
+    <details class="runset" id="runSettings">
+      <summary>Run settings</summary>
+      <div class="runform">
+        <label>Rider <select id="rs_skill">
+          <option value="easy">Easy</option><option value="intermediate" selected>Intermediate</option><option value="advanced">Advanced</option><option value="expert">Expert</option><option value="custom">Own angles</option>
+        </select></label>
+        <label>Runs to find <input type="number" id="rs_count" min="1" max="8" step="1"></label>
+        <label>Min angle ° <input type="number" id="rs_minSlope" min="5" max="40" step="1"></label>
+        <label>Max angle ° <input type="number" id="rs_maxSlope" min="15" max="45" step="1"></label>
+        <label>Average about ° <input type="number" id="rs_targetAvg" min="10" max="42" step="1"></label>
+        <label title="On slopes facing today's avalanche problems, at their heights">Problem slopes max ° <input type="number" id="rs_hazardMax" min="10" max="40" step="1"></label>
+        <label title="Gentler ground allowed after the run, below the min angle">Run-out up to m <input type="number" id="rs_runoutM" min="0" max="1000" step="50"></label>
+        <label>Min vertical m <input type="number" id="rs_minVerticalM" min="50" max="1500" step="50"></label>
+        <label title="Runs this close must face at least the next setting apart">Runs apart m <input type="number" id="rs_separationM" min="100" max="3000" step="50"></label>
+        <label>…or aspects apart ° <input type="number" id="rs_aspectDiff" min="0" max="180" step="5"></label>
+        <label title="How far a line may go across the slope, off the fall line">Traverse up to ° <input type="number" id="rs_traverseDeg" min="10" max="80" step="5"></label>
+        <label class="chk" title="With danger 2 or more and a slab problem: prefer lines without sudden steepenings"><input type="checkbox" id="rs_avoidConvex"> Avoid convex rolls (danger 2+, slab problems)</label>
+        <label class="chk" title="NVE's avalanche runout zones (Norway)"><input type="checkbox" id="rs_avoidRunoutZones"> Avoid runout zones</label>
+        <label class="chk" title="Gullies and hollows where snow from above piles up deep"><input type="checkbox" id="rs_avoidTraps"> Avoid terrain traps</label>
+        <label class="chk"><input type="checkbox" id="rs_avoidNarrow"> Avoid lines narrower than <input type="number" id="rs_minWidthM" min="10" max="200" step="5"> m</label>
+        <label title="On lee slopes of today's wind slab: start this far below the ridge (0: off)">Below cornices m <input type="number" id="rs_corniceM" min="0" max="200" step="10"></label>
+        <button type="button" class="btn small" id="rs_reset">Defaults</button>
+      </div>
+    </details>
+    <div id="runsOut" class="runsout"></div>
     <div class="legend tlegend" id="tlegend"></div>
     <p class="attrib" id="tattrib"></p>
   </section>

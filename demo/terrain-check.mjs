@@ -36,7 +36,7 @@ process.env.RESORTS_ENABLED = 'false';
 const tours = JSON.parse(await readFile(path.join(repo, 'data/tours.json'), 'utf8'));
 const regions = JSON.parse(await readFile(path.join(repo, 'data/regions.json'), 'utf8'));
 const { makeTerrain } = await import('./advert/terrain.mjs');
-const z = makeTerrain(tours.filter((t) => t.region === 'hallingdal'));
+const z = makeTerrain(tours.filter((t) => t.region === 'hallingdal' || t.name === 'Städjan').map((t) => (t.name === 'Städjan' ? { ...t, vertical_m: 520 } : t)));
 
 /* ---------------- a tiny PNG encoder ---------------- */
 const CRC = new Int32Array(256).map((_, n) => { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; return c; });
@@ -473,6 +473,26 @@ await page.click('#t3dClose');
   await page.waitForFunction(() => window.fjallskredTerrain.state.pin?.name === 'Städjan');
   await page.waitForTimeout(1500);
   await shot('19-terrain-goto-sweden', '.tmapcard');
+
+  // Find runs: the Städjan demo, then the runs as a tour.
+  await page.click('#runSettings summary');
+  await page.click('#runDemoBtn');
+  await page.waitForTimeout(1000);
+  await page.waitForFunction(() => !document.querySelector('#runBoxBtn').disabled, null, { timeout: 240000 });
+  console.log('runs msg:', await page.evaluate(() => (document.querySelector('#tmsg').hidden ? '' : document.querySelector('#tmsg').textContent)));
+  await page.waitForTimeout(800);
+  await shot('20-runs', '.tmapcard');
+  console.log('runs:', await page.evaluate(() => JSON.stringify({ n: window.fjallskredTerrain.state.runs.length, area: window.fjallskredTerrain.state.runArea && { ms: window.fjallskredTerrain.state.runArea.ms, cellM: Math.round(window.fjallskredTerrain.state.runArea.cellM) }, stats: window.fjallskredTerrain.state.runs.map((r) => r.stats) })));
+  console.log('runs list:', (await page.textContent('#runsOut')).replace(/\s+/g, ' ').slice(0, 400));
+  await page.click('#runsAllBtn');
+  await page.evaluate(() => { const S = window.fjallskredTerrain.state; const r = S.runs[S.runs.length - 1]; S.tour.start = r.runoutPoints.length ? r.runoutPoints[r.runoutPoints.length - 1] : r.points[r.points.length - 1]; });
+  await page.click('#descBtn').catch(() => {}); await page.click('#descBtn').catch(() => {});
+  await page.evaluate(() => document.querySelector('#buildBtn').disabled = false);
+  await page.click('#buildBtn');
+  await page.waitForFunction(() => window.fjallskredTerrain.state.built?.parts?.length || /Could not/.test(document.querySelector('#tmsg').textContent), null, { timeout: 180000 });
+  await page.waitForTimeout(1500);
+  await shot('21-runs-tour', '.tmapcard');
+  console.log('runs tour:', await page.evaluate(() => { const S = window.fjallskredTerrain.state; return JSON.stringify({ parts: S.built?.parts?.map((p) => p.label), msg: document.querySelector('#tmsg').hidden ? '' : document.querySelector('#tmsg').textContent }); }));
   console.log('goto Sweden:', await page.evaluate(() => { const S = window.fjallskredTerrain.state; return JSON.stringify({ places: S.zone.filter((t) => t.kind === 'place').map((t) => t.name), centre: window.fjallskredTerrain.map?.center?.() }); }));
 }
 

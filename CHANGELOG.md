@@ -3,6 +3,29 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v5.7.5 — Plan a tour: problem slopes, reorder by dragging, a tour introduction, a better weather table, a scale (2026-09-25)
+
+- **Problem slopes 25°+**, a map layer with its own checkbox (on by
+  default, next to NVE's): ground of 25° and more facing today's problem
+  aspects at their heights, in the same soft red as the tour map on the
+  conditions page; the legend names the region and its problems.
+- **Drag to reorder descents**: the descent chips under the Tour buttons
+  can be dragged into a new order (mouse or touch; ← → keys on a focused
+  chip). A built tour says to press Build tour again.
+- **A built tour is introduced like a tour on the conditions page**:
+  region with danger and problem icons, summit and vertical, a compass rose
+  of the descent aspects, difficulty (the listed tour's own, or estimated
+  from the steepest descent ground), access and usual window (when the
+  summit is a listed tour), its description, and the modelled snow at the
+  tour or the nearest one. The numbers come once: tour length, climb,
+  descents, Munter time, highest point, steepest ground; the table below is
+  now "Legs and descents".
+- **Weather on the route**: daylight hours only, hour by hour for the next
+  two days; each hour coloured poor → very good as on the conditions page;
+  the hours of your planned tour boxed (or, before a tour is built, the best
+  block of hours for the route's time).
+- **A length scale** at the bottom left of the map.
+
 ## v5.7.4 — bigger areas, more runs, problem icons (2026-09-25)
 
 - **Find runs in areas up to 15 × 15 km** (was 6). Where heights are free

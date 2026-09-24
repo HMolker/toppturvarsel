@@ -493,6 +493,17 @@ await page.click('#t3dClose');
   await page.click('#runsOut [data-rmrun="2"]');
   console.log('re-added 2, removed 3:', await page.evaluate(() => JSON.stringify(window.fjallskredTerrain.state.tour.names)));
   await shot('20b-runs-chips', '.tmapcard');
+  // Drag the first descent chip past the second.
+  {
+    const a = await page.locator('#descList .dchip').nth(0).boundingBox();
+    const b = await page.locator('#descList .dchip').nth(1).boundingBox();
+    await page.mouse.move(a.x + 20, a.y + a.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(a.x + 40, a.y + a.height / 2, { steps: 3 });
+    await page.mouse.move(b.x + b.width - 8, b.y + b.height / 2, { steps: 6 });
+    await page.mouse.up();
+    console.log('after drag:', await page.evaluate(() => JSON.stringify(window.fjallskredTerrain.state.tour.names)));
+  }
   await page.evaluate(() => { const S = window.fjallskredTerrain.state; const r = S.runs[S.runs.length - 1]; S.tour.start = r.runoutPoints.length ? r.runoutPoints[r.runoutPoints.length - 1] : r.points[r.points.length - 1]; });
   await page.click('#descBtn').catch(() => {}); await page.click('#descBtn').catch(() => {});
   await page.evaluate(() => document.querySelector('#buildBtn').disabled = false);
@@ -500,6 +511,13 @@ await page.click('#t3dClose');
   await page.waitForFunction(() => window.fjallskredTerrain.state.built?.parts?.length || /Could not/.test(document.querySelector('#tmsg').textContent), null, { timeout: 180000 });
   await page.waitForTimeout(1500);
   await shot('21-runs-tour', '.tmapcard');
+  await page.waitForFunction(() => document.querySelector('.tintro'), null, { timeout: 60000 }).catch(() => {});
+  await page.waitForFunction(() => document.querySelector('#rweather .wtable'), null, { timeout: 60000 }).catch(() => {});
+  console.log('panel state:', await page.evaluate(() => { const S = window.fjallskredTerrain.state; return JSON.stringify({ built: !!S.built, analysis: !!S.analysis, rstats: document.querySelector('#rstats')?.innerHTML.slice(0, 120), rweather: document.querySelector('#rweather')?.innerHTML.slice(0, 160), wv: !!S.weatherView, err: S.profileErr }); }));
+  await page.waitForTimeout(1500);
+  await shot('21b-tour-panel', '.tside');
+  console.log('intro:', (await page.textContent('.tintro').catch(() => '')).replace(/\s+/g, ' ').slice(0, 300));
+  console.log('weather rows:', await page.locator('#rweather .wtable tr:not(.wday)').count(), '· boxed', await page.locator('#rweather tr.wbox').count(), '· bands', await page.locator('#rweather td.wband').count());
 
   // A big area in Hallingdal, with today's (made-up) wind slab on N–E above 1300 m.
   const hog = tours.find((t) => t.name === 'Høgeloft');

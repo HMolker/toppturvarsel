@@ -25,8 +25,11 @@ import { renderWeather } from './weather.js';
 import { dangerChip, problemIcons, initAvalancheTips } from '../avalanche.js';
 import { problemAspects, problemBands } from '../planner.js';
 import { attachPlaceSearch, pickPlace, kindName } from '../placesearch.js';
+import { aspectRose as tourRose } from '../aspect.js';
+import { countryName } from '../countries.js';
 
 const $ = (s) => document.querySelector(s);
+const $$ = (s) => [...document.querySelectorAll(s)];
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const slugify = (s) => String(s).normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/ø/gi, 'o').replace(/æ/gi, 'ae').replace(/å/gi, 'a').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 const R = Math.PI / 180;
@@ -38,7 +41,7 @@ const S = {
   profile: null, profileKey: null, analysis: null, profileErr: null, pendingKey: null, runout: null, where: null,
   suggestion: null, picking: null, picks: [],
   ref: null, hover: null,
-  shade: 'off', nve: true, opacity: 0.7,
+  shade: 'off', nve: true, opacity: 0.7, hazard: true,
   budget: null,
   fine: [],
   // The tour builder (v5.4): a start, descents drawn by hand, legs found.
@@ -116,7 +119,7 @@ dem.onTile(() => { map.requestRender(); updateStatus(); });
 const shadeCache = new Map();
 let problemSig = '';
 function shadeImage(tile, mode, problems) {
-  const k = `${tile.z}/${tile.x}/${tile.y}|${mode}|${mode === 'problems' ? problemSig : ''}`;
+  const k = `${tile.z}/${tile.x}/${tile.y}|${mode}|${mode === 'problems' || mode === 'hazard' ? problemSig : ''}`;
   if (shadeCache.has(k)) return shadeCache.get(k);
   const { slope, aspect, elev } = tileCells(tile);
   const c = document.createElement('canvas');
@@ -133,6 +136,10 @@ function shadeImage(tile, mode, problems) {
     } else if (mode === 'aspect') {
       const o = octant(aspect[k2]);
       if (o && s >= 10) { col = ASPECT_COLOURS[o]; a = s >= 25 ? 235 : 110; }
+    } else if (mode === 'hazard') {
+      // As on the conditions page's tour map: one soft red over 25°+ problem ground.
+      const o = octant(aspect[k2]);
+      if (o && s >= 25 && probs.some((p) => p.aspects.has(o) && p.bands.some(([lo, hi]) => elev[k2] >= lo && elev[k2] <= hi))) { col = [194, 64, 42]; a = 255; }
     } else if (mode === 'problems') {
       const o = octant(aspect[k2]);
       if (o && s >= 25 && probs.some((p) => p.aspects.has(o) && p.bands.some(([lo, hi]) => elev[k2] >= lo && elev[k2] <= hi))) {
@@ -151,7 +158,8 @@ function shadeImage(tile, mode, problems) {
 let shadeNote = '';
 map.addCanvasPainter((ctx, m) => {
   shadeNote = '';
-  if (S.shade === 'off') return;
+  const hazardOn = S.hazard && (regionAt(m.center().lat, m.center().lon)?.bulletin?.problems?.length ?? 0) > 0;
+  if (S.shade === 'off' && !hazardOn) return;
   // One zoom coarser than the map (32 screen pixels per terrain cell, drawn
   // smoothly): a quarter of the heights per screenful, which is what used up
   // the daily budget. Still 37 m cells at the closest zoom.
@@ -172,16 +180,34 @@ map.addCanvasPainter((ctx, m) => {
     const tile = dem.get(t.z, t.x, t.y);
     if (!tile) { dem.load(t.z, t.x, t.y); continue; }
     if (tile.error || !tile.ele) continue;
-    ctx.drawImage(shadeImage(tile, S.shade, problems), t.sx, t.sy, t.size, t.size);
+    if (S.shade !== 'off') ctx.drawImage(shadeImage(tile, S.shade, problems), t.sx, t.sy, t.size, t.size);
+  }
+  if (hazardOn) {
+    ctx.globalAlpha = 0.34;
+    for (const t of tiles) {
+      const tile = dem.get(t.z, t.x, t.y);
+      if (tile?.ele && !tile.error) ctx.drawImage(shadeImage(tile, 'hazard', problems), t.sx, t.sy, t.size, t.size);
+    }
   }
   ctx.restore();
 });
 
 /* vectors: pins, reference route, suggestion, the route, handles */
+
+/** A length scale, bottom left: the longest round length that fits in ~110 px. */
+function scaleBar(m) {
+  const lat = m.center().lat;
+  const mPerPx = (40075016.686 * Math.cos((lat * Math.PI) / 180)) / (256 * 2 ** m.zoom);
+  const nice = [10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000];
+  const len = nice.filter((v) => v / mPerPx <= 110).pop() ?? nice[0];
+  const w = len / mPerPx, x = 14, y = m.H - 16;
+  const label = len >= 1000 ? `${len / 1000} km` : `${len} m`;
+  return `<g class="scalebar" pointer-events="none"><path d="M${x} ${y - 5} V${y} H${(x + w).toFixed(1)} V${y - 5}"/><text x="${(x + w + 6).toFixed(1)}" y="${y + 1}">${label}</text></g>`;
+}
 const poly = (m, pts) => pts.map((p) => m.project(p[0], p[1]).map((v) => v.toFixed(1)).join(',')).join(' ');
 
 map.addSvgPainter((m) => {
-  const out = [];
+  const out = [scaleBar(m)];
   const b = m.bounds();
   const inView = (lat, lon) => lat <= b.north + 0.05 && lat >= b.south - 0.05 && lon >= b.west - 0.1 && lon <= b.east + 0.1;
 
@@ -568,7 +594,10 @@ function renderPanel({ loading = false } = {}) {
     return;
   }
   st.hidden = false;
-  st.innerHTML =
+  if (S.built && S.built.key === routeKey()) {
+    // A built tour: introduced like a tour on the conditions page, numbers once (v5.7.5).
+    st.innerHTML = tourIntro(a);
+  } else st.innerHTML =
     `<div class="rgrid">` +
     `<div><b>${fmtKm(a.distanceM)}</b><span>distance</span></div>` +
     `<div><b>↑ ${a.ascentM} m</b><span>climb</span></div>` +
@@ -650,7 +679,8 @@ async function loadWeather(wp) {
   const labels = pts.length > 1 ? ['Start', 'Highest point'] : ['Start'];
   const key = pts.map((p) => `${p.lat.toFixed(3)},${p.lon.toFixed(3)},${Math.round((p.ele ?? 0) / 10)}`).join('|');
   const hit = weatherMemo.get(key);
-  if (hit && Date.now() - hit.at < 20 * 60e3) { renderWeather(el, hit.data, { labels }); return; }
+  S.weatherView = { labels, lat: wp.start.lat, lon: wp.start.lon, data: null };
+  if (hit && Date.now() - hit.at < 20 * 60e3) { S.weatherView.data = hit.data; drawWeather(); return; }
   renderWeather(el, null);
   let data;
   try {
@@ -661,8 +691,16 @@ async function loadWeather(wp) {
   } catch (err) {
     data = { error: err.message };
   }
-  const now = $('#rweather');
-  if (now) renderWeather(now, data, { labels });
+  S.weatherView = { labels, lat: wp.start.lat, lon: wp.start.lon, data };
+  drawWeather();
+}
+
+/** The weather table with the hours to box: the planned tour, or the best block for the route's time. */
+function drawWeather() {
+  const el = $('#rweather'), v = S.weatherView;
+  if (!el || !v?.data) return;
+  const needH = S.built && S.built.key === routeKey() && S.profile ? tourNumbers(S.profile, S.built.parts).total.hours : S.analysis?.hours ?? null;
+  renderWeather(el, v.data, { labels: v.labels, lat: v.lat, lon: v.lon, needH, plan: S.dayPlan && S.built?.key === routeKey() ? S.dayPlan : null });
 }
 
 /* ------------------------------------------------------------------ *
@@ -791,10 +829,75 @@ function renderDescList() {
   const el = $('#descList');
   const km = (d) => { let m = 0; for (let k = 1; k < d.length; k++) m += Math.hypot((d[k][0] - d[k - 1][0]) * 111320, (d[k][1] - d[k - 1][1]) * 111320 * Math.cos((d[k][0] * Math.PI) / 180)); return m; };
   el.innerHTML = t.descents
-    .map((d, k) => (d.length ? `<span class="dchip${S.mode === 'descent' && t.cur === k ? ' cur' : ''}"><b>${esc(t.names[k] ?? `Descent ${k + 1}`)}</b><span class="dmeta">${d.length < 2 ? 'being drawn' : fmtKm(km(d))}</span>` +
+    .map((d, k) => (d.length ? `<span class="dchip${S.mode === 'descent' && t.cur === k ? ' cur' : ''}" data-dk="${k}" tabindex="0" title="Drag to change the order (or ← → keys)"><span class="dgrip" aria-hidden="true">⋮⋮</span><span class="dnum">${k + 1}</span><b>${esc(t.names[k] ?? `Descent ${k + 1}`)}</b><span class="dmeta">${d.length < 2 ? 'being drawn' : fmtKm(km(d))}</span>` +
       `<button type="button" data-rmdesc="${k}" title="Remove ${esc(t.names[k] ?? `descent ${k + 1}`)} from the tour" aria-label="Remove ${esc(t.names[k] ?? `descent ${k + 1}`)}">×</button></span>` : ''))
     .join('');
   el.querySelectorAll('[data-rmdesc]').forEach((b) => (b.onclick = () => removeDescent(+b.dataset.rmdesc)));
+  el.querySelectorAll('.dchip').forEach((chip) => {
+    chip.addEventListener('pointerdown', chipDragStart);
+    chip.addEventListener('keydown', (e) => {
+      const k = +chip.dataset.dk;
+      if (e.key === 'ArrowLeft' && k > 0) { e.preventDefault(); moveDescent(k, k - 1); $(`#descList [data-dk="${k - 1}"]`)?.focus(); }
+      if (e.key === 'ArrowRight' && k < S.tour.descents.length - 1) { e.preventDefault(); moveDescent(k, k + 1); $(`#descList [data-dk="${k + 1}"]`)?.focus(); }
+    });
+  });
+}
+
+/** Reorder: drag a descent chip onto another's place (mouse or touch). */
+let chipDrag = null;
+function chipDragStart(e) {
+  if (e.target.closest('button') || e.button > 0) return;
+  const chip = e.currentTarget;
+  chipDrag = { from: +chip.dataset.dk, to: +chip.dataset.dk, chip, x: e.clientX, y: e.clientY, moved: false, id: e.pointerId };
+  chip.setPointerCapture(e.pointerId);
+  chip.addEventListener('pointermove', chipDragMove);
+  chip.addEventListener('pointerup', chipDragEnd);
+  chip.addEventListener('pointercancel', chipDragEnd);
+}
+function chipDragMove(e) {
+  const d = chipDrag;
+  if (!d || e.pointerId !== d.id) return;
+  if (!d.moved && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 5) return;
+  d.moved = true;
+  d.chip.classList.add('dragging');
+  d.chip.style.transform = `translate(${e.clientX - d.x}px, ${e.clientY - d.y}px)`;
+  // The chip under the pointer (the dragged one lets events through while moving).
+  d.chip.style.pointerEvents = 'none';
+  const over = document.elementFromPoint(e.clientX, e.clientY)?.closest('#descList .dchip');
+  d.chip.style.pointerEvents = '';
+  $$('#descList .dchip').forEach((c) => c.classList.remove('dropbefore', 'dropafter'));
+  if (over && over !== d.chip) {
+    const k = +over.dataset.dk;
+    const r = over.getBoundingClientRect();
+    const after = e.clientX > r.left + r.width / 2;
+    over.classList.add(after ? 'dropafter' : 'dropbefore');
+    d.to = after ? (k < d.from ? k + 1 : k) : (k > d.from ? k - 1 : k);
+  }
+}
+function chipDragEnd(e) {
+  const d = chipDrag;
+  chipDrag = null;
+  if (!d) return;
+  d.chip.releasePointerCapture?.(e.pointerId);
+  d.chip.removeEventListener('pointermove', chipDragMove);
+  d.chip.removeEventListener('pointerup', chipDragEnd);
+  d.chip.removeEventListener('pointercancel', chipDragEnd);
+  d.chip.style.transform = '';
+  d.chip.classList.remove('dragging');
+  if (d.moved && d.to !== d.from) moveDescent(d.from, d.to);
+  else renderDescList();
+}
+function moveDescent(from, to) {
+  const t = S.tour;
+  const [d] = t.descents.splice(from, 1);
+  const [n] = t.names.splice(from, 1);
+  t.descents.splice(to, 0, d);
+  t.names.splice(to, 0, n);
+  if (t.cur === from) t.cur = to;
+  else if (from < t.cur && to >= t.cur) t.cur--;
+  else if (from > t.cur && to <= t.cur) t.cur++;
+  if (S.built) message('New order: press Build tour to build it again in this order.');
+  tourChanged();
 }
 
 function removeDescent(k) {
@@ -1156,6 +1259,8 @@ async function renderTourDay() {
   const place = { lat: start[0], lon: start[1], vertical_m: eles.length ? Math.max(...eles) - Math.min(...eles) : 600 };
   const bl = bulletinFor(outlook?.bulletins?.[ref.id] ?? [], iso);
   const plan = planDay({ parts, place, hourly: fc.hourly, iso, problems: bl?.problems ?? [] });
+  S.dayPlan = plan?.light ? { iso, from: plan.depart, to: plan.finish } : null;
+  drawWeather();
   const dayName = (d) => new Date(`${d}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
   const picker = `<label class="note">Day <select id="tourDaySel">${days.map((d) => `<option value="${d}"${d === iso ? ' selected' : ''}>${dayName(d)}</option>`).join('')}</select></label>`;
   if (!plan) { el.innerHTML = `<h4>When to go</h4>${picker}<p class="note">No hourly forecast for this day.</p>`; }
@@ -1252,6 +1357,61 @@ function dayStrip(plan) {
 }
 
 /** The tour section of the route panel: legs, descents, totals, warnings. */
+const DIFF_BY_SLOPE = [[25, 1], [30, 2], [35, 3], [40, 4], [Infinity, 5]];
+const kmBetween = (a, b) => Math.hypot((a.lat - b.lat) * 111.2, (a.lon - b.lon) * 111.2 * Math.cos((a.lat * Math.PI) / 180));
+
+/** The top of a built tour's panel: region, summit and vertical, aspects, difficulty, access, snow — then the numbers, once. */
+function tourIntro(a) {
+  const b = S.built;
+  const nums = tourNumbers(S.profile, b.parts);
+  const T = nums.total;
+  const smp = S.profile.samples;
+  const idx = new Map(smp.map((x, i) => (x.v !== undefined ? [x.v, i] : null)).filter(Boolean));
+  const desc = nums.rows.filter((r) => r.kind === 'descent').flatMap((r) => smp.slice(idx.get(r.v0), idx.get(r.v1) + 1));
+  const aspects = descentAspects(desc, octant, 0.15);
+  const steepest = desc.reduce((m, x) => (Number.isFinite(x.slope) && x.slope > m ? x.slope : m), 0);
+  const top = smp.reduce((m, x) => (Number.isFinite(x.ele) && (!m || x.ele > m.ele) ? x : m), null);
+  // A listed tour at this summit gives its own description.
+  const listed = top ? S.tours.map((t) => ({ t, km: kmBetween(top, t) })).sort((x, y) => x.km - y.km)[0] : null;
+  const same = listed && listed.km <= 1.5 ? listed.t : null;
+  const start = S.route[0];
+  const reg = regionAt(start[0], start[1]);
+  const danger = reg?.bulletin?.danger;
+  const regionLine = reg
+    ? `${esc(reg.name)} (${esc(countryName(reg.country))}) — ${danger ? dangerChip(danger) : '<span class="note">danger not assessed</span>'}${reg.bulletin?.problems?.length ? ` ${problemIcons(reg.bulletin.problems, { danger, size: 20 })}` : ''}`
+    : '<span class="note">no avalanche region known here</span>';
+  const estDiff = DIFF_BY_SLOPE.find(([max]) => steepest < max)[1];
+  const diff = same
+    ? `${same.difficulty}/5 &nbsp; <span class="stars">${'★'.repeat(same.quality ?? 0)}${'☆'.repeat(Math.max(0, 5 - (same.quality ?? 0)))}</span>`
+    : `${estDiff}/5 <span class="note">estimated from the steepest descent ground, ${Math.round(steepest)}°</span>`;
+  const aspText = aspects.join(', ') || 'mixed';
+  // Snow: the listed tour here, or the nearest one.
+  const near = same ? { t: same, km: 0 } : listed;
+  const snow = near ? S.tourSnow?.[near.t.name] : null;
+  const snowLine = snow && snow.depthCm != null
+    ? `<p class="bulletintext">${near.km ? `At ${esc(near.t.name)} (${near.km.toFixed(0)} km away)` : 'At this tour'}: ` +
+      [`<strong>${Math.round(snow.depthCm)} cm</strong> modelled depth`, snow.new24 != null ? `+${Math.round(snow.new24)} cm/24h` : null, snow.new48 != null ? `<strong>+${Math.round(snow.new48)} cm/48h</strong>` : null, snow.new72 != null ? `+${Math.round(snow.new72)} cm/72h` : null, snow.gridAltitude != null ? `grid cell ${snow.gridAltitude} m` : null].filter(Boolean).join(' · ') + '</p>'
+    : '';
+  return `<div class="detail tintro"><dl>` +
+    `<dt>Region</dt><dd>${regionLine}</dd>` +
+    `<dt>Summit / vertical</dt><dd>${top ? Math.round(top.ele) : '–'} m · ≈${T.skiedM} m of descent</dd>` +
+    `<dt>Descent aspect</dt><dd class="aspdd">${tourRose(aspText, { size: 64, labels: true })}<span>${esc(aspText)}<br><span class="note">the directions the skiing faces</span></span></dd>` +
+    `<dt>Difficulty</dt><dd>${diff}</dd>` +
+    (same ? `<dt>Access</dt><dd>${esc(same.access ?? '–')}</dd><dt>Usual window</dt><dd>${esc(same.season ?? '–')}</dd>`
+      : listed ? `<dt>Nearest tour</dt><dd>${esc(listed.t.name)}, ${listed.km.toFixed(1)} km — <span class="note">your own line, not a listed tour</span></dd>` : '') +
+    `</dl>` +
+    (same?.note ? `<p class="bulletintext">${esc(same.note)}</p>` : '') +
+    snowLine +
+    `<div class="rgrid">` +
+    `<div><b>${fmtKm(T.distanceM)}</b><span>tour length</span></div>` +
+    `<div><b>↑ ${T.climbM} m</b><span>to climb</span></div>` +
+    `<div><b>↓ ${T.skiedM} m</b><span>on your descents</span></div>` +
+    `<div><b>${fmtHours(T.hours)}</b><span>Munter time</span></div>` +
+    `<div><b>${a.maxEle ?? '–'} m</b><span>highest</span></div>` +
+    `<div><b>${a.steepest ? `${Math.round(a.steepest.slope)}°` : '–'}</b><span>steepest ground</span></div>` +
+    `</div></div>`;
+}
+
 function tourSection() {
   const b = S.built;
   if (!b) return '';
@@ -1267,8 +1427,7 @@ function tourSection() {
     (w.runoutM ? `<span class="warn">${fmtKm(w.runoutM)} in runout zones</span>` : '') +
     `</td><td>${fmtKm(r.distanceM)}</td><td>${r.climbM}</td><td>${r.descentM}</td><td>${fmtHours(r.hours)}</td></tr>`;
   const T = nums.total;
-  return `<div class="rsec"><h4>Tour</h4>` +
-    `<div class="rgrid"><div><b>${fmtKm(T.distanceM)}</b><span>tour length</span></div><div><b>↑ ${T.climbM} m</b><span>to climb</span></div><div><b>↓ ${T.skiedM} m</b><span>on your descents</span></div><div><b>${fmtHours(T.hours)}</b><span>Munter time</span></div></div>` +
+  return `<div class="rsec"><h4>Legs and descents</h4>` +
     `<table class="tourtbl"><thead><tr><th></th><th>km</th><th>↑ m</th><th>↓ m</th><th>time</th></tr></thead><tbody>` +
     nums.rows.map((r, i) => row(r, warn[i])).join('') +
     `<tr class="tot"><td>Total</td><td>${fmtKm(T.distanceM)}</td><td>${T.climbM}</td><td>${nums.rows.reduce((a, r) => a + r.descentM, 0)}</td><td>${fmtHours(T.hours)}</td></tr></tbody></table>` +
@@ -1447,6 +1606,11 @@ function renderLegend() {
   const sw = (rgb, label) => `<span><i class="swc" style="background:rgb(${rgb.join(',')})"></i>${label}</span>`;
   const c = map.center();
   const country = nearest(c.lat, c.lon)?.item.country;
+  if (S.hazard) {
+    const w0 = regionAt(c.lat, c.lon);
+    const pr0 = w0?.bulletin?.problems ?? [];
+    parts.push(`<div class="legend-row"><span class="eyebrow">Problems</span><span><i class="swc" style="background:rgba(194,64,42,.34)"></i>25°+ facing today’s problems, at their heights</span><span class="note">${pr0.length ? `${esc(w0.name)} ${problemIcons(pr0, { danger: w0.bulletin.danger, size: 18 })}` : 'no avalanche problems in a bulletin here today'}</span></div>`);
+  }
   if (S.nve && country === 'NO') {
     parts.push(`<div class="legend-row"><span class="eyebrow">NVE</span><span>slope from 27° in green, then yellow → red → purple → black to 50°+; avalanche runout zones in three blues (short, medium, long)</span></div>`);
   }
@@ -1485,6 +1649,7 @@ function message(text, kind = '') {
 }
 
 $('#lyrNve').onchange = (e) => { S.nve = e.target.checked; map.setLayer('nve', { visible: S.nve }); renderLegend(); };
+$('#lyrHazard').onchange = (e) => { S.hazard = e.target.checked; map.render(); renderLegend(); };
 $('#lyrShade').onchange = (e) => { S.shade = e.target.value; map.render(); renderLegend(); };
 $('#lyrOpacity').oninput = (e) => {
   S.opacity = e.target.value / 100;
@@ -1630,6 +1795,7 @@ async function init() {
   S.tours = (meta?.tours ?? []).map((t) => ({ ...t, slug: t.slug ?? slugify(t.name) }));
   S.resorts = resorts?.resorts ?? [];
   S.bulletins = Object.fromEntries((conditions?.regions ?? []).map((r) => [r.id, r]));
+  S.tourSnow = Object.fromEntries((conditions?.tours ?? []).map((t) => [t.name, t.snow ?? null]));
   S.zone = [
     ...S.tours.map((t) => ({ kind: 'tour', name: t.name, slug: t.slug, lat: t.lat, lon: t.lon, country: S.regionsMeta[t.region]?.country, region: t.region })),
     ...S.resorts.filter((r) => Number.isFinite(r.lat)).map((r) => ({ kind: 'resort', name: r.name, lat: r.lat, lon: r.lon, country: r.country })),

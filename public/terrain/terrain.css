@@ -229,3 +229,23 @@ dialog.t3d::backdrop { background: rgba(0,0,0,.45); }
 .dchip.cur { border-color: var(--ink); }
 .runprobs { display: inline-flex; gap: 2px; vertical-align: middle; margin-right: 2px; }
 .runday .avprob, .runday .avdanger { vertical-align: middle; }
+
+/* length scale (v5.7.5) */
+.scalebar path { fill: none; stroke: var(--ink); stroke-width: 2; paint-order: stroke; }
+.scalebar text { font: 600 11px var(--mono); fill: var(--ink); paint-order: stroke; stroke: var(--paper); stroke-width: 3px; stroke-linejoin: round; }
+.dchip { cursor: grab; touch-action: none; user-select: none; position: relative; }
+.dchip.dragging { cursor: grabbing; z-index: 5; box-shadow: 0 4px 14px rgba(0,0,0,.18); opacity: .92; }
+.dchip .dgrip { color: var(--muted); letter-spacing: -2px; font-size: 11px; }
+.dchip .dnum { font: 600 11px var(--mono); color: var(--muted); }
+.dchip.dropbefore { box-shadow: -3px 0 0 var(--ink); }
+.dchip.dropafter { box-shadow: 3px 0 0 var(--ink); }
+.dchip:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* weather table (v5.7.5): hour colour and the boxed hours */
+.wtable td.wband { width: 6px; padding: 0; }
+.wtable tr.wbox > * { background: color-mix(in srgb, var(--ink) 5%, transparent); }
+.wtable tr.wbox > :first-child { box-shadow: inset 2px 0 0 var(--ink); }
+.wtable tr.wbox > :last-child { box-shadow: inset -2px 0 0 var(--ink); }
+.wtable tr.wbox-first > * { border-top: 2px solid var(--ink); }
+.wtable tr.wbox-last > * { border-bottom: 2px solid var(--ink); }
+.hlegend .hlk i.wboxkey { display: inline-block; width: 14px; height: 10px; border: 2px solid var(--ink); border-radius: 2px; vertical-align: -1px; margin-right: 4px; }

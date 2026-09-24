@@ -289,16 +289,39 @@ from the measurement and no timestamps, for maps and for watches.
 made-up terrain (the advert's Hallingdal) in a headless browser and takes
 screenshots of each part.
 
-## The map on the conditions page (v5.5)
+## The map on the conditions page (v5.6)
 
-The map is the same pan-and-zoom map as on Plan a tour, with the forecast
-regions (coloured by snow depth, new snow or danger), tours, ski resorts and
-huts on top. Zoomed out it shows OpenTopoMap's overview of the Nordic
-mainland; zoomed in near the tours and resorts, Kartverket's topo (Norway)
-or OpenTopoMap (Sweden). Tiles are drawn in grey so the data reads first.
-Drag or pinch to move it; Ctrl/⌘ + scroll zooms, a plain scroll scrolls
-the page. The tile proxy serves the overview (zooms 4–8) for the Nordic
-mainland only, about 700 tiles in all, so it is still not an open proxy.
+A sketch — coastline, the Norway/Sweden border and the forecast regions —
+that you can pan and zoom (drag or pinch; Ctrl/⌘ + scroll zooms, a plain
+scroll scrolls the page). No map tiles: shaded terrain made the data hard to
+read. Two layers:
+
+- **Snow** (default): the land around each forecast region (the land nearer
+  to it than to any other region, within 110 km) in the region's **snow
+  base**, grey scale; the region's **circle** in its **new snow over 48 h**,
+  white to maroon, with a red ring over the alert threshold.
+- **Avalanche danger**: the circles in the EAWS colours on plain land.
+
+Tours, ski resorts and huts go on top as before. **Find a place** searches
+any name in Norway (Kartverket's place names) and Sweden (OpenStreetMap's
+Nominatim) on Enter, puts a pin on the map, names the nearest listed tour,
+and offers **Plan a tour here**.
+
+## Place search and the service area (v5.6)
+
+The search box on both pages (`GET /api/places?q=`) asks Kartverket's
+place-name register for Norway and Nominatim for Sweden, and keeps each
+answer 30 days. It searches on Enter only: Nominatim's usage policy allows
+no search-as-you-type and at most one request a second, which the server
+keeps to. Searching costs no heights and no map tiles.
+
+Choosing a place (`POST /api/places/pick`) adds the 12 km around it to the
+service area, like a listed tour, so Plan a tour works there — map, NVE
+layers, terrain. Only a place this server found by name can be added, never
+arbitrary coordinates, so the tile and height endpoints stay closed to the
+rest of the world; at most `PLACES_DAILY` (30) new places a day and
+`PLACES_MAX` (300) in all, the least recently used dropped. They are kept in
+`data/cache/places-zones.json`; delete it to start over.
 
 ## Trip planner
 
@@ -604,7 +627,9 @@ curl -X POST localhost:8080/api/test-alert   # dry run, records nothing
 | `GET /api/dem/{z}/{x}/{y}` | Terrain page: a 17 × 17 height grid over one map tile (z 11–15), service area only, kept a year. |
 | `POST /api/terrain/profile` | Terrain page: `{"points": [[lat, lon], …]}` (≤ 300 points, ≤ 50 km, service area only) → samples every 25 m+ with height, slope and aspect of the ground. |
 | `POST /api/terrain/weather` | Terrain page: `{"points": [[lat, lon, ele], …]}` (one or two, service area only) → MET Norway hourly forecast at each point and height. |
-| `GET /api/terrain/zone` | Terrain page: the service-area margin and today's height budget. |
+| `GET /api/terrain/zone` | Terrain page: the service-area margin, today's height budget, the places added by search, Lantmäteriet's state. |
+| `GET /api/places?q=` | Place names in Norway (Kartverket) and Sweden (Nominatim), kept 30 days; `&country=NO\|SE` to limit. |
+| `POST /api/places/pick` | `{"id": …}` from a search answer → that place joins the service area (30 a day, 300 in all). |
 | `GET /tiles/nve/{z}/{x}/{y}.png` | NVE's slope and runout map (Norway), through the tile proxy. |
 
 The healthcheck deliberately fails on **stale data**, not just on a dead

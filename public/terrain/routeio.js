@@ -68,6 +68,7 @@ export function readHash(hash = location.hash) {
   if (q.get('tour')) out.tour = q.get('tour');
   const at = q.get('at')?.split(',').map(Number);
   if (at?.length >= 2 && at.every(Number.isFinite)) out.at = { lat: at[0], lon: at[1], zoom: at[2] ?? 13 };
+  if (q.get('pin')) out.pin = q.get('pin').slice(0, 80);
   return out;
 }
 

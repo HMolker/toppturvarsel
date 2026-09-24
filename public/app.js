@@ -10,6 +10,9 @@ import { factsHtml, DIFF_NAMES } from './resortfacts.js';
 import { simulate, simulateResorts, simulateHuts } from './simulate.js';
 import { dangerChip, problemIcons, problemIcon, problemRose, elevationDiagram, elevationText, initAvalancheTips, problemKey, PROBLEMS } from './avalanche.js';
 import { COUNTRIES, GROUPS, countryName, joinNames, normaliseSelection } from './countries.js';
+import { COAST, BORDER } from './geo.js';
+import { regionAreas } from './snowareas.js';
+import { attachPlaceSearch, pickPlace, kindName } from './placesearch.js';
 
 /* ------------------------------------------------------------------ *
  * state
@@ -18,7 +21,8 @@ import { COUNTRIES, GROUPS, countryName, joinNames, normaliseSelection } from '.
 const state = {
   snapshot: null,
   alerts: null,
-  layer: 'depth',
+  layer: 'snow',
+  pin: null,
   showTours: true,
   showResorts: false,
   showHuts: false,
@@ -138,44 +142,14 @@ function renderFreshness() {
  * ------------------------------------------------------------------ */
 
 /* ------------------------------------------------------------------ *
- * the map (v5.5): a real map you can pan and zoom, as on Plan a tour
- *
- * Zoomed out it shows OpenTopoMap's overview of the Nordic mainland (zooms
- * 4-8, the only tiles the service serves far from a tour); zoomed in,
- * Kartverket's grey topo (Norway) or OpenTopoMap (Sweden) near the tours
- * and resorts. Both are drawn in grey so the data on top reads first.
+ * the map (v5.6): the sketch — coastline, border and the forecast regions —
+ * that you can pan and zoom (v5.5). No map tiles: shaded terrain made the
+ * regions, snow colours and resorts hard to read. The real map is on Plan a
+ * tour.
  * ------------------------------------------------------------------ */
 
-const tileInZoneMain = (z, x, y) => {
-  const n = 2 ** z, R = Math.PI / 180, M = 12;
-  const west = (x / n) * 360 - 180, east = ((x + 1) / n) * 360 - 180;
-  const north = Math.atan(Math.sinh(Math.PI * (1 - (2 * y) / n))) / R, south = Math.atan(Math.sinh(Math.PI * (1 - (2 * (y + 1)) / n))) / R;
-  const near = (lat, lon) => lat + M / 111 >= south && lat - M / 111 <= north && lon + M / (111 * Math.cos(lat * R)) >= west && lon - M / (111 * Math.cos(lat * R)) <= east;
-  return (state.snapshot?.tours ?? []).some((t) => near(t.lat, t.lon)) || (state.resorts?.resorts ?? []).some((r) => near(r.lat, r.lon));
-};
-const tileCountryMain = (z, x, y) => {
-  const n = 2 ** z, lat = (Math.atan(Math.sinh(Math.PI * (1 - (2 * (y + 0.5)) / n))) * 180) / Math.PI, lon = ((x + 0.5) / n) * 360 - 180;
-  let best = null, bd = Infinity;
-  for (const r of state.snapshot?.regions ?? []) {
-    const d = (r.lat - lat) ** 2 + ((r.lon - lon) * Math.cos((lat * Math.PI) / 180)) ** 2;
-    if (d < bd) { bd = d; best = r.country; }
-  }
-  return best;
-};
-// The overview tiles the service serves (src/tiles.js, OVERVIEW): the Nordic mainland.
-const overviewTile = (z, x, y) => {
-  const n = 2 ** z, R = 180 / Math.PI;
-  const west = (x / n) * 360 - 180, east = ((x + 1) / n) * 360 - 180;
-  const north = Math.atan(Math.sinh(Math.PI * (1 - (2 * y) / n))) * R, south = Math.atan(Math.sinh(Math.PI * (1 - (2 * (y + 1)) / n))) * R;
-  return south <= 71.6 && north >= 54.5 && west <= 32.5 && east >= 3.5;
-};
 const mainMap = new SlippyMap($('#map'), {
-  center: { lat: 64.5, lon: 15 }, zoom: 4.5, minZoom: 3.5, maxZoom: 15, cooperative: true,
-  layers: [
-    // Overview: always there, scaled up underneath when zoomed in past 8.
-    { id: 'base', url: (z, x, y) => (overviewTile(z, x, y) ? `/tiles/se/${z}/${x}/${y}.png` : null), minZ: 4, maxZ: 8 },
-    { id: 'detail', url: (z, x, y) => (tileInZoneMain(z, x, y) ? `/tiles/${tileCountryMain(z, x, y) === 'SE' ? 'se' : 'no'}/${z}/${x}/${y}.png` : null), minZ: 9, maxZ: 15 },
-  ],
+  center: { lat: 64.5, lon: 15 }, zoom: 4.5, minZoom: 3.5, maxZoom: 11, cooperative: true, layers: [],
 });
 let baseZoom = 4.5;
 /** How far in from the countries' frame: 1 at the frame, 2 one zoom in, … (was the SVG map's k). */
@@ -251,16 +225,22 @@ function textOn(hex) {
   return L > 0.28 ? '#1A1A1A' : '#FFFFFF';
 }
 
+// The default 'snow' layer: the land around each region in its snow base,
+// the region's circle in its new snow over 48 h. 'danger': EAWS circles.
+const circleLayer = () => (state.layer === 'snow' ? 'new48' : state.layer);
+
 const regionValue = (r) => {
-  if (state.layer === 'danger') return r.bulletin?.danger ?? null;
-  if (state.layer === 'new48') return r.snow?.new48 ?? null;
+  const l = circleLayer();
+  if (l === 'danger') return r.bulletin?.danger ?? null;
+  if (l === 'new48') return r.snow?.new48 ?? null;
   return r.snow?.depthCm ?? null;
 };
 
 function fillFor(r) {
   const v = regionValue(r);
-  if (state.layer === 'danger') return v ? DANGER_COL[v] : null;
-  if (state.layer === 'new48') return newCol(v);
+  const l = circleLayer();
+  if (l === 'danger') return v ? DANGER_COL[v] : null;
+  if (l === 'new48') return newCol(v);
   return depthCol(v);
 }
 
@@ -272,9 +252,9 @@ function fillFor(r) {
  */
 function radiusFor(r) {
   const v = regionValue(r);
-  if (state.layer === 'danger') return v == null ? 6 : 7.5 + v * 1.1;
+  if (circleLayer() === 'danger') return v == null ? 6 : 7.5 + v * 1.1;
   if (v == null) return 6;
-  return state.layer === 'new48'
+  return circleLayer() === 'new48'
     ? Math.min(14, 7 + v * 0.14)
     : Math.min(14.5, 6.5 + Math.sqrt(v) * 0.62);
 }
@@ -285,13 +265,59 @@ function drawMap() {
   drawLegend();
 }
 
-/** Everything drawn on top of the map tiles, as SVG. Runs on every pan and zoom. */
+/** Screen path through [lat, lon] points. */
+function pathOf(points, close) {
+  let d = '';
+  points.forEach(([la, lo], i) => {
+    const [x, y] = mainMap.project(la, lo);
+    d += `${i ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`;
+  });
+  return close ? `${d}Z` : d;
+}
+
+// The land around each region, worked out once per set of regions.
+let areasMemo = { key: '', areas: [] };
+function areasFor(regions) {
+  const list = regions.filter((r) => !r.offMap);
+  const key = list.map((r) => r.id).join(',');
+  if (areasMemo.key !== key) areasMemo = { key, areas: regionAreas(list) };
+  return areasMemo.areas;
+}
+
+/** The sketch: land, snow base around each region (snow layer), coast, border. */
+function sketchSvg() {
+  const coast = pathOf(COAST, true);
+  const out = [
+    `<defs><clipPath id="landclip"><path d="${coast}"/></clipPath></defs>`,
+    `<path d="${coast}" fill="var(--land)" stroke="none"/>`,
+  ];
+  if (state.layer === 'snow') {
+    const byId = new Map(state.snapshot.regions.map((r) => [r.id, r]));
+    const cells = [];
+    for (const a of areasFor(state.snapshot.regions)) {
+      const r = byId.get(a.id);
+      if (!r || !inSel(r.country)) continue;
+      const fill = depthCol(r.snow?.depthCm ?? null);
+      if (!fill) continue;
+      cells.push(`<path d="${pathOf(a.ring, true)}" fill="${fill}" stroke="var(--paper)" stroke-width=".6" stroke-opacity=".7"/>`);
+    }
+    out.push(`<g clip-path="url(#landclip)" class="snowareas">${cells.join('')}</g>`);
+  }
+  out.push(
+    `<path d="${coast}" fill="none" stroke="var(--coast)" stroke-width=".9" stroke-linejoin="round"/>`,
+    `<path d="${pathOf(BORDER, false)}" fill="none" stroke="var(--coast)" stroke-width=".8" stroke-dasharray="3 3"/>`
+  );
+  return out.join('');
+}
+
+/** Everything drawn on the map, as SVG. Runs on every pan and zoom. */
 function mapOverlay() {
   if (!state.snapshot) return '';
   const MAP_W = mainMap.W, MAP_H = mainMap.H;
   const firing = new Set((state.alerts?.firing ?? []).map((a) => a.regionId));
   const parts = [];
   const labels = [];
+  parts.push(sketchSvg());
 
   // Biggest first, so a small marker inside a crowded cluster stays clickable
   // and its label is not buried under a neighbour.
@@ -321,7 +347,7 @@ function mapOverlay() {
 
     // No data: an empty dashed ring, never a colour that could be read as a value.
     const noData = fill == null;
-    const isFive = state.layer === 'danger' && v === 5;
+    const isFive = circleLayer() === 'danger' && v === 5;
     const stroke = isSel ? 'var(--ink)' : isFive ? RED : noData ? 'var(--steel)' : 'var(--marker-edge)';
     const sw = isSel ? 2.2 : isFive ? 1.8 : 0.9;
 
@@ -415,31 +441,40 @@ function mapOverlay() {
     );
   }
 
+  // A place found with the search box: a pin.
+  if (state.pin) {
+    const p = proj(state.pin.lat, state.pin.lon);
+    labels.push(
+      `<g class="needle" transform="translate(${p.x.toFixed(1)} ${p.y.toFixed(1)})" pointer-events="none"><path d="M0 0 C-2 -7 -8 -10 -8 -16 A8 8 0 1 1 8 -16 C8 -10 2 -7 0 0 Z"/><circle cy="-16" r="3"/></g>` +
+        `<text x="${(p.x + 11).toFixed(1)}" y="${(p.y - 12).toFixed(1)}" class="callout" pointer-events="none">${esc(state.pin.name)}</text>`
+    );
+  }
+
   return parts.concat(labels).join('');
 }
 mainMap.addSvgPainter(mapOverlay);
 
 function drawLegend() {
-  const bands =
-    state.layer === 'danger'
-      ? [1, 2, 3, 4, 5].map((i) => [String(i), DANGER_COL[i]])
-      : (state.layer === 'new48' ? NEW_BANDS : DEPTH_BANDS).map(([, c, l]) => [l, c]);
-
-  const title =
-    state.layer === 'danger' ? 'EAWS danger' : state.layer === 'new48' ? 'New snow / 48 h' : 'Snow depth';
+  const sw = (c, l, rim = '') => `<span><i class="sw" style="background:${c}${rim}"></i>${l}</span>`;
+  let rows;
+  if (state.layer === 'danger') {
+    rows =
+      `<span class="eyebrow">EAWS danger</span>` +
+      [1, 2, 3, 4, 5].map((i) => sw(DANGER_COL[i], String(i), i === 5 ? `;border-color:${RED}` : '')).join('') +
+      `<span><i class="sw sw-none"></i>not assessed</span>`;
+  } else {
+    rows =
+      `<div class="legend-row"><span class="eyebrow">Snow base · areas</span>` +
+      DEPTH_BANDS.map(([, c, l]) => sw(c, l)).join('') +
+      `<span><i class="sw" style="background:var(--land)"></i>no data</span></div>` +
+      `<div class="legend-row"><span class="eyebrow">New snow 48 h · circles</span>` +
+      NEW_BANDS.map(([, c, l]) => `<span><i class="sw round" style="background:${c}"></i>${l}</span>`).join('') +
+      `<span><i class="sw sw-none round"></i>no data</span>` +
+      `<span><i class="sw sw-alert"></i>over alert threshold</span></div>`;
+  }
 
   $('#legend').innerHTML =
-    `<span class="eyebrow">${title}</span>` +
-    bands
-      .map(
-        ([l, c]) =>
-          `<span><i class="sw" style="background:${c}${state.layer === 'danger' && c === DANGER_COL[5] ? `;border-color:${RED}` : ''}"></i>${l}</span>`
-      )
-      .join('') +
-    `<span><i class="sw sw-none"></i>${state.layer === 'danger' ? 'not assessed' : 'no data'}</span>` +
-    (state.layer !== 'danger'
-      ? `<span><i class="sw sw-alert"></i>over alert threshold</span>`
-      : '') +
+    rows +
     `<span class="legend-key">▲ tour · ● forecast region${state.showResorts ? ' · ■ resort' : ''}</span>` +
     (state.showResorts ? resortLegend() : '') +
     (state.showHuts ? hutLegend() : '');
@@ -639,6 +674,57 @@ function resortsNear(tourNames, { km = 45, max = 2 } = {}) {
     .filter((x) => x.d <= km)
     .sort((a, b) => (b.r.lifts?.count ?? 0) - (a.r.lifts?.count ?? 0) || a.d - b.d)
     .slice(0, max);
+}
+
+/* ------------------------------------------------------------------ *
+ * find a place (v5.6): any name in Norway or Sweden, shown with a pin
+ * ------------------------------------------------------------------ */
+
+attachPlaceSearch($('#mapFind'), {
+  local: (q) => {
+    const v = q.toLowerCase();
+    const tours = (state.snapshot?.tours ?? []).filter((t) => t.name.toLowerCase().includes(v));
+    const regions = (state.snapshot?.regions ?? []).filter((r) => !r.offMap && r.name.toLowerCase().includes(v));
+    return [
+      ...tours.map((t) => ({ name: t.name, note: 'tour', go: () => { state.pin = null; showPin(); selectTour(t.name); } })),
+      ...regions.map((r) => ({ name: r.name, note: 'forecast region', go: () => { state.pin = null; showPin(); mainMap.setView({ lat: r.lat, lon: r.lon }, Math.max(mainMap.zoom, baseZoom + 1.5)); selectRegion(r.id); } })),
+    ];
+  },
+  onPick: (p) => {
+    state.pin = p;
+    mainMap.setView({ lat: p.lat, lon: p.lon }, Math.max(mainMap.zoom, baseZoom + 2.5));
+    showPin();
+    drawMap();
+  },
+});
+
+function showPin() {
+  const bar = $('#pinbar');
+  const p = state.pin;
+  if (!p) { bar.hidden = true; bar.innerHTML = ''; drawMap(); return; }
+  const km = (a, b) => Math.hypot((a.lat - b.lat) * 111.2, (a.lon - b.lon) * 111.2 * Math.cos((a.lat * Math.PI) / 180));
+  const near = (state.snapshot?.tours ?? []).map((t) => ({ t, d: km(p, t) })).sort((a, b) => a.d - b.d)[0];
+  bar.innerHTML =
+    `<span><b>${esc(p.name)}</b> <span class="note">${esc([kindName(p.kind), p.area, p.country === 'SE' ? 'Sweden' : 'Norway'].filter(Boolean).join(' · '))}</span></span>` +
+    (near ? `<span class="note">nearest listed tour: <a href="#" data-near="${esc(near.t.name)}">${esc(near.t.name)}</a>, ${Math.round(near.d)} km</span>` : '') +
+    `<button type="button" class="btn" id="pinPlan">Plan a tour here →</button>` +
+    `<button type="button" class="btn" id="pinClear" aria-label="Remove the pin">×</button>`;
+  bar.hidden = false;
+  bar.querySelector('[data-near]')?.addEventListener('click', (e) => { e.preventDefault(); selectTour(e.target.dataset.near); });
+  $('#pinClear').onclick = () => { state.pin = null; showPin(); };
+  $('#pinPlan').onclick = async (e) => {
+    const b = e.currentTarget;
+    b.disabled = true;
+    b.textContent = 'Opening…';
+    try {
+      await pickPlace(p);
+      location.href = `/terrain#at=${p.lat.toFixed(5)},${p.lon.toFixed(5)},13&pin=${encodeURIComponent(p.name)}`;
+    } catch (err) {
+      b.disabled = false;
+      b.textContent = 'Plan a tour here →';
+      bar.insertAdjacentHTML('beforeend', `<span class="note">Could not open the map there: ${esc(err.message)}</span>`);
+    }
+  };
 }
 
 mainMap.on('click', (e) => {

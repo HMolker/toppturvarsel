@@ -835,7 +835,7 @@ main.page {
 .slippy-svg { overflow: visible; }
 #map.mainmap {
   position: relative; height: min(78vh, 780px); min-height: 420px; overflow: hidden;
-  background: var(--land); cursor: grab; user-select: none; -webkit-user-select: none;
+  background: var(--paper); cursor: grab; user-select: none; -webkit-user-select: none;
 }
 #map.mainmap:active { cursor: grabbing; }
 @media (max-width: 700px) { #map.mainmap { height: 70vh; } }
@@ -848,3 +848,37 @@ main.page {
 #map.mainmap .slippy-svg .reg, #map.mainmap .slippy-svg .tourpin, #map.mainmap .slippy-svg [data-resort], #map.mainmap .slippy-svg [data-hut] { pointer-events: all; }
 #map.mainmap .slippy-svg .mono { font-family: var(--mono); }
 .mapattrib { padding: 0 18px 12px; margin: 0; }
+
+/* ---- place search (v5.6): a list under the box, a pin on the map ---- */
+.psanchor { position: relative; display: inline-block; }
+.psbox {
+  position: absolute; z-index: 40; top: calc(100% + 4px); left: 0; width: max(100%, 320px); max-width: 92vw;
+  max-height: 340px; overflow-y: auto; background: var(--paper); border: 1px solid var(--line-2);
+  border-radius: var(--r-ctl, 8px); box-shadow: 0 6px 24px rgba(0, 0, 0, .12); padding: 4px;
+}
+.psitem {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 1px; width: 100%; text-align: left;
+  background: none; border: 0; border-radius: 6px; padding: 7px 9px; font: inherit; color: var(--ink); cursor: pointer;
+}
+.psitem b { font-weight: 600; font-size: 13.5px; }
+.psitem span { font-size: 12px; color: var(--muted); }
+.psitem:hover, .psitem:focus { background: var(--line); outline: none; }
+.psitem.own b::after { content: ' ▲'; font-size: 10px; color: var(--steel); }
+.psnote { font-size: 12px; color: var(--muted); padding: 6px 9px; }
+.psnote.src { font-size: 11px; border-top: 1px solid var(--line); margin-top: 2px; }
+.needle path { fill: var(--ink); stroke: var(--paper); stroke-width: 1.5; }
+.needle circle { fill: var(--paper); }
+.needlelabel { font-size: 12.5px; }
+
+/* v5.6: the sketch map's legend and the place search above it */
+.sw.round { border-radius: 50%; }
+.mapfind input {
+  background: var(--paper); border: 1px solid var(--line-2); color: var(--ink); border-radius: var(--r-ctl);
+  padding: 7px 10px; font: inherit; font-size: 13px; min-height: 34px; width: 210px; max-width: 60vw;
+}
+.pinbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 16px; border-bottom: 1px solid var(--line); font-size: 13px; }
+.pinbar[hidden] { display: none; }
+.pinbar b { font-weight: 600; }
+.pinbar .note { color: var(--muted); }
+.pinbar .btn { min-height: 30px; padding: 4px 11px; font-size: 13px; }
+#map.mainmap .needle path { fill: var(--ink); stroke: var(--paper); stroke-width: 1.5; }

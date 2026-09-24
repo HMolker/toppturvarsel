@@ -22,6 +22,7 @@ import { getSkill, startVerification } from './verify.js';
 import { fetchForecast } from './sources/forecast.js';
 import { getDemTile, getRouteProfile, zoneInfo } from './dem.js';
 import { getRouteWeather } from './weather.js';
+import { searchPlaces, pickPlace } from './places.js';
 
 const resortFc = new Map();
 import { serveTile } from './tiles.js';
@@ -324,6 +325,24 @@ async function handleApi(req, res, url) {
   if (dem) {
     try {
       return jsonz(req, res, 200, await getDemTile(+dem[1], +dem[2], +dem[3]), { 'Cache-Control': 'public, max-age=604800' });
+    } catch (err) {
+      return json(res, err.status ?? 502, { error: err.message });
+    }
+  }
+  // Place search (v5.6): Norway and Sweden, by name.
+  if (route === '/api/places') {
+    try {
+      const c = url.searchParams.get('country');
+      return jsonz(req, res, 200, await searchPlaces(url.searchParams.get('q'), { country: c === 'NO' || c === 'SE' ? c : null }), { 'Cache-Control': 'public, max-age=86400' });
+    } catch (err) {
+      return json(res, err.status ?? 502, { error: err.message });
+    }
+  }
+  if (route === '/api/places/pick') {
+    if (req.method !== 'POST') return json(res, 405, { error: 'POST {"id": "<a place id from /api/places>"}' });
+    try {
+      const body = await readJsonBody(req, 1024);
+      return json(res, 200, { place: await pickPlace(body?.id) });
     } catch (err) {
       return json(res, err.status ?? 502, { error: err.message });
     }

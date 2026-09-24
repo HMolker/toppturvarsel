@@ -100,7 +100,10 @@ const boxes = async () => {
       /* not yet: tours only this time */
     }
   }
-  return resortBoxes ? [...tours, ...resortBoxes] : tours;
+  // Places picked in the place search (v5.6) count like a tour.
+  const { placeZones } = await import('./places.js');
+  const picked = (await placeZones()).map((z) => ({ lat: z.lat, lon: z.lon, country: z.country }));
+  return [...tours, ...(resortBoxes ?? []), ...picked];
 };
 
 export async function serveTile(res, src, z, x, y) {

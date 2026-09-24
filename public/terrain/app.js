@@ -23,6 +23,7 @@ import { parseGpx, thinTrack, toGpx, gpxFileName } from './gpx.js';
 import { renderWeather } from './weather.js';
 import { dangerChip, problemIcons, initAvalancheTips } from '../avalanche.js';
 import { problemAspects, problemBands } from '../planner.js';
+import { attachPlaceSearch, pickPlace, kindName } from '../placesearch.js';
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -187,11 +188,22 @@ map.addSvgPainter((m) => {
     for (const t of S.zone) {
       if (!inView(t.lat, t.lon)) continue;
       const [x, y] = m.project(t.lat, t.lon);
+      if (t.kind === 'place' && S.pin && t.lat === S.pin.lat && t.lon === S.pin.lon) continue; // drawn as the pin
       out.push(t.kind === 'resort'
         ? `<rect x="${(x - 4).toFixed(1)}" y="${(y - 4).toFixed(1)}" width="8" height="8" class="tpin resort"/>`
-        : `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4.5" class="tpin"/>`);
+        : t.kind === 'place'
+          ? `<path d="M${x.toFixed(1)} ${(y - 5).toFixed(1)} l5 5 l-5 5 l-5 -5 Z" class="tpin place"/>`
+          : `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4.5" class="tpin"/>`);
       if (m.zoom >= 11.5) out.push(`<text x="${(x + 7).toFixed(1)}" y="${(y + 4).toFixed(1)}" class="tpinlabel">${esc(t.name)}</text>`);
     }
+  }
+  if (S.pin) {
+    // The searched place: a map pin, its point at the place.
+    const [x, y] = m.project(S.pin.lat, S.pin.lon);
+    out.push(
+      `<g class="needle" transform="translate(${x.toFixed(1)} ${y.toFixed(1)})"><path d="M0 0 C-2 -7 -8 -10 -8 -16 A8 8 0 1 1 8 -16 C8 -10 2 -7 0 0 Z"/><circle cy="-16" r="3"/></g>` +
+        `<text x="${(x + 11).toFixed(1)}" y="${(y - 12).toFixed(1)}" class="tpinlabel needlelabel">${esc(S.pin.name)}</text>`
+    );
   }
   if (S.ref?.points?.length) {
     out.push(`<polyline points="${poly(m, S.ref.points)}" class="refline"><title>${esc(S.ref.name)}</title></polyline>`);
@@ -1248,14 +1260,46 @@ $('#lyrOpacity').oninput = (e) => {
  * places, tours, saved routes
  * ------------------------------------------------------------------ */
 
-$('#goto').onchange = (e) => {
-  const v = e.target.value.trim().toLowerCase();
-  const hit = S.zone.find((t) => t.name.toLowerCase() === v) ?? S.zone.find((t) => t.name.toLowerCase().startsWith(v));
-  if (!hit) return;
-  e.target.value = '';
-  if (hit.kind === 'tour') loadTourRef(hit.slug, { fit: true });
-  else map.setView({ lat: hit.lat, lon: hit.lon }, 13.5);
-};
+// Go to: a listed tour or ski resort at once; any named place in Norway or
+// Sweden on Enter (v5.6). A place chosen joins the service area, with a pin.
+attachPlaceSearch($('#goto'), {
+  local: (q) => {
+    const v = q.toLowerCase();
+    const own = S.zone.filter((t) => t.kind !== 'place');
+    const hits = [...own.filter((t) => t.name.toLowerCase().startsWith(v)), ...own.filter((t) => !t.name.toLowerCase().startsWith(v) && t.name.toLowerCase().includes(v))];
+    return hits.map((t) => ({
+      name: t.name,
+      note: t.kind === 'resort' ? 'ski resort' : 'tour',
+      go: () => (t.kind === 'tour' ? loadTourRef(t.slug, { fit: true }) : map.setView({ lat: t.lat, lon: t.lon }, 13.5)),
+    }));
+  },
+  onPick: goToPlace,
+});
+
+async function goToPlace(p) {
+  S.pin = { lat: p.lat, lon: p.lon, name: p.name };
+  map.setView({ lat: p.lat, lon: p.lon }, 13);
+  if (!inZone(p.lat, p.lon)) {
+    message(`Opening the map around ${p.name}…`);
+    try {
+      const z = await pickPlace(p);
+      addPlaces([z]);
+      message('');
+    } catch (err) {
+      message(`${p.name} could not be added to the map area: ${err.message}`);
+    }
+  }
+  map.render();
+}
+
+/** Places picked in the search (here or by anyone) are part of the service area. */
+function addPlaces(list) {
+  for (const z of list ?? []) {
+    if (S.zone.some((t) => t.kind === 'place' && t.id === z.id)) continue;
+    S.zone.push({ kind: 'place', id: z.id, name: z.name, lat: z.lat, lon: z.lon, country: z.country, note: [kindName(z.kind), z.area].filter(Boolean).join(' · ') });
+  }
+  countryMemo.clear();
+}
 
 /** A tour's own route (OSM or your GPX), dotted, to trace or take over. */
 async function loadTourRef(which, { fit = true } = {}) {
@@ -1357,7 +1401,6 @@ async function init() {
   countryMemo.clear();
   // NVE tiles come through this service, so their pixels can be read.
   S.nveReadable = true;
-  $('#places').innerHTML = S.zone.map((t) => `<option value="${esc(t.name)}">${t.kind === 'resort' ? 'ski resort' : 'tour'}</option>`).join('');
 
   const h = readHash();
   let view = null;
@@ -1366,7 +1409,11 @@ async function init() {
   if (h.points?.length) {
     S.route = h.points;
     map.fit(h.points.map(([lat, lon]) => ({ lat, lon })), 60, 15);
-  } else if (h.at) map.setView(h.at, h.at.zoom);
+  } else if (h.at) {
+    map.setView(h.at, h.at.zoom);
+    // From the conditions page's place search: show where it was.
+    if (h.pin) S.pin = { lat: h.at.lat, lon: h.at.lon, name: h.pin };
+  }
   else if (view && Number.isFinite(view.lat)) map.setView(view, view.zoom);
   else if (S.tours.length) map.setView({ lat: S.tours[0].lat, lon: S.tours[0].lon }, 12);
   if (h.tour) loadTourRef(h.tour, { fit: !h.points?.length });
@@ -1379,6 +1426,7 @@ async function init() {
   const zone = await getJson('/api/terrain/zone');
   if (zone?.budget) S.budget = zone.budget;
   S.fine = zone?.fine ?? [];
+  addPlaces(zone?.places);
   S.zoneLoaded = !!zone;
   S.lmError = zone?.lantmateriet?.enabled ? zone.lantmateriet.lastError : null;
   if (zone?.lantmateriet?.lastError) message(`Lantmäteriet's terrain model is not being used: ${zone.lantmateriet.lastError}`);

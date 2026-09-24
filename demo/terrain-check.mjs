@@ -117,6 +117,17 @@ globalThis.fetch = async (url, opts = {}) => {
   m = u.match(/Bratthet_med_utlop_2024\/MapServer\/tile\/(\d+)\/(\d+)\/(\d+)/);
   if (m) return new Response(drawTile(+m[1], +m[3], +m[2], 'nve'), { status: 200, headers: { 'Content-Type': 'image/png' } });
   if (u.includes('overpass')) return J({ elements: [] });
+  if (u.includes('ws.geonorge.no/stedsnavn')) {
+    const q = new URL(u).searchParams.get('sok');
+    return J({ navn: /hardanger|vidda/i.test(q) ? [
+      { skrivemåte: 'Hårteigen', navneobjekttype: 'Fjell', stedsnummer: 501, representasjonspunkt: { øst: 6.9, nord: 60.3 }, kommuner: [{ kommunenavn: 'Ullensvang' }], fylker: [{ fylkesnavn: 'Vestland' }] },
+      { skrivemåte: 'Hardangervidda', navneobjekttype: 'Fjellområde', stedsnummer: 502, representasjonspunkt: { øst: 7.4, nord: 60.1 }, kommuner: [{ kommunenavn: 'Eidfjord' }], fylker: [{ fylkesnavn: 'Vestland' }] },
+    ] : [] });
+  }
+  if (u.includes('nominatim')) {
+    const q = new URL(u).searchParams.get('q');
+    return J(/st[äa]djan/i.test(q) ? [{ place_id: 1, osm_type: 'node', osm_id: 42, lat: '61.9197', lon: '12.8730', name: 'Städjan', type: 'peak', display_name: 'Städjan, Älvdalens kommun, Dalarnas län, Sverige' }] : []);
+  }
   m = u.match(/tile\.opentopomap\.org\/(\d+)\/(\d+)\/(\d+)\.png/);
   if (m) return new Response(drawTile(+m[1], +m[2], +m[3], 'topo'), { status: 200, headers: { 'Content-Type': 'image/png' } });
   if (u.includes('/v1/forecast')) {
@@ -166,6 +177,10 @@ const snapshot = {
   })),
   tours: tours.map((t) => ({ ...t, snow: null })),
 };
+// Snow on the regions, so the sketch has something to colour: deeper north, a storm in the west.
+snapshot.regions.forEach((r, i) => {
+  r.snow = r.offMap ? null : { depthCm: Math.round(20 + (r.lat - 58) * 18 + (i % 4) * 15), new48: Math.round(Math.max(0, (9 - r.lon) * 6 + (i % 3) * 4)) };
+});
 await writeFile(path.join(dataDir, 'cache', 'current.json'), JSON.stringify(snapshot));
 
 const { createServer } = await import('../src/server.js');
@@ -397,6 +412,12 @@ await page.click('#t3dClose');
   await page.waitForFunction(() => document.querySelectorAll('#map .slippy-svg g.reg').length > 5, null, { timeout: 60000 });
   await page.waitForTimeout(1500);
   await shot('14-main-map', '.mapbox');
+  console.log('sketch: snow areas', await page.locator('#map .snowareas path').count(), '· tiles', await page.locator('#map .slippy-layer img').count());
+  await page.click('.seg button[data-layer="danger"]');
+  await page.waitForTimeout(300);
+  await shot('14b-main-map-danger', '.mapbox');
+  console.log('danger layer: snow areas', await page.locator('#map .snowareas path').count());
+  await page.click('.seg button[data-layer="snow"]');
   // Zoom in twice on the buttons and click a tour pin.
   await page.click('.zoombtn[data-zoom="in"]');
   await page.click('.zoombtn[data-zoom="in"]');
@@ -421,6 +442,38 @@ await page.click('#t3dClose');
   await page.locator('#showResorts').check().catch(() => {});
   await page.waitForTimeout(800);
   await shot('15-main-map-zoomed', '.mapbox');
+
+  // Find a place: the list, the pin, and Plan a tour there.
+  await page.fill('#mapFind', 'Hardanger');
+  await page.press('#mapFind', 'Enter');
+  await page.waitForSelector('.psbox .psitem', { timeout: 20000 });
+  await page.waitForTimeout(300);
+  await shot('16-find', '.mapbox');
+  console.log('find:', JSON.stringify(await page.$$eval('.psbox .psitem', (els) => els.map((e) => e.textContent))));
+  await page.click('.psbox .psitem:has-text("Hårteigen")');
+  await page.waitForSelector('#pinbar:not([hidden])');
+  await page.waitForTimeout(500);
+  await shot('17-pin', '.mapbox');
+  console.log('pin bar:', await page.textContent('#pinbar'), '· needle', await page.locator('#map .needle').count());
+  await page.click('#pinPlan');
+  await page.waitForURL(/\/terrain#/);
+  await page.waitForFunction(() => window.fjallskredTerrain?.state.zoneLoaded);
+  await page.waitForTimeout(1500);
+  await page.waitForFunction(() => [...document.querySelectorAll('.slippy-layer img')].every((i) => i.complete), null, { timeout: 60000 });
+  await shot('18-terrain-at-place', '.tmapcard');
+  console.log('terrain at place:', await page.evaluate(() => { const S = window.fjallskredTerrain.state; return JSON.stringify({ pin: S.pin, places: S.zone.filter((t) => t.kind === 'place').map((t) => t.name), tiles: document.querySelectorAll('.slippy-layer img').length, msg: document.querySelector('#tmsg').hidden ? '' : document.querySelector('#tmsg').textContent }); }));
+  // Go to on Plan a tour: a Swedish name.
+  await page.fill('#goto', 'Städjan');
+  await page.press('#goto', 'Enter');
+  await page.waitForSelector('.psbox .psitem', { timeout: 20000 });
+  await page.waitForTimeout(500);
+  console.log('goto list:', JSON.stringify(await page.$$eval('.psbox .psitem', (els) => els.map((e) => e.textContent))), await page.$$eval('.psbox .psnote', (els) => els.map((e) => e.textContent).join(' | ')));
+  await shot('19a-terrain-goto-list', '.tmapcard');
+  await page.click('.psbox .psitem:has-text("Sweden")');
+  await page.waitForFunction(() => window.fjallskredTerrain.state.pin?.name === 'Städjan');
+  await page.waitForTimeout(1500);
+  await shot('19-terrain-goto-sweden', '.tmapcard');
+  console.log('goto Sweden:', await page.evaluate(() => { const S = window.fjallskredTerrain.state; return JSON.stringify({ places: S.zone.filter((t) => t.kind === 'place').map((t) => t.name), centre: window.fjallskredTerrain.map?.center?.() }); }));
 }
 
 // Same frame on every sub-page.

@@ -3,6 +3,23 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v5.6.0 — find any place; the sketch map is back (2026-09-24)
+
+- **Find a place**, on the conditions page and on Plan a tour: any name in
+  Norway (Kartverket's place names) or Sweden (OpenStreetMap's Nominatim),
+  searched on Enter, listed under the box with what it is and where. Listed
+  tours and resorts come first, as before.
+- **Plan a tour anywhere with a name**: choosing a place adds the 12 km
+  around it to the service area, so the map, NVE layers and terrain work
+  there, and puts a pin on it. Only places the server itself found by name
+  can be added (30 a day, 300 in all), so it is still not an open proxy.
+  From the conditions page, **Plan a tour here** opens Plan a tour at the pin.
+- **The conditions map is a sketch again**, keeping the pan and zoom: no
+  shaded map tiles under the data. By default the land around each forecast
+  region is coloured by its **snow base** and the region's circle by its
+  **new snow over 48 h**; the other layer is **Avalanche danger**. (The
+  separate "Snow depth" and "New snow 48h" buttons are now this one layer.)
+
 ## v5.5.3 — the Swedish ski resorts come back (2026-09-24)
 
 - An OpenStreetMap (Overpass) server that answers the Sweden query with

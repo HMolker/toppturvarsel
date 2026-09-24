@@ -8,6 +8,7 @@ import * as elevation from './sources/elevation.js';
 import { tileBounds, tileAllowed, pointAllowed, zoneBoxes } from './tiles.js';
 import { haversineKm } from './util/utm.js';
 import { log } from './util/log.js';
+import { placeZones } from './places.js';
 
 /**
  * The terrain model behind the v5 terrain page (/terrain): slope and aspect
@@ -368,6 +369,8 @@ export async function zoneInfo() {
     // Countries whose terrain comes from files (cheap to read finely): the
     // 3D view can use a finer grid there.
     fine: elevation.lmUsable() ? ['SE'] : [],
+    // Places picked in the place search: part of the service area (v5.6).
+    places: (await placeZones()).map(({ id, name, kind, area, country, lat, lon }) => ({ id, name, kind, area, country, lat, lon })),
     lantmateriet: { enabled: lm.enabled, usable: elevation.lmUsable(), traffic: lm.traffic, lastError: elevation.lmLastError },
   };
 }

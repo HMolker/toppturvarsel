@@ -87,10 +87,10 @@
     <div class="hd">
       <h2>Map</h2>
       <div class="seg" role="group" aria-label="Map layer">
-        <button data-layer="depth" aria-pressed="true">Snow depth</button>
-        <button data-layer="new48" aria-pressed="false">New snow 48h</button>
+        <button data-layer="snow" aria-pressed="true" title="Areas: snow base. Circles: new snow over the last 48 hours.">Snow</button>
         <button data-layer="danger" aria-pressed="false">Avalanche danger</button>
       </div>
+      <span class="psanchor mapfind"><input id="mapFind" type="search" placeholder="Find a place — Enter" aria-label="Find a place in Norway or Sweden"></span>
       <label class="note" style="display:flex;align-items:center;gap:6px">
         <input type="checkbox" id="showTours" checked> tours
       </label>
@@ -101,6 +101,7 @@
         <input type="checkbox" id="showHuts"> huts &amp; cafés
       </label>
     </div>
+    <div class="pinbar" id="pinbar" hidden></div>
     <div style="position:relative">
       <div class="map mainmap" id="map" role="img"
            aria-label="Map of Norway and Sweden showing avalanche forecast regions and ski touring objectives"></div>
@@ -112,7 +113,7 @@
       </div>
     </div>
     <div class="legend" id="legend"></div>
-    <p class="attrib mapattrib">Map © OpenTopoMap (CC-BY-SA), © OpenStreetMap contributors; Norway close up © Kartverket</p>
+    <p class="attrib mapattrib">Schematic coastline and border, not for navigation · Areas: each forecast region's nearest land within 110 km · Place names © Kartverket (Norway), © OpenStreetMap contributors (Sweden)</p>
   </section>
 
   <section class="card">

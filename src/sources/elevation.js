@@ -1,6 +1,7 @@
 import { UA } from '../util/ua.js';
 import { haversineKm } from '../util/utm.js';
 import { lmEnabled, lmElevations, lmUsable, lmPause, LM_PAUSE_MS } from './lmcog.js';
+import { glo30Usable, glo30Elevations } from './glo30.js';
 import { log } from '../util/log.js';
 
 /** The last reason Lantmäteriet's terrain model could not be used, for the status. */
@@ -133,34 +134,56 @@ export async function bestElevations(points, country, { spacingM = 50, maxCharge
   }
   if (!todo.length) return { values, source: source ?? 'lantmateriet-mhm', charged: 0 };
 
-  const charged = todo.length;
-  if (charged > maxCharged) {
-    const err = new Error(`daily terrain budget used: ${charged} heights needed from the point services, ${Math.max(0, maxCharged)} left today; it resets at midnight UTC`);
-    err.status = 429;
-    throw err;
-  }
+  // Points sent to a per-point service (Kartverket, Open-Meteo): what the daily budget counts.
+  const sent = new Set();
+  const allow = (n) => {
+    if (sent.size + n > maxCharged) {
+      const err = new Error(`daily terrain budget used: ${n} heights needed from the point services, ${Math.max(0, maxCharged - sent.size)} left today; it resets at midnight UTC`);
+      err.status = 429;
+      throw err;
+    }
+  };
   if (country === 'NO') {
+    allow(todo.length);
+    todo.forEach((i) => sent.add(i));
     try {
       const kv = await fetchKartverket(todo.map((i) => points[i]));
       todo.forEach((idx, k) => (values[idx] = kv[k]));
       done('kartverket-dtm');
     } catch {
-      /* Copernicus below */
+      /* GLO-30 / Copernicus below */
+    }
+  }
+  // v5.6.2: Copernicus GLO-30 from its open files, 30 m, no daily limit —
+  // before Open-Meteo's 90 m copy of the same model.
+  let gloFailed = null;
+  if (todo.length && glo30Usable()) {
+    try {
+      const g = await glo30Elevations(todo.map((i) => points[i]), { spacingM });
+      todo.forEach((idx, k) => (values[idx] = g[k]));
+      done('copernicus-glo30');
+    } catch (err) {
+      gloFailed = err.message;
+      log.warn(`elevation: GLO-30 failed (${err.message}); using Open-Meteo, trying it again in 10 min`);
     }
   }
   if (todo.length) {
+    const fresh = todo.filter((i) => !sent.has(i));
+    allow(fresh.length);
+    fresh.forEach((i) => sent.add(i));
     let fill;
     try {
       fill = await fetchElevationsBatched(todo.map((i) => points[i]));
     } catch (err) {
-      // Say why the finer source was not used, too: that is the thing to fix.
+      // Say why the finer sources were not used, too: that is the thing to fix.
       if (lmFailed) err.message = `${err.message}. Lantmäteriet (Sweden's 1 m model) was not used: ${lmFailed}`;
+      if (gloFailed) err.message = `${err.message}. GLO-30 (30 m) was not used: ${gloFailed}`;
       throw err;
     }
     todo.forEach((idx, k) => (values[idx] = fill[k]));
     done('copernicus-glo90');
   }
-  return { values, source: source ?? 'copernicus-glo90', charged };
+  return { values, source: source ?? 'copernicus-glo30', charged: sent.size };
 }
 
 async function fetchElevationsBatched(points) {

@@ -1185,6 +1185,7 @@ async function refreshBudget() {
     const z = await fetch('/api/terrain/zone').then((r) => r.json());
     if (z?.budget) S.budget = z.budget;
     if (Array.isArray(z?.fine)) S.fine = z.fine;
+    if (z?.sweden) S.sweden = z.sweden;
     S.lmError = z?.lantmateriet?.enabled ? z.lantmateriet.lastError : null;
     updateStatus();
   } catch { /* not important */ }
@@ -1225,7 +1226,7 @@ function renderLegend() {
   }
   parts.push(`<div class="legend-row"><span><i class="swc" style="background:var(--ink)"></i>route under 25°</span><span class="note">steeper parts of the route in the slope colours</span></div>`);
   $('#tlegend').innerHTML = parts.join('');
-  $('#tattrib').innerHTML = `Map © ${country === 'SE' ? 'OpenTopoMap (CC-BY-SA), © OpenStreetMap contributors' : 'Kartverket'} · Slope &amp; runout © NVE (CC BY 4.0) · Heights: Kartverket DTM (Norway), ${S.fine.includes('SE') ? 'Lantmäteriet Markhöjdmodell 1 m, CC BY 4.0' : 'Copernicus GLO-90 via Open-Meteo'} (Sweden) · Not for navigation`;
+  $('#tattrib').innerHTML = `Map © ${country === 'SE' ? 'OpenTopoMap (CC-BY-SA), © OpenStreetMap contributors' : 'Kartverket'} · Slope &amp; runout © NVE (CC BY 4.0) · Heights: Kartverket DTM (Norway), ${esc(S.sweden ?? 'Copernicus GLO-90 via Open-Meteo')}${/GLO-30/.test(S.sweden ?? '') ? ' © DLR e.V. 2010-2014, © Airbus 2014-2018, provided under Copernicus by the EU and ESA' : ''} (Sweden) · Not for navigation`;
 }
 
 function updateStatus() {
@@ -1428,6 +1429,7 @@ async function init() {
   S.fine = zone?.fine ?? [];
   addPlaces(zone?.places);
   S.zoneLoaded = !!zone;
+  S.sweden = zone?.sweden ?? null;
   S.lmError = zone?.lantmateriet?.enabled ? zone.lantmateriet.lastError : null;
   if (zone?.lantmateriet?.lastError) message(`Lantmäteriet's terrain model is not being used: ${zone.lantmateriet.lastError}`);
   renderLegend();

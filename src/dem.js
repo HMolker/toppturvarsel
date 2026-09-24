@@ -9,6 +9,7 @@ import { tileBounds, tileAllowed, pointAllowed, zoneBoxes } from './tiles.js';
 import { haversineKm } from './util/utm.js';
 import { log } from './util/log.js';
 import { placeZones } from './places.js';
+import { glo30Usable, glo30Status } from './sources/glo30.js';
 
 /**
  * The terrain model behind the v5 terrain page (/terrain): slope and aspect
@@ -89,11 +90,24 @@ export function nearestCountry(lat, lon, list) {
  * one queue for upstream elevation calls
  * ------------------------------------------------------------------ */
 
-let chain = Promise.resolve();
+// At most three at once (v5.6.2; was one): the file sources (Lantmäteriet,
+// GLO-30) spend most of their time waiting on the network, and the point
+// services pace themselves (Open-Meteo) or are quick (Kartverket).
+const POOL = Math.max(1, Number(process.env.TERRAIN_PARALLEL) || 3);
+let running = 0;
+const waiting = [];
 function queued(fn) {
-  const run = chain.then(fn, fn);
-  chain = run.catch(() => {});
-  return run;
+  return new Promise((resolve, reject) => {
+    const run = () => {
+      running++;
+      Promise.resolve().then(fn).then(resolve, reject).finally(() => {
+        running--;
+        waiting.shift()?.();
+      });
+    };
+    if (running < POOL) run();
+    else waiting.push(run);
+  });
 }
 
 // Heights already fetched, by point rounded to ~1 m. A route edited at one
@@ -324,7 +338,7 @@ export async function getRouteProfile(body) {
   // Kartverket's 1 m / 10 m model and Lantmäteriet's 1 m model resolve a
   // 10 m cross; Copernicus is 90 m cells, so the cross must span them or
   // every slope reads flat.
-  const offsetM = country === 'NO' || lmEnabled() ? 10 : 90;
+  const offsetM = country === 'NO' || lmEnabled() ? 10 : glo30Usable() ? 30 : 90;
   const { samples, spacing } = sampleRoute(v.points);
   const pts = crossPoints(samples, offsetM);
   const { values, source, sources } = await elevationsCached(pts, country, { spacingM: offsetM });
@@ -368,7 +382,10 @@ export async function zoneInfo() {
     count: list.length,
     // Countries whose terrain comes from files (cheap to read finely): the
     // 3D view can use a finer grid there.
-    fine: elevation.lmUsable() ? ['SE'] : [],
+    // Sweden is fine (no point budget) on Lantmäteriet's files or GLO-30's (v5.6.2).
+    fine: elevation.lmUsable() || glo30Usable() ? ['SE'] : [],
+    sweden: elevation.lmUsable() ? 'Lantmäteriet Markhöjdmodell 1 m' : glo30Usable() ? 'Copernicus GLO-30 (30 m)' : 'Copernicus GLO-90 via Open-Meteo (90 m)',
+    glo30: glo30Status(),
     // Places picked in the place search: part of the service area (v5.6).
     places: (await placeZones()).map(({ id, name, kind, area, country, lat, lon }) => ({ id, name, kind, area, country, lat, lon })),
     lantmateriet: { enabled: lm.enabled, usable: elevation.lmUsable(), traffic: lm.traffic, lastError: elevation.lmLastError },

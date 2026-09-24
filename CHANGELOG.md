@@ -3,6 +3,23 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v5.6.2 — Sweden's terrain at 30 m without Lantmäteriet, and faster (2026-09-24)
+
+- **Copernicus GLO-30 replaces Open-Meteo's 90 m heights.** The same
+  Copernicus model at 30 m instead of 90 m, read from its free public
+  files on Amazon's open-data store the way Lantmäteriet's are read: only
+  the pieces needed, kept a year, no key and no daily limit (a courtesy cap,
+  `GLO30_DAILY_MB`, 2000). Order of sources: Lantmäteriet 1 m (Sweden, with
+  a login) → Kartverket 1–10 m (Norway) → GLO-30 → Open-Meteo last. GLO-30
+  costs no height budget, so building a tour and the 3D view in Sweden are
+  no longer slowed down or refused by Open-Meteo's limits, and slopes and
+  routes follow 30 m terrain instead of 90 m.
+- The TIFF reader also reads LZW files and a file's own GeoTIFF placement.
+- **Three terrain requests at a time** instead of one after another
+  (`TERRAIN_PARALLEL`), so a new area loads faster.
+- `/api/terrain/zone` says which Swedish source is in use (`sweden`) and
+  GLO-30's state (`glo30`); the page credits it.
+
 ## v5.6.1 — pages no longer wait for the Swedish resort list (2026-09-24)
 
 - **Forecast accuracy stuck on "loading…"**: the page's cells include the

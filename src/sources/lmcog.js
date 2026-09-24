@@ -52,7 +52,7 @@ const cacheDir = (...p) => path.resolve(config.dataDir, 'cache', 'lm', ...p);
 
 const TYPE_SIZE = { 1: 1, 2: 1, 3: 2, 4: 4, 5: 8, 6: 1, 7: 1, 8: 2, 9: 4, 10: 8, 11: 4, 12: 8, 16: 8 };
 
-class NeedMore extends Error {
+export class NeedMore extends Error {
   constructor(end) {
     super(`need bytes up to ${end}`);
     this.end = end;
@@ -111,6 +111,11 @@ export function parseTiff(buf) {
       counts: tags[325] ? read(tags[325].type, tags[325].count, tags[325].at) : null,
       nodata: nodataStr !== null && nodataStr.trim() !== '' && Number.isFinite(Number(nodataStr)) ? Number(nodataStr) : null,
       reduced: (one(254, 0) & 1) === 1,
+      // GeoTIFF placement (v5.6.2, for files that carry it themselves):
+      // pixel size, the tie point, and whether it marks a pixel's corner or centre.
+      scale: tags[33550] ? read(tags[33550].type, tags[33550].count, tags[33550].at) : null,
+      tie: tags[33922] ? read(tags[33922].type, tags[33922].count, tags[33922].at) : null,
+      pixelIsPoint: tags[34735] ? geoKey(read(tags[34735].type, tags[34735].count, tags[34735].at), 1025) === 2 : false,
     });
     at = u32(at + 2 + n * 12);
   }
@@ -119,12 +124,59 @@ export function parseTiff(buf) {
   for (const d of ifds) {
     if (!d.tileW || !d.offsets) throw new Error('only tiled TIFFs are supported');
     if (d.bits !== 32 || d.sampleFormat !== 3 || d.samples !== 1) throw new Error(`unsupported pixels: ${d.bits}-bit format ${d.sampleFormat}, ${d.samples} samples`);
-    if (![1, 8, 32946].includes(d.compression)) throw new Error(`unsupported compression ${d.compression}`);
+    if (![1, 5, 8, 32946].includes(d.compression)) throw new Error(`unsupported compression ${d.compression}`);
     if (![1, 3].includes(d.predictor)) throw new Error(`unsupported predictor ${d.predictor}`);
     d.tilesAcross = Math.ceil(d.width / d.tileW);
     d.tilesDown = Math.ceil(d.height / d.tileH);
   }
   return { le, ifds };
+}
+
+/** A value from a GeoKeyDirectory (4 shorts of header, then 4 per key). */
+function geoKey(dir, id) {
+  for (let i = 4; i + 3 < dir.length; i += 4) if (dir[i] === id) return dir[i + 1] === 0 ? dir[i + 3] : null;
+  return null;
+}
+
+/** TIFF LZW (compression 5): MSB-first codes of 9-12 bits, early change. */
+export function lzwDecode(input, expected = 0) {
+  const out = Buffer.alloc(Math.max(expected, input.length * 3));
+  let o = 0;
+  const grow = (n) => { if (o + n > outBuf.length) { const b = Buffer.alloc(Math.max(outBuf.length * 2, o + n)); outBuf.copy(b, 0, 0, o); outBuf = b; } };
+  let outBuf = out;
+  const prefix = new Int32Array(4096), suffix = new Uint8Array(4096), first = new Uint8Array(4096), len = new Uint16Array(4096);
+  for (let i = 0; i < 256; i++) { prefix[i] = -1; suffix[i] = i; first[i] = i; len[i] = 1; }
+  let next = 258, width = 9, prev = -1, bitPos = 0;
+  const totalBits = input.length * 8;
+  const emit = (code) => {
+    const n = len[code];
+    grow(n);
+    let c = code;
+    for (let k = n - 1; k >= 0; k--) { outBuf[o + k] = suffix[c]; c = prefix[c]; }
+    o += n;
+  };
+  while (bitPos + width <= totalBits) {
+    let code = 0;
+    for (let k = 0; k < width; k++) {
+      const b = bitPos + k;
+      code = (code << 1) | ((input[b >> 3] >> (7 - (b & 7))) & 1);
+    }
+    bitPos += width;
+    if (code === 257) break;
+    if (code === 256) { next = 258; width = 9; prev = -1; continue; }
+    if (prev === -1) { emit(code); prev = code; continue; }
+    if (code < next) {
+      emit(code);
+      if (next < 4096) { prefix[next] = prev; suffix[next] = first[code]; first[next] = first[prev]; len[next] = len[prev] + 1; next++; }
+    } else {
+      // The code being defined right now: prev + prev's first byte.
+      if (next < 4096) { prefix[next] = prev; suffix[next] = first[prev]; first[next] = first[prev]; len[next] = len[prev] + 1; next++; }
+      emit(code);
+    }
+    prev = code;
+    if (next + 1 >= 1 << width && width < 12) width++;
+  }
+  return outBuf.subarray(0, o);
 }
 
 /**
@@ -138,7 +190,7 @@ export function parseTiff(buf) {
  */
 export function decodeTile(raw, ifd, le) {
   const W = ifd.tileW, H = ifd.tileH, bps = 4;
-  const bytes = ifd.compression === 1 ? Buffer.from(raw) : inflateSync(raw);
+  const bytes = ifd.compression === 1 ? Buffer.from(raw) : ifd.compression === 5 ? Buffer.from(lzwDecode(raw, W * H * bps)) : inflateSync(raw);
   if (bytes.length < W * H * bps) throw new Error(`tile is ${bytes.length} bytes, expected ${W * H * bps}`);
   const out = new Float32Array(W * H);
   if (ifd.predictor === 3) {

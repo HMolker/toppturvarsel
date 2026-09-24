@@ -64,9 +64,10 @@ const angleDiff = (a, b) => { const d = Math.abs(a - b) % 360; return d > 180 ? 
  * What the settings and the day say about each cell. `hazard(k)`: the cell
  * faces a problem aspect at a problem height today. `windLee(k)`: the same
  * for a wind-slab problem (cornices). `slabDay`: danger 2+ with a slab problem,
- * the day convex rolls matter.
+ * the day convex rolls matter. `inside`: 1 for the cells inside the area
+ * marked; runs (and their run-outs) stay in it.
  */
-export function cellRules(grid, { slope, aspect, runout = null, hazard = () => false, windLee = () => false, slabDay = false }, set = RUN_DEFAULTS) {
+export function cellRules(grid, { slope, aspect, runout = null, hazard = () => false, windLee = () => false, slabDay = false, inside = null }, set = RUN_DEFAULTS) {
   const { nx, ny, ele, cellM } = grid;
   const N = nx * ny;
   const cap = new Float32Array(N);
@@ -94,7 +95,8 @@ export function cellRules(grid, { slope, aspect, runout = null, hazard = () => f
     for (let i = 0; i < nx; i++) {
       const k = j * nx + i;
       const s = slope[k], a = aspect[k];
-      if (!Number.isFinite(s)) { blocked[k] = 1; continue; }
+      // Outside the marked area (the terrain loaded is whole map tiles, a bit more than the box).
+      if (!Number.isFinite(s) || (inside && !inside[k])) { blocked[k] = 1; continue; }
       // Cliffs, and the cells next to them.
       let cliff = s >= CLIFF;
       for (const [di, dj] of NB) if (at(slope, i + di, j + dj) >= CLIFF + 5) cliff = true;

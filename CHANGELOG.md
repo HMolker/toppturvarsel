@@ -3,6 +3,13 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v5.7.2 — runs stay inside the marked area (2026-09-25)
+
+- Find runs searched all the terrain it had loaded, which is whole map
+  tiles and reaches up to a tile beyond the box on each side, so runs could
+  lie outside the area marked. Now only cells inside the box are used, for
+  the runs and their run-outs.
+
 ## v5.7.1 — remove descents from a tour (2026-09-24)
 
 - The tour's descents are listed under the tour buttons, each with its

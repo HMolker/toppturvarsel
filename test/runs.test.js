@@ -94,3 +94,13 @@ test('on a slab day, convex rolls are avoided when asked', () => {
   assert.ok(runsOff.length >= runs.length - 1);
   assert.ok(rolled <= 200, `little time on rolls: ${rolled} m`);
 });
+
+test('runs stay inside the marked area, run-outs too', () => {
+  const g = mountain();
+  const t = terrainOf(g);
+  const inside = new Uint8Array(g.nx * g.ny);
+  for (let j = 0; j < g.ny; j++) for (let i = 0; i < g.nx; i++) if (i >= 80 && j <= 90) inside[j * g.nx + i] = 1; // the north-east quarter
+  const runs = findRuns(g, { ...t, inside }, { count: 4 });
+  assert.ok(runs.length >= 1);
+  for (const r of runs) for (const k of [...r.cells, ...r.runout]) assert.equal(inside[k], 1);
+});

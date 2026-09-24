@@ -1040,8 +1040,16 @@ async function runFinder(box) {
       return problems.some((p) => only(p) && p.aspects.has(o) && p.bands.some(([lo, hi]) => G.ele[k] >= lo && G.ele[k] <= hi));
     };
     const slabDay = Number.isFinite(danger) && danger >= 2 && problems.some((p) => p.slab);
+    // Only inside the box: the grid is whole map tiles and reaches beyond it.
+    const inside = new Uint8Array(G.nx * G.ny);
+    for (let j = 0; j < G.ny; j++) {
+      for (let i = 0; i < G.nx; i++) {
+        const p = G.toLatLon(i, j);
+        if (p.lat >= box.south && p.lat <= box.north && p.lon >= box.west && p.lon <= box.east) inside[j * G.nx + i] = 1;
+      }
+    }
     const t0 = performance.now();
-    const runs = findRuns(G, { slope, aspect, runout, hazard: (k) => onProblem(k), windLee: (k) => onProblem(k, (p) => p.wind), slabDay }, S.runSet);
+    const runs = findRuns(G, { slope, aspect, runout, inside, hazard: (k) => onProblem(k), windLee: (k) => onProblem(k, (p) => p.wind), slabDay }, S.runSet);
     const ms = Math.round(performance.now() - t0);
     // Runs from an earlier search that are in the tour keep their line, under another name.
     S.tour.names = S.tour.names.map((nm) => (/^Run \d+$/.test(nm ?? '') ? `Earlier ${nm.toLowerCase()}` : nm));

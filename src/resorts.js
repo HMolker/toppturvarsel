@@ -31,8 +31,13 @@ const inSeason = (d = new Date()) => {
 
 export const SOURCES = {
   no: { fetch: fetchFnugg, ttl: () => (inSeason() ? HOUR : 24 * HOUR), name: 'Fnugg' },
-  se: { fetch: () => fetchOsmResorts('SE'), ttl: () => 30 * 24 * HOUR, name: 'OpenStreetMap' },
+  // Sweden has 150+ mapped ski areas. An Overpass mirror without its area
+  // index answers a country query with nothing at all (200, no error), which
+  // used to be kept for 30 days as "no Swedish resorts" (v5.5.3).
+  se: { fetch: () => fetchOsmResorts('SE'), ttl: () => 30 * 24 * HOUR, name: 'OpenStreetMap', min: () => Number(process.env.RESORTS_SE_MIN ?? 20) },
 };
+/** A list this short is a broken answer, not the country's resorts. */
+const tooFew = (key, list) => (list?.length ?? 0) < (SOURCES[key].min?.() ?? 0);
 
 const fallback = (key) => (key === 'se' ? seedResorts() : Promise.resolve([]));
 
@@ -77,7 +82,10 @@ async function seedResorts() {
 
 async function getSource(key) {
   const src = SOURCES[key];
-  const cached = await readCache(key);
+  const rawCached = await readCache(key);
+  // A cached list that is too short is thrown away, so a bad answer kept by
+  // an older version heals itself.
+  const cached = rawCached && !tooFew(key, rawCached.resorts) ? rawCached : null;
   if (cached && Date.now() - new Date(cached.fetchedAt).getTime() < src.ttl()) return { ...cached, stale: false };
   if (inflight.has(key)) return inflight.get(key);
   // A source that just failed is left alone for a while: retrying on every
@@ -91,6 +99,7 @@ async function getSource(key) {
   const p = (async () => {
     try {
       const resorts = await src.fetch();
+      if (tooFew(key, resorts)) throw new Error(`${src.name} answered with only ${resorts.length} resorts, which cannot be the whole list; keeping the previous one`);
       const value = { source: src.name, fetchedAt: new Date().toISOString(), resorts };
       await writeCache(key, value);
       failedAt.delete(key);

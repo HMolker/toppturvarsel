@@ -3,6 +3,17 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v5.5.3 — the Swedish ski resorts come back (2026-09-24)
+
+- An OpenStreetMap (Overpass) server that answers the Sweden query with
+  nothing — no error, just an empty list — was kept for 30 days as "Sweden
+  has no ski resorts", so they vanished from the map (and from the service
+  area around them). A Swedish list shorter than 20 resorts is now treated
+  as a failed answer: the last good list, or the built-in list of 41, is
+  shown, and OpenStreetMap is asked again after 15 minutes. A short list
+  already cached by an earlier version is thrown away on start, so the Pi
+  heals itself after the update. (`RESORTS_SE_MIN` sets the threshold.)
+
 ## v5.5.2 — gentler on Open-Meteo, and says why Sweden is coarse (2026-09-24)
 
 - **Open-Meteo is paced and rested.** Its free service counts every point

@@ -125,6 +125,8 @@ async function withServer(fn) {
   }
 }
 
+process.env.RESORTS_SE_MIN = '1'; // the stub has two Swedish resorts
+
 test('/api/resorts merges both countries, caches, and survives an outage', async () => {
   await withServer(async (base) => {
     const r = await (await fetch(`${base}/api/resorts`)).json();
@@ -150,6 +152,22 @@ test('/api/resorts merges both countries, caches, and survives an outage', async
     assert.match(r.sources.no.error, /503/);
     assert.equal(r.resorts.filter((x) => x.country === 'NO').length, 3, 'stale list still served');
   });
+});
+
+test('an empty or near-empty Swedish answer is not kept as the list (v5.5.3)', async () => {
+  const { _resetResorts } = await import('../src/resorts.js');
+  _resetResorts();
+  process.env.RESORTS_SE_MIN = '3'; // the stub's two now count as a broken answer
+  try {
+    await withServer(async (base) => {
+      const r = await (await fetch(`${base}/api/resorts`)).json();
+      assert.match(r.sources.se.error, /only 2 resorts/);
+      assert.ok(r.resorts.filter((x) => x.country === 'SE').length > 20, 'the built-in list instead');
+    });
+  } finally {
+    process.env.RESORTS_SE_MIN = '1';
+    _resetResorts();
+  }
 });
 
 // ---- map layer (pure) ----------------------------------------------------

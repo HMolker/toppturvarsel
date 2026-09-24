@@ -87,7 +87,7 @@ async function getSource(key) {
   // an older version heals itself.
   const cached = rawCached && !tooFew(key, rawCached.resorts) ? rawCached : null;
   if (cached && Date.now() - new Date(cached.fetchedAt).getTime() < src.ttl()) return { ...cached, stale: false };
-  if (inflight.has(key)) return inflight.get(key);
+  if (inflight.has(key)) return meanwhile(key, src, cached, inflight.get(key));
   // A source that just failed is left alone for a while: retrying on every
   // page load only queues more requests at a server that is already saying no.
   const failed = failedAt.get(key);
@@ -115,7 +115,23 @@ async function getSource(key) {
     }
   })();
   inflight.set(key, p);
-  return p;
+  return meanwhile(key, src, cached, p);
+}
+
+// How long a page waits for a list being fetched before it is given what is
+// already here (the last list, or the built-in one) — v5.6.1. An Overpass
+// query for all of Sweden can take minutes; the resort layer, the service
+// area and the forecast-accuracy page must not wait for it.
+const GRACE_MS = () => Number(process.env.RESORTS_GRACE_MS ?? 3000);
+async function meanwhile(key, src, cached, p) {
+  let timer;
+  const grace = new Promise((r) => { timer = setTimeout(r, GRACE_MS(), null); timer.unref?.(); });
+  const got = await Promise.race([p, grace]);
+  clearTimeout(timer);
+  if (got) return got;
+  if (cached) return { ...cached, stale: true, refreshing: true };
+  const resorts = await fallback(key);
+  return { source: resorts.length ? `${src.name} loading — built-in list` : src.name, fetchedAt: null, resorts, stale: true, refreshing: true };
 }
 
 /** For tests. */
@@ -131,7 +147,7 @@ export async function getResorts() {
   const sources = {};
   keys.forEach((k, i) => {
     const p = parts[i];
-    sources[k] = { name: p.source, fetchedAt: p.fetchedAt, count: p.resorts.length, stale: p.stale, ...(p.error ? { error: p.error } : {}) };
+    sources[k] = { name: p.source, fetchedAt: p.fetchedAt, count: p.resorts.length, stale: p.stale, ...(p.refreshing ? { refreshing: true } : {}), ...(p.error ? { error: p.error } : {}) };
   });
   return { sources, inSeason: inSeason(), resorts: parts.flatMap((p) => p.resorts) };
 }

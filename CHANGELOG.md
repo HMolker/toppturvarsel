@@ -3,6 +3,18 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v5.6.1 — pages no longer wait for the Swedish resort list (2026-09-24)
+
+- **Forecast accuracy stuck on "loading…"**: the page's cells include the
+  ski resorts, and asking for the resorts waited for OpenStreetMap whenever
+  the Swedish list was due — an Overpass query for all of Sweden, which can
+  take minutes. Since v5.5.3 refused an empty answer, that wait came back
+  every 15 minutes. Now a list being fetched is waited for 3 seconds at most;
+  meanwhile the last list (or the built-in one) is served and the real one
+  replaces it when it arrives. The same fixes the resort layer on the
+  conditions page taking minutes to show the Swedish resorts, and the first
+  map tiles waiting for it. The page asks again a minute later.
+
 ## v5.6.0 — find any place; the sketch map is back (2026-09-24)
 
 - **Find a place**, on the conditions page and on Plan a tour: any name in

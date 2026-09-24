@@ -534,6 +534,8 @@ async function loadResorts() {
   // In a simulated winter the real list is kept (the resorts exist) but the
   // open counts are invented, so the layer is not a row of closed resorts.
   if (state.simulated) state.resorts = simulateResorts(state.resorts) ?? state.resorts;
+  // A list served while the real one is still being fetched: ask again in a minute.
+  if (Object.values(state.resorts?.sources ?? {}).some((x) => x.refreshing)) setTimeout(() => (state.showResorts || state.resorts) && loadResorts(), 60000);
   state.resortsLoading = false;
   drawMap();
   if (state.lastPlan) renderPlanner();

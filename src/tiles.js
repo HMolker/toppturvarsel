@@ -94,17 +94,24 @@ const boxes = async () => {
   if (!resortBoxes) {
     try {
       const { getResorts } = await import('./resorts.js');
-      const list = (await getResorts()).resorts ?? [];
-      if (list.length) resortBoxes = list.map((r) => ({ lat: r.lat, lon: r.lon, country: r.country }));
+      const got = await getResorts();
+      const list = got.resorts ?? [];
+      const boxesNow = list.map((r) => ({ lat: r.lat, lon: r.lon, country: r.country }));
+      // A list served while the real one is still being fetched is used for
+      // now and asked for again next time (v5.6.1).
+      if (Object.values(got.sources ?? {}).some((x) => x.refreshing)) return [...tours, ...boxesNow, ...(await pickedBoxes())];
+      if (list.length) resortBoxes = boxesNow;
     } catch {
       /* not yet: tours only this time */
     }
   }
-  // Places picked in the place search (v5.6) count like a tour.
-  const { placeZones } = await import('./places.js');
-  const picked = (await placeZones()).map((z) => ({ lat: z.lat, lon: z.lon, country: z.country }));
-  return [...tours, ...(resortBoxes ?? []), ...picked];
+  return [...tours, ...(resortBoxes ?? []), ...(await pickedBoxes())];
 };
+// Places picked in the place search (v5.6) count like a tour.
+async function pickedBoxes() {
+  const { placeZones } = await import('./places.js');
+  return (await placeZones()).map((z) => ({ lat: z.lat, lon: z.lon, country: z.country }));
+}
 
 export async function serveTile(res, src, z, x, y) {
   const send = (status, body, type = 'text/plain') => {

@@ -93,6 +93,7 @@ test('OSM: Swedish resorts with website and mapped lifts, no live status', () =>
 
 const calls = { fnugg: 0, overpass: 0 };
 let fnuggDown = false;
+let overpassSlowMs = 0;
 const realFetch = globalThis.fetch;
 globalThis.fetch = async (url, opts = {}) => {
   const u = String(url);
@@ -103,6 +104,7 @@ globalThis.fetch = async (url, opts = {}) => {
   }
   if (u.includes('overpass')) {
     calls.overpass++;
+    if (overpassSlowMs) await new Promise((r) => setTimeout(r, overpassSlowMs));
     assert.equal(opts.method, 'POST');
     return J(overpassBody);
   }
@@ -166,6 +168,29 @@ test('an empty or near-empty Swedish answer is not kept as the list (v5.5.3)', a
     });
   } finally {
     process.env.RESORTS_SE_MIN = '1';
+    _resetResorts();
+  }
+});
+
+test('a slow OpenStreetMap answer does not hold up the page: the built-in list meanwhile (v5.6.1)', async () => {
+  const { _resetResorts, getResorts } = await import('../src/resorts.js');
+  const { rm } = await import('node:fs/promises');
+  await rm(path.join(tmp, 'cache', 'resorts', 'se.json'), { force: true });
+  _resetResorts();
+  process.env.RESORTS_GRACE_MS = '100';
+  overpassSlowMs = 1500;
+  try {
+    const t0 = Date.now();
+    const r = await getResorts();
+    assert.ok(Date.now() - t0 < 1200, `answered in ${Date.now() - t0} ms`);
+    assert.equal(r.sources.se.refreshing, true);
+    assert.ok(r.resorts.filter((x) => x.country === 'SE').length > 20, 'the built-in list meanwhile');
+    await new Promise((res) => setTimeout(res, 1700));
+    const later = await getResorts();
+    assert.equal(later.sources.se.stale, false, 'the fetched list once it has come');
+  } finally {
+    overpassSlowMs = 0;
+    delete process.env.RESORTS_GRACE_MS;
     _resetResorts();
   }
 });

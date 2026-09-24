@@ -768,6 +768,7 @@ function updateTourButtons() {
   const cur = S.mode === 'descent' ? t.descents[t.cur] : null;
   const done = t.descents.filter((d) => d.length >= 2);
   $('#descBtn').textContent = cur ? (cur.length >= 2 ? `Finish descent ${t.cur + 1}` : `Descent ${t.cur + 1}: click points…`) : done.length ? 'Add another descent' : 'Add descent';
+  renderDescList();
   $('#tourUndoBtn').disabled = !t.start && !t.descents.some((d) => d.length);
   $('#tourClearBtn').disabled = !t.start && !t.descents.length;
   $('#buildBtn').disabled = !t.start || !done.length || S.mode === 'descent';
@@ -782,6 +783,33 @@ function updateTourButtons() {
 function tourChanged() {
   updateTourButtons();
   map.render();
+}
+
+/** The descents as chips, each with a remove button (v5.7.1). */
+function renderDescList() {
+  const t = S.tour;
+  const el = $('#descList');
+  const km = (d) => { let m = 0; for (let k = 1; k < d.length; k++) m += Math.hypot((d[k][0] - d[k - 1][0]) * 111320, (d[k][1] - d[k - 1][1]) * 111320 * Math.cos((d[k][0] * Math.PI) / 180)); return m; };
+  el.innerHTML = t.descents
+    .map((d, k) => (d.length ? `<span class="dchip${S.mode === 'descent' && t.cur === k ? ' cur' : ''}"><b>${esc(t.names[k] ?? `Descent ${k + 1}`)}</b><span class="dmeta">${d.length < 2 ? 'being drawn' : fmtKm(km(d))}</span>` +
+      `<button type="button" data-rmdesc="${k}" title="Remove ${esc(t.names[k] ?? `descent ${k + 1}`)} from the tour" aria-label="Remove ${esc(t.names[k] ?? `descent ${k + 1}`)}">×</button></span>` : ''))
+    .join('');
+  el.querySelectorAll('[data-rmdesc]').forEach((b) => (b.onclick = () => removeDescent(+b.dataset.rmdesc)));
+}
+
+function removeDescent(k) {
+  const t = S.tour;
+  if (!t.descents[k]) return;
+  t.descents.splice(k, 1);
+  t.names.splice(k, 1);
+  if (S.mode === 'descent') {
+    if (t.cur === k) setMode(null);
+    else if (t.cur > k) t.cur--;
+  }
+  t.cur = Math.min(t.cur, Math.max(0, t.descents.length - 1));
+  if (S.built) message(t.descents.length ? 'Descent removed: press Build tour to build it again without it.' : 'Descent removed.');
+  tourChanged();
+  if (S.runs) renderRuns();
 }
 
 $('#startBtn').onclick = () => setMode(S.mode === 'start' ? null : 'start');
@@ -1015,6 +1043,9 @@ async function runFinder(box) {
     const t0 = performance.now();
     const runs = findRuns(G, { slope, aspect, runout, hazard: (k) => onProblem(k), windLee: (k) => onProblem(k, (p) => p.wind), slabDay }, S.runSet);
     const ms = Math.round(performance.now() - t0);
+    // Runs from an earlier search that are in the tour keep their line, under another name.
+    S.tour.names = S.tour.names.map((nm) => (/^Run \d+$/.test(nm ?? '') ? `Earlier ${nm.toLowerCase()}` : nm));
+    tourChanged();
     S.runs = runs;
     S.runArea = { region, danger, problems: problems.map((p) => p.name), slabDay, cellM: G.cellM, ms, sources: G.sources ?? [] };
     renderRuns();
@@ -1042,10 +1073,13 @@ function renderRuns() {
       return `<div class="runitem"><span class="num" style="background:${RUN_COLOURS[n % RUN_COLOURS.length]}">${n + 1}</span>` +
         `<div><div class="facts"><b>${st.octant ?? '–'}</b> · ${fmtKm(st.lengthM)}${st.runoutM ? ` + ${st.runoutM} m run-out` : ''} · <b>${st.verticalM} m</b> down (${st.topEle}→${st.bottomEle} m) · average <b>${st.avgSlope}°</b>, steepest ${st.maxSlope}°</div>` +
         (r.notes.length ? `<ul>${r.notes.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : '') + `</div>` +
-        `<button type="button" class="btn small" data-addrun="${n}">Add as descent</button></div>`;
+        (S.tour.names.includes(`Run ${n + 1}`)
+          ? `<button type="button" class="btn small" data-rmrun="${n}">Remove from tour</button></div>`
+          : `<button type="button" class="btn small" data-addrun="${n}">Add as descent</button></div>`);
     }).join('')}</div>` +
     `<p><button type="button" class="btn" id="runsAllBtn">Use all ${runs.length} as the tour’s descents</button> <span class="note">Suggestions from the terrain model, not a judgement of the snow: look at every line before you ski it.</span></p>`;
   out.querySelectorAll('[data-addrun]').forEach((b) => (b.onclick = () => addRunsAsDescents([+b.dataset.addrun], false)));
+  out.querySelectorAll('[data-rmrun]').forEach((b) => (b.onclick = () => removeDescent(S.tour.names.indexOf(`Run ${+b.dataset.rmrun + 1}`))));
   $('#runsAllBtn').onclick = () => addRunsAsDescents(runs.map((_, n) => n), true);
 }
 
@@ -1054,6 +1088,7 @@ function addRunsAsDescents(which, replace) {
   const t = S.tour;
   if (replace) { t.descents = []; t.names = []; }
   for (const n of which) {
+    if (t.names.includes(`Run ${n + 1}`)) continue; // already in the tour
     const r = S.runs[n];
     const pts = [...r.points, ...r.runoutPoints];
     // At most ~30 points a descent, so a whole tour stays under the route limit.
@@ -1066,6 +1101,7 @@ function addRunsAsDescents(which, replace) {
   setMode(null);
   tourChanged();
   message(t.start ? 'Descents added: press Build tour.' : 'Descents added: set the start, then press Build tour.');
+  renderRuns();
 }
 
 /* ---------------- when to go (v5.5) ---------------- */

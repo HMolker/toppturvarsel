@@ -3,6 +3,15 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v5.7.1 — remove descents from a tour (2026-09-24)
+
+- The tour's descents are listed under the tour buttons, each with its
+  length and a **×** to take it out of the tour (drawn ones and found runs
+  alike). A tour already built says to press Build tour again.
+- In the found-runs list, a run in the tour shows **Remove from tour**
+  instead of Add; a run is never added twice. After a new search, runs from
+  the earlier one that are still in the tour are named "Earlier run n".
+
 ## v5.7.0 — find runs in an area (2026-09-24)
 
 - **Find runs in an area**, on Plan a tour: click two corners of an area

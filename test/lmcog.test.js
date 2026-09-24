@@ -169,8 +169,17 @@ test('bestElevations uses Lantmäteriet in Sweden, and Copernicus outside its da
   const far = { lat: 68.2, lon: 18.2 }; // no file there in the stub
   const mix = await bestElevations([inside, far], 'SE', { spacingM: 1 });
   assert.equal(mix.values[1], 111, 'filled by Copernicus');
-  const no = await bestElevations([inside], 'NO', {});
-  assert.notEqual(no.source, 'lantmateriet-mhm');
+  assert.equal(res.charged, 0, 'Lantmäteriet costs no point budget');
+  assert.equal(mix.charged, 1, 'only the Copernicus point is charged');
+});
+
+test('Swedish ground near the border is read from Lantmäteriet even when the nearest tour is Norwegian (v5.5.1)', async () => {
+  lm._resetLm();
+  const inside = pixelToLatLon(50, 50);
+  const no = await bestElevations([inside], 'NO', { spacingM: 1 });
+  assert.equal(no.source, 'lantmateriet-mhm');
+  assert.equal(no.charged, 0);
+  await assert.rejects(bestElevations([inside, { lat: 68.2, lon: 18.2 }], 'SE', { spacingM: 1, maxCharged: 0 }), (e) => e.status === 429);
 });
 
 test('a refused login falls back to Copernicus and says why', async () => {

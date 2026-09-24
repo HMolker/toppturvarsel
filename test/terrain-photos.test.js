@@ -281,7 +281,7 @@ test('Kartverket outage and Sweden both fall back to Copernicus', async () => {
   kvDown = true;
   const a = await bestElevations([{ lat: 69.7, lon: 20 }], 'NO');
   kvDown = false;
-  assert.deepEqual(a, { values: [7], source: 'copernicus-glo90' });
+  assert.deepEqual(a, { values: [7], source: 'copernicus-glo90', charged: 1 });
   const kv = calls.kv;
   const b = await bestElevations([{ lat: 63.4, lon: 13.1 }], 'SE');
   assert.equal(b.source, 'copernicus-glo90');

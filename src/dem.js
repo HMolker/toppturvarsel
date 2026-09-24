@@ -102,8 +102,6 @@ const pointCache = new Map();
 const POINT_CACHE_MAX = 200000;
 const pkey = (p) => `${p.lat.toFixed(5)},${p.lon.toFixed(5)}`;
 
-/** Sweden with a Geotorget login reads Lantmäteriet's files, not per-point APIs. */
-const lmFor = (country) => country === 'SE' && lmEnabled();
 
 async function elevationsCached(points, country, { spacingM = 10 } = {}) {
   const out = new Array(points.length);
@@ -115,10 +113,15 @@ async function elevationsCached(points, country, { spacingM = 10 } = {}) {
   });
   let source = null;
   if (missing.length) {
-    // Lantmäteriet's files have their own cap (LANTMATERIET_DAILY_MB); the
-    // point budget is for Kartverket and Open-Meteo.
-    if (!lmFor(country)) spend(missing.length);
-    const res = await queued(() => bestElevations(missing.map((i) => points[i]), country, { spacingM }));
+    // Only heights that go to Kartverket or Open-Meteo count against the
+    // daily budget; Lantmäteriet's files have their own cap
+    // (LANTMATERIET_DAILY_MB). Before v5.5.1 every missing point was charged
+    // up front, even ones Lantmäteriet then answered.
+    const b = budgetStatus();
+    const left = b.limit - b.used;
+    if (left <= 0 && !lmEnabled()) spend(missing.length); // throws the usual 429
+    const res = await queued(() => bestElevations(missing.map((i) => points[i]), country, { spacingM, maxCharged: left }));
+    budget.used += res.charged ?? 0;
     source = res.source;
     missing.forEach((idx, k) => {
       const v = { z: res.values[k], source: res.source };
@@ -320,7 +323,7 @@ export async function getRouteProfile(body) {
   // Kartverket's 1 m / 10 m model and Lantmäteriet's 1 m model resolve a
   // 10 m cross; Copernicus is 90 m cells, so the cross must span them or
   // every slope reads flat.
-  const offsetM = country === 'NO' || lmFor(country) ? 10 : 90;
+  const offsetM = country === 'NO' || lmEnabled() ? 10 : 90;
   const { samples, spacing } = sampleRoute(v.points);
   const pts = crossPoints(samples, offsetM);
   const { values, source, sources } = await elevationsCached(pts, country, { spacingM: offsetM });

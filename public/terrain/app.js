@@ -1212,6 +1212,9 @@ function updateStatus() {
   const bits = [];
   if (dem.busy) bits.push(`terrain model: ${dem.busy} tile${dem.busy > 1 ? 's' : ''} loading`);
   if (shadeNote) bits.push(shadeNote);
+  if (!S.fine.includes('SE') && S.zoneLoaded && nearest(map.center().lat, map.center().lon)?.item.country === 'SE') {
+    bits.push('Sweden: 90 m heights from the daily budget — no Lantmäteriet login on the server');
+  }
   if (S.budget && S.budget.left < S.budget.limit * 0.5) bits.push(`${S.budget.left.toLocaleString('en')} of ${S.budget.limit.toLocaleString('en')} heights left today`);
   $('#tstatus').textContent = bits.join(' · ');
 }
@@ -1368,8 +1371,10 @@ async function init() {
   const zone = await getJson('/api/terrain/zone');
   if (zone?.budget) S.budget = zone.budget;
   S.fine = zone?.fine ?? [];
+  S.zoneLoaded = !!zone;
   if (zone?.lantmateriet?.lastError) message(`Lantmäteriet's terrain model is not being used: ${zone.lantmateriet.lastError}`);
   renderLegend();
+  updateStatus();
   renderSaved();
   updateButtons();
   updateTourButtons();

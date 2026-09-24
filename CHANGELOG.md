@@ -3,6 +3,24 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v5.5.1 — Sweden no longer eats the height budget (2026-09-24)
+
+- **Lantmäteriet first, wherever it may have ground.** A tile's country
+  comes from the nearest listed tour or resort, so Swedish terrain near the
+  border could be taken for Norway: it was then asked of Kartverket (which
+  has nothing there), then of Open-Meteo, and charged to the daily budget
+  twice over. With a Geotorget login, Lantmäteriet is now tried for every
+  point that is not known to be elsewhere; outside Sweden it has no file,
+  and that answer is cached.
+- **Only heights that go to a point service are charged.** The budget used
+  to be charged for every new point before asking anyone, including points
+  Lantmäteriet then answered for free. Now it counts what actually went to
+  Kartverket or Open-Meteo, and stops before asking them when the day's
+  budget would be exceeded.
+- Plan a tour says so in the status line when you look at Sweden and the
+  server has no Lantmäteriet login (heights are then 90 m and come out of
+  the budget).
+
 ## v5.5.0 — when to go, and a real map on the conditions page (2026-09-24)
 
 - **When to go**, under a built tour on Plan a tour: pick a day and the tour

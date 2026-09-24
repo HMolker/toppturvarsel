@@ -57,47 +57,71 @@ export async function fetchKartverket(points) {
 }
 
 /**
- * Best available elevation for a set of points: Kartverket for Norway,
- * Copernicus via Open-Meteo otherwise, and Open-Meteo to fill any gaps
- * (a Norwegian route that crosses into Sweden, or a Kartverket outage).
- */
-/**
+ * Best available elevation for a set of points, finest source first:
+ *
+ *   1. Lantmäteriet's 1 m model (v5.2), whenever a Geotorget login is set
+ *      and the points are not known to be elsewhere. It is tried for
+ *      Norwegian-looking points too (v5.5.1): the country comes from the
+ *      nearest listed tour, which near the border can be a Norwegian tour
+ *      for Swedish ground. Outside Sweden it simply has nothing (and says so
+ *      from a cached lookup), so this costs nothing there.
+ *   2. Kartverket for what is left, when the country is Norway.
+ *   3. Copernicus via Open-Meteo for anything still missing.
+ *
  * `spacingM`: roughly how far apart the points are. Only file-based sources
  * (Lantmäteriet) use it, to read no finer detail than needed; callers that
  * do not say get a coarse read (their grids are 50 m or more apart).
+ *
+ * `maxCharged`: how many points may go to the per-point services (1–3 above
+ * minus Lantmäteriet). Past it, a 429 error is thrown before asking them.
+ *
+ * Returns { values, source, charged }: `charged` is how many points were
+ * sent to a per-point service, which is what the daily budget counts.
  */
-export async function bestElevations(points, country, { spacingM = 50 } = {}) {
-  // Sweden, with a Geotorget login: Lantmäteriet's 1 m terrain model (v5.2).
-  // Where it has no data or fails, Copernicus fills in as before.
-  if (country === 'SE' && lmEnabled()) {
+export async function bestElevations(points, country, { spacingM = 50, maxCharged = Infinity } = {}) {
+  const values = new Array(points.length).fill(null);
+  let todo = points.map((_, i) => i);
+  let source = null;
+  const done = (src) => {
+    const got = todo.filter((i) => Number.isFinite(values[i]));
+    if (got.length > points.length / 2 && !source) source = src;
+    todo = todo.filter((i) => !Number.isFinite(values[i]));
+  };
+
+  if (lmEnabled() && (country === 'SE' || country === 'NO' || !country)) {
     try {
       const lm = await lmElevations(points, { spacingM });
-      const missing = lm.map((z, i) => (z === null ? i : -1)).filter((i) => i >= 0);
-      if (missing.length) {
-        const fill = await fetchElevationsBatched(missing.map((i) => points[i]));
-        missing.forEach((idx, k) => (lm[idx] = fill[k]));
-      }
+      lm.forEach((z, i) => (values[i] = Number.isFinite(z) ? z : null));
       lmLastError = null;
-      return { values: lm, source: missing.length > points.length / 2 ? 'copernicus-glo90' : 'lantmateriet-mhm' };
+      done('lantmateriet-mhm');
     } catch (err) {
       lmLastError = err.message;
-      log.warn(`elevation: Lantmäteriet failed (${err.message}); using Copernicus`);
+      log.warn(`elevation: Lantmäteriet failed (${err.message}); using the point services`);
     }
+  }
+  if (!todo.length) return { values, source: source ?? 'lantmateriet-mhm', charged: 0 };
+
+  const charged = todo.length;
+  if (charged > maxCharged) {
+    const err = new Error(`daily terrain budget used: ${charged} heights needed from the point services, ${Math.max(0, maxCharged)} left today; it resets at midnight UTC`);
+    err.status = 429;
+    throw err;
   }
   if (country === 'NO') {
     try {
-      const kv = await fetchKartverket(points);
-      const missing = kv.map((z, i) => (z === null ? i : -1)).filter((i) => i >= 0);
-      if (missing.length) {
-        const fill = await fetchElevationsBatched(missing.map((i) => points[i]));
-        missing.forEach((idx, k) => (kv[idx] = fill[k]));
-      }
-      return { values: kv, source: missing.length > points.length / 2 ? 'copernicus-glo90' : 'kartverket-dtm' };
+      const kv = await fetchKartverket(todo.map((i) => points[i]));
+      todo.forEach((idx, k) => (values[idx] = kv[k]));
+      done('kartverket-dtm');
     } catch {
-      /* fall through to Copernicus */
+      /* Copernicus below */
     }
   }
-  return { values: await fetchElevationsBatched(points), source: 'copernicus-glo90' };
+  if (todo.length) {
+    const fill = await fetchElevationsBatched(todo.map((i) => points[i]));
+    todo.forEach((idx, k) => (values[idx] = fill[k]));
+    done('copernicus-glo90');
+  }
+  return { values, source: source ?? 'copernicus-glo90', charged };
 }
 
 async function fetchElevationsBatched(points) {

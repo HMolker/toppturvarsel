@@ -24,7 +24,8 @@ COPY data ./data
 COPY editor ./editor
 
 # The snapshot cache lives here; mount a volume so it survives restarts.
-RUN mkdir -p /app/data/cache && chown -R node:node /app
+# The users list (v5.8) lives in data/auth; mount it too (see INSTALL.md).
+RUN mkdir -p /app/data/cache /app/data/auth && chown -R node:node /app
 VOLUME ["/app/data/cache"]
 
 USER node

@@ -51,7 +51,7 @@ export class DemStore {
     else if (had) return Promise.resolve(had.error ? null : had);
     if (this.pending.has(k)) return this.pending.get(k);
     const p = new Promise((resolve) => {
-      this.queue.push({ k, url: `/api/dem/${z}/${x}/${y}`, resolve });
+      this.queue.push({ k, url: `api/dem/${z}/${x}/${y}`, resolve });
       this.pump();
     });
     this.pending.set(k, p);

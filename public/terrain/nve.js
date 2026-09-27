@@ -28,7 +28,7 @@ function loadTile(z, x, y) {
         }
       };
       img.onerror = () => resolve(null); // 404: nothing drawn here
-      img.src = `/tiles/nve/${z}/${x}/${y}.png`;
+      img.src = `tiles/nve/${z}/${x}/${y}.png`;
     }));
   }
   return cache.get(k);

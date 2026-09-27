@@ -22,17 +22,17 @@
    not in /fonts and Plex is not installed locally, the stack falls back
    cleanly. See public/fonts/README.md. */
 @font-face { font-family: "IBM Plex Sans"; font-weight: 400; font-style: normal; font-display: swap;
-  src: local("IBM Plex Sans"), local("IBMPlexSans"), url("/fonts/IBMPlexSans-Regular.woff2") format("woff2"); }
+  src: local("IBM Plex Sans"), local("IBMPlexSans"), url("fonts/IBMPlexSans-Regular.woff2") format("woff2"); }
 @font-face { font-family: "IBM Plex Sans"; font-weight: 500; font-style: normal; font-display: swap;
-  src: local("IBM Plex Sans Medium"), local("IBMPlexSans-Medium"), url("/fonts/IBMPlexSans-Medium.woff2") format("woff2"); }
+  src: local("IBM Plex Sans Medium"), local("IBMPlexSans-Medium"), url("fonts/IBMPlexSans-Medium.woff2") format("woff2"); }
 @font-face { font-family: "IBM Plex Sans"; font-weight: 600; font-style: normal; font-display: swap;
-  src: local("IBM Plex Sans SemiBold"), local("IBMPlexSans-SemiBold"), url("/fonts/IBMPlexSans-SemiBold.woff2") format("woff2"); }
+  src: local("IBM Plex Sans SemiBold"), local("IBMPlexSans-SemiBold"), url("fonts/IBMPlexSans-SemiBold.woff2") format("woff2"); }
 @font-face { font-family: "IBM Plex Sans"; font-weight: 700; font-style: normal; font-display: swap;
-  src: local("IBM Plex Sans Bold"), local("IBMPlexSans-Bold"), url("/fonts/IBMPlexSans-Bold.woff2") format("woff2"); }
+  src: local("IBM Plex Sans Bold"), local("IBMPlexSans-Bold"), url("fonts/IBMPlexSans-Bold.woff2") format("woff2"); }
 @font-face { font-family: "IBM Plex Mono"; font-weight: 400; font-style: normal; font-display: swap;
-  src: local("IBM Plex Mono"), local("IBMPlexMono"), url("/fonts/IBMPlexMono-Regular.woff2") format("woff2"); }
+  src: local("IBM Plex Mono"), local("IBMPlexMono"), url("fonts/IBMPlexMono-Regular.woff2") format("woff2"); }
 @font-face { font-family: "IBM Plex Mono"; font-weight: 600; font-style: normal; font-display: swap;
-  src: local("IBM Plex Mono SemiBold"), local("IBMPlexMono-SemiBold"), url("/fonts/IBMPlexMono-SemiBold.woff2") format("woff2"); }
+  src: local("IBM Plex Mono SemiBold"), local("IBMPlexMono-SemiBold"), url("fonts/IBMPlexMono-SemiBold.woff2") format("woff2"); }
 
 :root {
   --sans: "IBM Plex Sans", "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif;
@@ -793,7 +793,7 @@ svg.avrose .avl, svg.avelev .avl { font: 600 8.5px var(--mono); fill: var(--mute
 .legend-row span svg.hut { vertical-align: -3px; margin-right: 4px; }
 
 
-/* ---- forecast accuracy tool (/skill) ---- */
+/* ---- forecast accuracy tool (skill) ---- */
 .skillctl { display: flex; flex-wrap: wrap; gap: 18px 30px; align-items: flex-end; }
 .skillctl .ctlgroup { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .skillctl .ctlgroup.grow { flex: 1 1 300px; }
@@ -882,3 +882,20 @@ main.page {
 .pinbar .note { color: var(--muted); }
 .pinbar .btn { min-height: 30px; padding: 4px 11px; font-size: 13px; }
 #map.mainmap .needle path { fill: var(--ink); stroke: var(--paper); stroke-width: 1.5; }
+
+/* ---------- logins (v5.8): who is in, and the "slope closed" sign ---------- */
+.userchip .role { text-transform: uppercase; letter-spacing: .08em; font-size: 10.5px; padding: 1px 6px; border-radius: 4px; background: var(--line); color: var(--ink-2); }
+.userchip.premium .role { background: var(--ink); color: var(--paper); }
+.userchip .out { color: var(--red-ink); text-decoration: none; }
+.userchip .out:hover { text-decoration: underline; }
+dialog.slopeclosed { max-width: min(440px, calc(100vw - 32px)); border: 1px solid var(--line-2); border-radius: var(--r-card); background: var(--paper); color: var(--ink); padding: 26px 24px 20px; text-align: center; box-shadow: 0 18px 50px rgba(0,0,0,.25); }
+dialog.slopeclosed::backdrop { background: rgba(20, 18, 16, .45); }
+dialog.slopeclosed .sc-sign { user-select: none; display: inline-grid; place-items: center; width: 92px; height: 92px; border-radius: 50%; background: #fff; border: 9px solid #C0392B; margin-bottom: 12px; position: relative; }
+dialog.slopeclosed .sc-sign::after { content: ""; position: absolute; left: 6px; right: 6px; top: 50%; height: 9px; margin-top: -4.5px; background: #C0392B; transform: rotate(-45deg); border-radius: 2px; }
+dialog.slopeclosed .sc-sign span { font: 700 10px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: #1A1A1A; position: relative; z-index: 1; background: #fff; padding: 0 2px; }
+dialog.slopeclosed h2 { font-size: 19px; margin: 4px 0 8px; line-height: 1.25; }
+dialog.slopeclosed p { color: var(--ink-2); font-size: 14px; line-height: 1.5; margin: 0 0 8px; }
+dialog.slopeclosed form { margin-top: 14px; }
+.demobanner { margin: 14px 18px 0; padding: 9px 12px; border-radius: var(--r-ctl); background: var(--hs1); border: 1px solid var(--hs2); font-size: 13.5px; color: var(--ink-2); line-height: 1.45; }
+.closedtag { font-family: var(--mono); font-size: 12px; color: var(--red-ink); }
+html[data-role="sneaky"] #gpxInBtn, html[data-role="sneaky"] #gpxOutBtn { opacity: .55; }

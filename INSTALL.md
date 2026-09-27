@@ -48,8 +48,8 @@ snapshots, caches and alert history in `data/cache`. Create it yourself so
 it gets the right owner:
 
 ```bash
-mkdir -p data/cache data/tracks data/photos
-sudo chown -R 1000:1000 data/cache
+mkdir -p data/cache data/tracks data/photos data/auth
+sudo chown -R 1000:1000 data/cache data/auth
 ```
 
 ## 3. Configure
@@ -165,11 +165,116 @@ its **port**, so Fjällskred just needs its own port forward:
 What the public can do: read the page, and press "Refresh now" (limited to
 once per 10 minutes, `REFRESH_COOLDOWN_MINUTES`). Routes, forecasts,
 terrain, photos and map tiles are only served for the listed tours, so the
-box cannot be used as a relay. There is no login and no upload.
+box cannot be used as a relay. There is no upload; logins are optional (8b).
 
-Plain HTTP is fine for a read-only page. If you later want HTTPS, put a
-reverse proxy in front (Caddy or Nginx Proxy Manager, both run in Docker)
-and forward 443 to it instead of 8095.
+Plain HTTP is fine for a read-only page. With logins (8b) use HTTPS
+(8c), so passwords do not cross the internet in the clear.
+
+## 8b. Logins: premium and sneaky (v5.8)
+
+Logins are off until `data/auth/users.csv` lists someone. Then every page
+asks for a username and password, and there are two kinds of user:
+
+| | premium | sneaky |
+|---|---|---|
+| Conditions map, bulletins, snow, tour list, trip planner, weather, resorts, huts | ✓ | ✓ |
+| Plan a tour | everywhere | a demo within 3 km of Harahorn |
+| Place search that opens new areas, forecast accuracy, tour editor, Refresh now | ✓ | "slope closed" |
+| GPX download, export and import | ✓ | "slope closed" |
+
+A sneaky user who tries a premium thing gets a popup: *Slope closed — open
+for premium skiers only*.
+
+**The demo area.** A sneaky user's Plan a tour works only from terrain the
+server has already stored: the map stops 3 km from Harahorn, and nothing
+they do fetches a new height. The server downloads the area itself, a
+little each night (`NIGHT_SCAN_HOURS`, at most `DEMO_DAILY_POINTS` = 20 000
+heights a night): the nearest 1.5 km first, the rest over the next nights.
+Until then the page says how far it has come. Settings: `DEMO_*` in `.env`.
+
+**The list.** The server needs the folder (step 2 made it, with the right
+owner). Either edit `data/auth/users.csv` by hand — one user a line,
+`username,kind,password`, see `deploy/users.csv.example` — or use the
+command, which also makes up passwords:
+
+```bash
+cd ~/apps/fjallskred
+# ten premium users, with new passwords printed once
+docker compose exec toppturvarsel node src/users-cli.js add premium anna bengt cilla
+# a hundred sneaky ones: list the names the same way
+docker compose exec toppturvarsel node src/users-cli.js add sneaky olle eva …
+docker compose exec toppturvarsel node src/users-cli.js list
+# a forgotten password: a new one, printed once (their sessions end)
+docker compose exec toppturvarsel node src/users-cli.js passwd anna
+docker compose exec toppturvarsel node src/users-cli.js role olle premium
+docker compose exec toppturvarsel node src/users-cli.js remove olle
+```
+
+- Passwords written by hand are swapped for their hash (scrypt) within half
+  a minute, so the plain text does not stay on disk. At least 8 characters.
+- A new password, a removed line or a changed kind takes effect at once:
+  their sessions made before end.
+- A login lasts 30 days (a cookie). Five wrong passwords in 15 minutes lock
+  that username and that address for 15 minutes.
+- `data/auth` also holds `secret`, the key the cookies are signed with.
+  Delete it to log everyone out. Neither file is ever in git.
+- To turn logins off again, move `users.csv` away.
+
+## 8c. HTTPS with Caddy (v5.8)
+
+Caddy sits in front on ports 80 and 443, gets a certificate for your
+`…tplinkdns.com` name by itself and keeps it renewed, and passes each
+path to its app:
+
+- `https://<name>.tplinkdns.com/fjallskred/` → Fjällskred
+- `https://<name>.tplinkdns.com/molker-hemma/` → Molker hemma
+- `https://<name>.tplinkdns.com/` → a small page with the two
+- Immich stays as it is, on its own port.
+
+1. **Router**: forward external port **80** and **443** (TCP) to the Pi,
+   same internal ports, next to the existing Immich rule (see 8). Nothing
+   else on the Pi may use 80 or 443. The Fjällskred rule for 8095 can go
+   once Caddy works.
+2. **Caddy**, in a folder of its own:
+
+   ```bash
+   mkdir -p ~/apps/caddy
+   cp -r ~/apps/fjallskred/deploy/caddy/. ~/apps/caddy/
+   cd ~/apps/caddy
+   cp .env.example .env
+   nano .env        # SITE_HOST, ACME_EMAIL, FJALLSKRED_PORT=8095, MOLKER_HEMMA_PORT
+   docker compose up -d
+   docker compose logs -f     # wait for "certificate obtained successfully"
+   ```
+
+3. **Fjällskred**, in `~/apps/fjallskred/.env`:
+
+   ```
+   HOST_PORT=127.0.0.1:8095
+   BASE_PATH=/fjallskred
+   TRUST_PROXY=true
+   ```
+
+   then `docker compose up -d`. `127.0.0.1:` makes the port reachable only
+   by Caddy on the Pi itself; leave it out to also keep
+   `http://<pi-ip>:8095` on your own network (then set `TRUST_PROXY=false`
+   if you ever forward 8095 again).
+4. Open `https://<name>.tplinkdns.com/fjallskred/` from your phone on
+   mobile data.
+
+**Molker hemma at a sub-path.** Caddy strips `/molker-hemma` before passing
+a request on, so the app sees the paths it always has. That works if its
+pages use relative links (`style.css`, `api/…`). If it breaks — a blank
+page, styles or data missing — its links start with `/`. Then either give
+it its own name instead of a path (a second DDNS name or a subdomain, with
+its own `… { reverse_proxy 127.0.0.1:<port> }` block in the Caddyfile), or
+change its links to relative ones. Its own login is untouched.
+
+**If the certificate fails**: check that 80 and 443 reach the Pi (the
+error in the log names the one that did not), and that `SITE_HOST` is the
+DDNS name exactly. Caddy retries by itself, first with Let's Encrypt and
+then ZeroSSL; `data/` in the Caddy folder keeps the certificates between
+restarts.
 
 ## 9. Everyday use
 
@@ -311,6 +416,8 @@ Pushing the new tag on its own builds its image; pushing `main` updates
 |---|---|
 | `uname -m` says `armv7l` | 32-bit Raspberry Pi OS. Node 22 images need 64-bit: reinstall with Raspberry Pi OS (64-bit), Pi 3B or newer. |
 | Logs say `EACCES` / permission denied under `/app/data/cache` | `sudo chown -R 1000:1000 data/cache` and `docker compose restart`. |
+| `EACCES` under `/app/data/auth`, or users.csv never gets hashed | `sudo chown -R 1000:1000 data/auth` and `docker compose restart`. |
+| Logged in, but sent back to the login page | Open the site through Caddy with the trailing slash (`…/fjallskred/`), and check `BASE_PATH=/fjallskred` in `.env`. |
 | `port is already allocated` | Pick another port in step 4. |
 | Container shows `unhealthy` | `docker compose logs --tail 100`. `/api/health` is unhealthy when the data is stale, i.e. refreshing has stopped working, not only when the process is down. |
 | `Rejected request from RFC1918 IP to public server address` | That page comes from the **router**, not from Fjällskred: the request reached the router's own web server from inside your network. Test on mobile data with Wi-Fi off, and include `:8095` in the address. At home, use `http://<pi-ip>:8095`. |

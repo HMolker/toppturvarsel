@@ -114,17 +114,21 @@ async function pickedBoxes() {
 }
 
 export async function serveTile(res, src, z, x, y) {
-  const send = (status, body, type = 'text/plain') => {
-    res.writeHead(status, { 'Content-Type': type, 'Cache-Control': status === 200 ? 'public, max-age=604800' : 'no-store' });
-    res.end(body);
-  };
-  if (!SOURCES[src]) return send(404, 'unknown tile source');
-  if (!overviewAllowed(src, z, x, y) && !tileAllowed(z, x, y, await boxes())) return send(403, 'tile outside tour areas');
+  const t = await getTile(src, z, x, y);
+  res.writeHead(t.status, { 'Content-Type': t.status === 200 ? 'image/png' : 'text/plain', 'Cache-Control': t.status === 200 ? 'public, max-age=604800' : 'no-store' });
+  res.end(t.body);
+}
+
+/** A tile from the cache or upstream: { status, body }. Also used to fetch ahead (the demo area, v5.8). */
+export async function getTile(src, z, x, y, { skipZoneCheck = false } = {}) {
+  const r = (status, body) => ({ status, body });
+  if (!SOURCES[src]) return r(404, 'unknown tile source');
+  if (!skipZoneCheck && !overviewAllowed(src, z, x, y) && !tileAllowed(z, x, y, await boxes())) return r(403, 'tile outside tour areas');
 
   const file = path.resolve(config.dataDir, 'cache', 'tiles', src, String(z), String(x), `${y}.png`);
   try {
     const info = await stat(file);
-    if (Date.now() - info.mtimeMs < TTL) return send(200, await readFile(file), 'image/png');
+    if (Date.now() - info.mtimeMs < TTL) return r(200, await readFile(file));
   } catch {
     /* not cached */
   }
@@ -132,7 +136,7 @@ export async function serveTile(res, src, z, x, y) {
   // 404: remembered, so the same empty tile is not asked for again.
   try {
     const none = await stat(`${file}.none`);
-    if (Date.now() - none.mtimeMs < TTL) return send(404, 'no tile here');
+    if (Date.now() - none.mtimeMs < TTL) return r(404, 'no tile here');
   } catch {
     /* not known to be empty */
   }
@@ -145,15 +149,15 @@ export async function serveTile(res, src, z, x, y) {
     if (upstream.status === 404 && src === 'nve') {
       await mkdir(path.dirname(file), { recursive: true });
       await writeFile(`${file}.none`, '');
-      return send(404, 'no tile here');
+      return r(404, 'no tile here');
     }
-    if (!upstream.ok) return send(502, `upstream ${upstream.status}`);
+    if (!upstream.ok) return r(502, `upstream ${upstream.status}`);
     const buf = Buffer.from(await upstream.arrayBuffer());
     await mkdir(path.dirname(file), { recursive: true });
     await writeFile(file, buf);
-    return send(200, buf, 'image/png');
+    return r(200, buf);
   } catch (err) {
     log.debug(`tiles: ${src}/${z}/${x}/${y} failed: ${err.message}`);
-    return send(502, 'tile unavailable');
+    return r(502, 'tile unavailable');
   }
 }

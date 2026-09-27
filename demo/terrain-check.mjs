@@ -14,7 +14,7 @@
  * the 3D view, with screenshots of each.
  */
 
-import { mkdir, mkdtemp, writeFile, readFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, writeFile, readFile, rm } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { deflateSync } from 'node:zlib';
@@ -541,7 +541,7 @@ for (const [name, url] of [['11-skill', '/skill'], ['12-editor', '/editor'], ['1
   await page.goto(`${base}${url}`);
   await page.waitForTimeout(700);
   await page.screenshot({ path: path.join(outDir, `${name}.png`), clip: { x: 0, y: 0, width: 1440, height: 330 } });
-  const back = await page.locator('a[href="/"]:has-text("Conditions")').count();
+  const back = await page.locator('a[href="./"]:has-text("Conditions")').count();
   console.log(url, 'back link:', back);
 }
 await page.goto(`${base}/terrain`);
@@ -550,6 +550,81 @@ await page.goto(`${base}/terrain`);
 await page.setViewportSize({ width: 390, height: 844 });
 await page.waitForTimeout(500);
 await page.screenshot({ path: path.join(outDir, '10-phone.png'), fullPage: true });
+
+// v5.8: logins. A sneaky one plans within 3 km of Harahorn, from what the server stored.
+{
+  await mkdir(path.join(dataDir, 'auth'), { recursive: true });
+  await writeFile(path.join(dataDir, 'auth', 'users.csv'), 'olle,sneaky,olle-secret-1\nanna,premium,anna-secret-1\n');
+  const auth = await import('../src/auth.js');
+  await auth.loadUsers({ force: true });
+  const demo = await import('../src/demo.js');
+  const { getDemTile } = await import('../src/dem.js');
+  const { getTile } = await import('../src/tiles.js');
+  process.env.DEMO_DAILY_POINTS = '1000000';
+  const t0 = Date.now();
+  const got = await demo.runDemoPrefetch({ getDemTile, getTile, gapMs: 0 });
+  console.log('demo prefetch:', JSON.stringify(got), `${((Date.now() - t0) / 1000).toFixed(1)} s`, JSON.stringify(await demo.demoStatus()));
+
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+  const p2 = await ctx.newPage();
+  p2.on('pageerror', (e) => errors.push(`sneaky pageerror: ${e.message}`));
+  p2.on('response', (r) => { if (r.status() >= 400 && ![401, 403, 409].includes(r.status()) && !/fonts|\/tiles\/nve\/|\/api\/track|\/api\/resorts/.test(r.url())) errors.push(`sneaky HTTP ${r.status()} ${r.url()}`); });
+  await p2.goto(`${base}/terrain`);
+  console.log('logged out ->', new URL(p2.url()).pathname + new URL(p2.url()).search);
+  await p2.screenshot({ path: path.join(outDir, '30-login.png') });
+  await p2.fill('input[name=username]', 'olle');
+  await p2.fill('input[name=password]', 'olle-secret-1');
+  await Promise.all([p2.waitForNavigation(), p2.click('button[type=submit]')]);
+  await p2.waitForTimeout(2500);
+  const hara = tours.find((t) => t.name === 'Harahorn');
+  const km = (c) => Math.hypot((c.lat - hara.lat) * 111.2, (c.lon - hara.lon) * 111.2 * Math.cos(hara.lat * R));
+  const info = await p2.evaluate(() => ({ path: location.pathname, banner: document.querySelector('#demoBanner')?.textContent, chip: document.querySelector('.userchip')?.textContent, centre: window.fjallskredTerrain.map.center(), zoom: window.fjallskredTerrain.map.zoom, ref: window.fjallskredTerrain.state.ref?.name, dem: [...window.fjallskredTerrain.dem.tiles?.keys?.() ?? []].length }));
+  console.log('sneaky terrain:', JSON.stringify({ ...info, km: +km(info.centre).toFixed(2) }));
+  await p2.screenshot({ path: path.join(outDir, '31-sneaky-terrain.png') });
+  // Drag far away: the map stops at the fence.
+  const box = await p2.locator('#tmap').boundingBox();
+  await p2.mouse.move(box.x + box.width - 60, box.y + 80);
+  await p2.mouse.down();
+  for (let k = 1; k <= 20; k++) await p2.mouse.move(box.x + box.width - 60 - k * 60, box.y + 80, { steps: 2 });
+  await p2.mouse.up();
+  await p2.waitForTimeout(400);
+  const after = await p2.evaluate(() => window.fjallskredTerrain.map.center());
+  console.log('after a long drag east: km from Harahorn', km(after).toFixed(2), 'lon', after.lon > hara.lon ? 'east' : 'west');
+  const pushed = await p2.evaluate(() => { const m = window.fjallskredTerrain.map; m.cx += 0.01; m.render(); return m.center(); });
+  console.log('pushed 400 km east: km from Harahorn', km(pushed).toFixed(2));
+  await p2.waitForTimeout(800);
+  await p2.screenshot({ path: path.join(outDir, '31b-sneaky-fence.png') });
+  // Somewhere else: slope closed.
+  await p2.evaluate(() => window.fjallskredTerrain.map.setView({ lat: 61.5, lon: 8.3 }, 13));
+  await p2.waitForTimeout(400);
+  console.log('go elsewhere: popup open =', await p2.evaluate(() => !!document.querySelector('dialog.slopeclosed')?.open), 'km', km(await p2.evaluate(() => window.fjallskredTerrain.map.center())).toFixed(2));
+  await p2.screenshot({ path: path.join(outDir, '32-slope-closed.png') });
+  await p2.click('dialog.slopeclosed button');
+  await p2.click('#gpxInBtn');
+  await p2.waitForTimeout(300);
+  console.log('import GPX: popup =', await p2.evaluate(() => document.querySelector('dialog.slopeclosed')?.open && document.querySelector('dialog.slopeclosed .sc-what').textContent));
+  await p2.click('dialog.slopeclosed button');
+  // A profile inside the area comes from the store.
+  const prof = await p2.evaluate(async ([lat, lon]) => {
+    const r = await fetch('api/terrain/profile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ points: [[lat, lon], [lat + 0.004, lon + 0.006]] }) });
+    const b = await r.json();
+    return { status: r.status, source: b.source, n: b.samples?.length, ele: b.samples?.map((s) => s.ele).slice(0, 4) };
+  }, [hara.lat, hara.lon]);
+  console.log('sneaky profile:', JSON.stringify(prof));
+  // The conditions page: the user chip, and the premium links closed.
+  await p2.goto(`${base}/`);
+  await p2.waitForTimeout(1500);
+  await p2.click('a[href="skill"]');
+  await p2.waitForTimeout(300);
+  console.log('conditions: forecast accuracy popup =', await p2.evaluate(() => !!document.querySelector('dialog.slopeclosed')?.open), 'url', new URL(p2.url()).pathname);
+  await p2.screenshot({ path: path.join(outDir, '33-sneaky-conditions.png'), clip: { x: 0, y: 0, width: 1440, height: 700 } });
+  await p2.click('dialog.slopeclosed button');
+  await p2.goto(`${base}/logout`);
+  console.log('after log out:', new URL(p2.url()).pathname);
+  await ctx.close();
+  await rm(path.join(dataDir, 'auth', 'users.csv'));
+  await auth.loadUsers({ force: true });
+}
 
 const real = errors.filter((e) => !/Failed to load resource: the server responded with a status of 404/.test(e));
 console.log(real.length ? `ERRORS:\n${real.join('\n')}` : 'no page errors');

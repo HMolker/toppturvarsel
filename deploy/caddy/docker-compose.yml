@@ -1,0 +1,25 @@
+# Caddy for the Pi (Fjällskred v5.8): HTTPS in front of Fjällskred and
+# Molker hemma. Its own folder and compose file, since it serves more than
+# one app:
+#
+#   mkdir -p ~/apps/caddy && cp Caddyfile docker-compose.yml .env.example ~/apps/caddy/
+#   cp -r www ~/apps/caddy/ && cd ~/apps/caddy && cp .env.example .env && nano .env
+#   docker compose up -d && docker compose logs -f
+#
+# network_mode: host lets Caddy take ports 80 and 443 on the Pi and reach
+# the apps on 127.0.0.1:<port>, however they are started.
+services:
+  caddy:
+    image: caddy:2
+    container_name: caddy
+    restart: unless-stopped
+    network_mode: host
+    env_file:
+      - .env
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./www:/srv/www:ro
+      # Certificates and keys: keep them, or Caddy asks for new ones on
+      # every start and runs into Let's Encrypt's limits.
+      - ./data:/data
+      - ./config:/config

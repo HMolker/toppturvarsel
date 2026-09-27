@@ -1,0 +1,8 @@
+# data/auth/users.csv — who may log in to Fjällskred (v5.8).
+# One user a line: username,kind,password. kind is premium or sneaky.
+# Write a password in plain text (8 characters or more): the server swaps it
+# for its hash within half a minute. To reset one, write a new password
+# over the hash. To remove someone, delete the line.
+# Or use: docker compose exec toppturvarsel node src/users-cli.js
+anna,premium,change-me-please
+olle,sneaky,change-me-too

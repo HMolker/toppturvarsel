@@ -1,10 +1,10 @@
 /**
- * Fjällskred v5 — terrain & routes (/terrain).
+ * Fjällskred v5 — terrain & routes (terrain).
  *
  * One page, like the tour editor: a pannable topo map with NVE's slope and
  * runout map (Norway) and shading worked out here from the terrain model
  * (slope, aspect, today's avalanche problems); a route you draw, measured by
- * the server every 25 m (/api/terrain/profile) and analysed in analysis.js;
+ * the server every 25 m (api/terrain/profile) and analysed in analysis.js;
  * a suggested way up (suggest.js) and a 3D view (view3d.js).
  */
 
@@ -27,6 +27,7 @@ import { problemAspects, problemBands } from '../planner.js';
 import { attachPlaceSearch, pickPlace, kindName } from '../placesearch.js';
 import { aspectRose as tourRose } from '../aspect.js';
 import { countryName } from '../countries.js';
+import { me, slopeClosed } from '../access.js';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
@@ -89,8 +90,8 @@ function tileCountry(z, x, y) {
   }
   return countryMemo.get(k);
 }
-const topoUrl = (z, x, y) => (tileInZone(z, x, y) ? `/tiles/${tileCountry(z, x, y) === 'SE' ? 'se' : 'no'}/${z}/${x}/${y}.png` : null);
-const nveUrl = (z, x, y) => (tileInZone(z, x, y) && tileCountry(z, x, y) === 'NO' ? `/tiles/nve/${z}/${x}/${y}.png` : null);
+const topoUrl = (z, x, y) => (tileInZone(z, x, y) ? `tiles/${tileCountry(z, x, y) === 'SE' ? 'se' : 'no'}/${z}/${x}/${y}.png` : null);
+const nveUrl = (z, x, y) => (tileInZone(z, x, y) && tileCountry(z, x, y) === 'NO' ? `tiles/nve/${z}/${x}/${y}.png` : null);
 
 /** The avalanche region for a point: the region of the nearest tour. */
 function regionAt(lat, lon) {
@@ -504,7 +505,7 @@ $('.zoomctl').onclick = (e) => {
  * ------------------------------------------------------------------ */
 
 async function postProfile(points) {
-  const res = await fetch('/api/terrain/profile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ points }) });
+  const res = await fetch('api/terrain/profile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ points }) });
   const body = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
   if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
   if (body.budget) S.budget = body.budget;
@@ -684,7 +685,7 @@ async function loadWeather(wp) {
   renderWeather(el, null);
   let data;
   try {
-    const res = await fetch('/api/terrain/weather', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ points: pts.map((p) => [p.lat, p.lon, p.ele]) }) });
+    const res = await fetch('api/terrain/weather', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ points: pts.map((p) => [p.lat, p.lon, p.ele]) }) });
     data = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
     if (!res.ok) data = { error: data.error ?? `HTTP ${res.status}` };
     else weatherMemo.set(key, { at: Date.now(), data });
@@ -1231,7 +1232,7 @@ function addRunsAsDescents(which, replace) {
 /* ---------------- when to go (v5.5) ---------------- */
 
 let outlookP = null;
-const getOutlook = () => (outlookP ??= fetch('/api/outlook').then((r) => (r.ok ? r.json() : null)).catch(() => null));
+const getOutlook = () => (outlookP ??= fetch('api/outlook').then((r) => (r.ok ? r.json() : null)).catch(() => null));
 
 async function renderTourDay() {
   const el = $('#tourDay');
@@ -1576,7 +1577,7 @@ function cellAt(range, box) {
 /** The height budget, re-read after heavy work so the status line is true. */
 async function refreshBudget() {
   try {
-    const z = await fetch('/api/terrain/zone').then((r) => r.json());
+    const z = await fetch('api/terrain/zone').then((r) => r.json());
     if (z?.budget) S.budget = z.budget;
     if (Array.isArray(z?.fine)) S.fine = z.fine;
     if (z?.sweden) S.sweden = z.sweden;
@@ -1711,7 +1712,7 @@ async function loadTourRef(which, { fit = true } = {}) {
   S.ref = { name: t.name, slug, points: [], tour: t };
   renderRef();
   try {
-    const r = await fetch(`/api/track?tour=${encodeURIComponent(slug)}`).then((x) => x.json());
+    const r = await fetch(`api/track?tour=${encodeURIComponent(slug)}`).then((x) => x.json());
     if (S.ref?.slug !== slug) return;
     if (r.found && r.points?.length) {
       S.ref.points = r.points.map((p) => [p.lat, p.lon]);
@@ -1787,10 +1788,65 @@ $('#rname').onchange = () => writeHash({ points: S.route, name: $('#rname').valu
 // For the browser checks in demo/terrain-check.mjs, and for poking around in devtools.
 window.fjallskredTerrain = { map, state: S, dem, findRunsIn: (box) => runFinder(box) };
 
+/* ------------------------------------------------------------------ *
+ * the demo (v5.8): a sneaky login plans within a few km of one tour,
+ * from terrain the server has stored
+ * ------------------------------------------------------------------ */
+
+let DEMO = null;
+const demoKm = (lat, lon) => Math.hypot((lat - DEMO.lat) * 111.2, (lon - DEMO.lon) * 111.2 * Math.cos(DEMO.lat * R));
+function startDemo(demo) {
+  DEMO = demo;
+  S.demo = { area: demo, status: null };
+  map.minZoom = 12;
+  map.zoom = Math.max(map.zoom, 12);
+  // The map's centre stays inside the area: drag to the edge and it stops.
+  map.clamp = (c) => {
+    const d = demoKm(c.lat, c.lon);
+    if (d <= demo.radiusKm) return null;
+    const f = demo.radiusKm / d;
+    return { lat: demo.lat + (c.lat - demo.lat) * f, lon: demo.lon + (c.lon - demo.lon) * f };
+  };
+  // Going somewhere else (a tour, a place, a saved route) says why not.
+  const setView = map.setView.bind(map);
+  map.setView = (center, zoom) => {
+    if (S.demoReady && demoKm(center.lat, center.lon) > demo.radiusKm + 0.5) {
+      slopeClosed(`Plan a tour outside the demo area around ${demo.name}`);
+      return setView({ lat: demo.lat, lon: demo.lon }, Math.max(zoom ?? map.zoom, 13));
+    }
+    return setView(center, zoom);
+  };
+  const fit = map.fit.bind(map);
+  map.fit = (points, ...rest) => {
+    if (S.demoReady && points.some((p) => demoKm(p.lat, p.lon) > demo.radiusKm + 0.5)) {
+      slopeClosed(`Plan a tour outside the demo area around ${demo.name}`);
+      return setView({ lat: demo.lat, lon: demo.lon }, 13);
+    }
+    return fit(points, ...rest);
+  };
+  document.documentElement.classList.add('demo');
+  const banner = document.createElement('p');
+  banner.className = 'demobanner';
+  banner.id = 'demoBanner';
+  // At the top of the map card, above its toolbar (the page is a two-column grid).
+  $('.tmapcard').insertAdjacentElement('afterbegin', banner);
+  renderDemoBanner();
+}
+function renderDemoBanner() {
+  const el = $('#demoBanner');
+  if (!el || !DEMO) return;
+  const st = S.demo?.status;
+  const fill = st && !st.ready
+    ? ` The area is downloaded a little each night: ${st.firstRingReady ? `the first ${DEMO.firstKm} km are ready, ` : ''}${Math.round((100 * st.stored) / Math.max(1, st.tiles))} % so far.`
+    : '';
+  el.innerHTML = `<strong>Demo:</strong> Plan a tour within ${DEMO.radiusKm} km of ${esc(DEMO.name)}.${fill} ` +
+    `Everything else — any other place, GPX in and out — is <span class="closedtag">open for premium skiers only</span>.`;
+}
+
 async function init() {
   initAvalancheTips?.();
   const getJson = (u) => fetch(u).then((r) => (r.ok ? r.json() : null)).catch(() => null);
-  const [meta, resorts, conditions] = await Promise.all([getJson('/api/meta'), getJson('/api/resorts'), getJson('/api/conditions')]);
+  const [meta, resorts, conditions] = await Promise.all([getJson('api/meta'), getJson('api/resorts'), getJson('api/conditions')]);
   S.regionsMeta = Object.fromEntries((meta?.regions ?? []).map((r) => [r.id, r]));
   S.tours = (meta?.tours ?? []).map((t) => ({ ...t, slug: t.slug ?? slugify(t.name) }));
   S.resorts = resorts?.resorts ?? [];
@@ -1807,6 +1863,16 @@ async function init() {
   const h = readHash();
   let view = null;
   try { view = JSON.parse(localStorage.getItem('fjallskred.terrain.view') ?? 'null'); } catch { /* none */ }
+  const who = await me();
+  let refused = null;
+  if (who.sneaky && who.demo) {
+    startDemo(who.demo);
+    const demoTour = S.tours.find((t) => t.name === who.demo.name);
+    if (h.tour && h.tour !== demoTour?.slug && h.tour !== demoTour?.name) { refused = `Plan a tour for ${h.tour}`; h.tour = null; }
+    if (h.points?.some(([lat, lon]) => demoKm(lat, lon) > DEMO.radiusKm + 0.5)) { refused = 'A route outside the demo area'; h.points = null; }
+    if (h.at && demoKm(h.at.lat, h.at.lon) > DEMO.radiusKm + 0.5) { refused = `Plan a tour around ${h.pin ?? 'that place'}`; h.at = null; }
+    if (!h.points?.length && !h.at) { h.tour ??= demoTour?.slug; view = null; }
+  }
   if (h.name) $('#rname').value = h.name;
   if (h.points?.length) {
     S.route = h.points;
@@ -1819,16 +1885,19 @@ async function init() {
   else if (view && Number.isFinite(view.lat)) map.setView(view, view.zoom);
   else if (S.tours.length) map.setView({ lat: S.tours[0].lat, lon: S.tours[0].lon }, 12);
   if (h.tour) loadTourRef(h.tour, { fit: !h.points?.length });
+  S.demoReady = true;
+  if (refused) slopeClosed(refused);
 
   const c = map.center();
   S.shade = nearest(c.lat, c.lon)?.item.country === 'SE' ? 'slope' : 'off';
   $('#lyrShade').value = S.shade;
   map.setLayer('nve', { opacity: S.opacity });
 
-  const zone = await getJson('/api/terrain/zone');
+  const zone = await getJson('api/terrain/zone');
   if (zone?.budget) S.budget = zone.budget;
   S.fine = zone?.fine ?? [];
   addPlaces(zone?.places);
+  if (S.demo) { S.demo.status = zone?.demo ?? null; renderDemoBanner(); }
   S.zoneLoaded = !!zone;
   S.sweden = zone?.sweden ?? null;
   S.lmError = zone?.lantmateriet?.enabled ? zone.lantmateriet.lastError : null;

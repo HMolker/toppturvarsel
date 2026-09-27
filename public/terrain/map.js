@@ -122,6 +122,11 @@ export class SlippyMap {
   render() {
     const W = this.W, H = this.H;
     if (!W || !H) return;
+    // A fence (v5.8: the demo area): clamp(center) -> a centre to use instead, or null.
+    if (this.clamp) {
+      const c = this.clamp(this.center());
+      if (c) { this.cx = mx(c.lon); this.cy = my(c.lat); }
+    }
     for (const l of this.layers) this.renderLayer(l);
 
     const dpr = window.devicePixelRatio || 1;

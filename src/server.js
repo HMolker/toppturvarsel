@@ -23,9 +23,14 @@ import { fetchForecast } from './sources/forecast.js';
 import { getDemTile, getRouteProfile, zoneInfo } from './dem.js';
 import { getRouteWeather } from './weather.js';
 import { searchPlaces, pickPlace } from './places.js';
+import { loadUsers, authEnabled, currentUser, login, logoutCookie } from './auth.js';
+import { loginPage, closedPage } from './authpages.js';
+import { demoArea, demoStatus, inDemo, tileInDemo, startDemoPrefetch } from './demo.js';
+import { getTile } from './tiles.js';
+import { getDemTile as demTileFetch } from './dem.js';
 
 const resortFc = new Map();
-import { serveTile } from './tiles.js';
+import { serveTile, overviewAllowed } from './tiles.js';
 import { slugify } from './util/gpx.js';
 import { log } from './util/log.js';
 
@@ -178,8 +183,25 @@ function readJsonBody(req, max = 65536) {
   });
 }
 
-async function handleApi(req, res, url) {
+// What only a premium login may use (v5.8); a sneaky one gets "slope closed".
+const PREMIUM_API = new Set(['/api/skill', '/api/places/pick', '/api/refresh', '/api/test-alert', '/api/track.gpx']);
+const closedJson = (res, what) => json(res, 403, { error: `Slope closed: ${what} is open for premium skiers only`, closed: true });
+
+async function handleApi(req, res, url, ctx = { user: null, sneaky: false }) {
   const route = url.pathname;
+  const sneaky = ctx.sneaky;
+
+  if (route === '/api/me') {
+    return json(res, 200, {
+      auth: authEnabled(),
+      user: ctx.user?.name ?? null,
+      role: ctx.user?.role ?? (authEnabled() ? null : 'premium'),
+      demo: sneaky ? await demoArea().catch(() => null) : null,
+    }, { 'Cache-Control': 'no-store' });
+  }
+  if (sneaky && PREMIUM_API.has(route)) {
+    return closedJson(res, { '/api/skill': 'forecast accuracy', '/api/places/pick': 'opening new areas', '/api/refresh': 'refreshing', '/api/test-alert': 'alerts', '/api/track.gpx': 'GPX download' }[route]);
+  }
 
   if (route === '/api/conditions') {
     const snapshot = await store.getSnapshot();
@@ -324,9 +346,9 @@ async function handleApi(req, res, url) {
   const dem = route.match(/^\/api\/dem\/(\d{1,2})\/(\d{1,6})\/(\d{1,6})$/);
   if (dem) {
     try {
-      return jsonz(req, res, 200, await getDemTile(+dem[1], +dem[2], +dem[3]), { 'Cache-Control': 'public, max-age=604800' });
+      return jsonz(req, res, 200, await getDemTile(+dem[1], +dem[2], +dem[3], { cachedOnly: sneaky }), { 'Cache-Control': sneaky ? 'private, max-age=3600' : 'public, max-age=604800' });
     } catch (err) {
-      return json(res, err.status ?? 502, { error: err.message });
+      return json(res, err.status ?? 502, { error: err.message, ...(err.closed ? { closed: true } : {}), ...(err.pending ? { pending: true } : {}) });
     }
   }
   // Place search (v5.6): Norway and Sweden, by name.
@@ -348,21 +370,30 @@ async function handleApi(req, res, url) {
     }
   }
   if (route === '/api/terrain/zone') {
-    return json(res, 200, await zoneInfo());
+    const z = await zoneInfo();
+    // The demo area and how much of it is stored (for everyone: premium sees it fill).
+    const demo = await demoStatus().catch(() => null);
+    return json(res, 200, { ...z, role: ctx.user?.role ?? (authEnabled() ? null : 'premium'), demo, ...(sneaky ? { places: [] } : {}) }, { 'Cache-Control': 'no-store' });
   }
   if (route === '/api/terrain/profile') {
     if (req.method !== 'POST') return json(res, 405, { error: 'POST a route: {"points": [[lat, lon], ...]}' });
     try {
-      return jsonz(req, res, 200, await getRouteProfile(await readJsonBody(req)));
+      return jsonz(req, res, 200, await getRouteProfile(await readJsonBody(req), { cachedOnly: sneaky }));
     } catch (err) {
-      return json(res, err.status ?? 502, { error: err.message });
+      return json(res, err.status ?? 502, { error: err.message, ...(err.closed ? { closed: true } : {}), ...(err.pending ? { pending: true } : {}) });
     }
   }
 
   if (route === '/api/terrain/weather') {
     if (req.method !== 'POST') return json(res, 405, { error: 'POST {"points": [[lat, lon, ele], ...]} (one or two points)' });
     try {
-      return jsonz(req, res, 200, await getRouteWeather(await readJsonBody(req, 4096)));
+      const body = await readJsonBody(req, 4096);
+      if (sneaky) {
+        for (const p of Array.isArray(body?.points) ? body.points : []) {
+          if (!(await inDemo(Number(p?.[0]), Number(p?.[1]), 0.5))) return closedJson(res, 'weather outside the demo area');
+        }
+      }
+      return jsonz(req, res, 200, await getRouteWeather(body));
     } catch (err) {
       return json(res, err.status ?? 502, { error: err.message });
     }
@@ -411,16 +442,16 @@ async function handleApi(req, res, url) {
     }
     if (route === '/api/slopes') {
       try {
-        return json(res, 200, await getSlopeGrid(tour), { 'Cache-Control': 'public, max-age=3600' });
+        return json(res, 200, await getSlopeGrid(tour, { cachedOnly: sneaky }), { 'Cache-Control': 'private, max-age=3600' });
       } catch (err) {
-        return json(res, 502, { error: 'slope grid unavailable', detail: err.message });
+        return json(res, err.status ?? 502, { error: 'slope grid unavailable', detail: err.message, ...(err.closed ? { closed: true } : {}), ...(err.pending ? { pending: true } : {}) });
       }
     }
     if (route === '/api/terrain') {
       try {
-        return json(res, 200, await getTerrain(tour));
+        return json(res, 200, await getTerrain(tour, { cachedOnly: sneaky }));
       } catch (err) {
-        return json(res, 502, { error: 'terrain unavailable', detail: err.message });
+        return json(res, err.status ?? 502, { error: 'terrain unavailable', detail: err.message, ...(err.closed ? { closed: true } : {}), ...(err.pending ? { pending: true } : {}) });
       }
     }
     if (route === '/api/photos') {
@@ -484,13 +515,104 @@ async function handleApi(req, res, url) {
   return json(res, 404, { error: 'unknown endpoint' });
 }
 
+/* ------------------------------------------------------------------ *
+ * logins (v5.8)
+ * ------------------------------------------------------------------ */
+
+// Open without a login: the login page itself and what it is drawn with.
+const PUBLIC = /^\/(login|logout|styles\.css|brand\/[\w.-]+|fonts\/[\w.-]+|api\/health)$/;
+
+function readForm(req, max = 4096) {
+  return new Promise((resolve, reject) => {
+    let size = 0;
+    const chunks = [];
+    req.on('data', (c) => {
+      size += c.length;
+      if (size <= max) chunks.push(c);
+    });
+    req.on('end', () => (size > max ? reject(Object.assign(new Error('too large'), { status: 413 })) : resolve(new URLSearchParams(Buffer.concat(chunks).toString('utf8')))));
+    req.on('error', reject);
+  });
+}
+/** Where to go after logging in: a path of this site, relative. */
+const safeNext = (n) => {
+  const v = String(n ?? '').replace(/^\/+/, '');
+  return /^[\w\-./?=&%#,]*$/.test(v) && !v.includes('..') && !v.startsWith('/') && !/^[a-z]+:/i.test(v) ? v : '';
+};
+const htmlHead = (res, status, extra = {}) => res.writeHead(status, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', ...extra });
+
+/**
+ * The login in front of everything. Returns { user, sneaky } to go on, or
+ * null when it has answered the request itself.
+ */
+async function gate(req, res, url) {
+  await loadUsers();
+  const p = url.pathname;
+  if (p === '/logout') {
+    res.writeHead(303, { 'Set-Cookie': logoutCookie(req), Location: 'login' });
+    res.end();
+    return null;
+  }
+  if (!authEnabled()) {
+    if (p === '/login') { res.writeHead(303, { Location: './' }); res.end(); return null; }
+    return { user: null, sneaky: false };
+  }
+  if (p === '/login') {
+    if (req.method === 'POST') {
+      let form;
+      try { form = await readForm(req); } catch { htmlHead(res, 413); res.end('too large'); return null; }
+      const next = safeNext(form.get('next'));
+      try {
+        const cookie = await login(req, form.get('username'), form.get('password'));
+        res.writeHead(303, { 'Set-Cookie': cookie, Location: next || './', 'Cache-Control': 'no-store' });
+        res.end();
+      } catch (err) {
+        htmlHead(res, err.status ?? 401);
+        res.end(loginPage({ next, error: err.message }));
+      }
+      return null;
+    }
+    htmlHead(res, 200);
+    res.end(loginPage({ next: safeNext(url.searchParams.get('next')) }));
+    return null;
+  }
+  const user = await currentUser(req);
+  if (!user) {
+    if (PUBLIC.test(p)) return { user: null, sneaky: false };
+    const wantsPage = (req.method === 'GET' || req.method === 'HEAD') && !p.startsWith('/api/') && !p.startsWith('/tiles/') && !/\.(js|css|png|json|woff2|svg|ico)$/.test(p);
+    if (wantsPage) {
+      // Relative, so it lands on the login page under /fjallskred/ too.
+      const depth = Math.max(0, p.split('/').length - 2);
+      res.writeHead(303, { Location: `${'../'.repeat(depth)}login?next=${encodeURIComponent(p.slice(1) + url.search)}`, 'Cache-Control': 'no-store' });
+      res.end();
+    } else {
+      json(res, 401, { error: 'log in first', login: true });
+    }
+    return null;
+  }
+  return { user, sneaky: user.role === 'sneaky' };
+}
+
 export function createServer() {
   return http.createServer(async (req, res) => {
     const url = new URL(req.url, `http://${req.headers.host ?? 'localhost'}`);
     try {
+      const ctx = await gate(req, res, url);
+      if (!ctx) return; // answered: the login page, a redirect, or 401
       const tile = url.pathname.match(/^\/tiles\/([a-z]{2,3})\/(\d{1,2})\/(\d{1,6})\/(\d{1,6})\.png$/);
       if (tile && (req.method === 'GET' || req.method === 'HEAD')) {
-        await serveTile(res, tile[1], +tile[2], +tile[3], +tile[4]);
+        if (ctx.sneaky && !overviewAllowed(tile[1], +tile[2], +tile[3], +tile[4]) && !(await tileInDemo(+tile[2], +tile[3], +tile[4]))) {
+          // A sneaky login sees the map of the demo area only.
+          res.writeHead(403, { 'Content-Type': 'text/plain', 'Cache-Control': 'no-store' });
+          res.end('slope closed: map outside the demo area');
+        } else await serveTile(res, tile[1], +tile[2], +tile[3], +tile[4]);
+      } else if (/^\/(terrain|skill|editor)\/$/.test(url.pathname)) {
+        // With a trailing slash the page's relative links would point one folder down.
+        res.writeHead(301, { Location: `../${url.pathname.slice(1, -1)}` });
+        res.end();
+      } else if (ctx.sneaky && (url.pathname === '/editor' || url.pathname === '/skill')) {
+        res.writeHead(403, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+        res.end(closedPage(url.pathname === '/editor' ? 'The tour editor' : 'Forecast accuracy'));
       } else if (url.pathname === '/editor' || url.pathname === '/editor/') {
         if (req.method === 'GET' || req.method === 'HEAD') await serveEditor(res);
         else json(res, 405, { error: 'method not allowed' });
@@ -503,7 +625,7 @@ export function createServer() {
         if (req.method === 'GET' || req.method === 'HEAD') await serveStatic(req, res, '/terrain.html');
         else json(res, 405, { error: 'method not allowed' });
       } else if (url.pathname.startsWith('/api/')) {
-        await handleApi(req, res, url);
+        await handleApi(req, res, url, ctx);
       } else if (req.method === 'GET' || req.method === 'HEAD') {
         await serveStatic(req, res, url.pathname);
       } else {
@@ -533,6 +655,9 @@ if (isMain) {
     startNightScan();
     // Keep every forecast and check it against what happened.
     startVerification();
+    // The Plan a tour demo area (v5.8): fetched ahead, a little each night.
+    startDemoPrefetch({ getDemTile: demTileFetch, getTile: (src, z, x, y) => getTile(src, z, x, y) });
+    loadUsers({ force: true }).catch((e) => log.warn(`auth: ${e.message}`));
     // Derive tour routes quietly in the background, one at a time.
     if ((process.env.TRACKS_WARMUP ?? 'true') !== 'false') {
       setTimeout(() => warmRoutes().catch((e) => log.warn(`tracks: warm-up failed: ${e.message}`)), 60000).unref();

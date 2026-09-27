@@ -337,6 +337,18 @@ rest of the world; at most `PLACES_DAILY` (30) new places a day and
 `PLACES_MAX` (300) in all, the least recently used dropped. They are kept in
 `data/cache/places-zones.json`; delete it to start over.
 
+## Logins: premium and sneaky (v5.8)
+
+Optional. List users in `data/auth/users.csv` (`username,kind,password`,
+or `node src/users-cli.js add premium anna`) and every page asks for a
+login. **Premium** users get everything. **Sneaky** users get the
+conditions, the trip planner, resorts and huts, and Plan a tour as a demo
+within 3 km of Harahorn, from terrain the server stored ahead (a little
+each night, nearest 1.5 km first). GPX, forecast accuracy, the tour editor
+and opening new areas answer *Slope closed — open for premium skiers only*,
+in the page and on the server. HTTPS comes from Caddy
+(`deploy/caddy/`), with the site at `/fjallskred/`. See INSTALL.md, 8b–8c.
+
 ## Trip planner
 
 "Where should I go in the coming days?" The planner ranks the tours for

@@ -3,6 +3,38 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v5.8.0 — logins (premium and sneaky), a Plan a tour demo, HTTPS with Caddy (2026-09-27)
+
+- **Logins**, from a list you keep: `data/auth/users.csv`, one user a line
+  (`username,kind,password`). Plain passwords are replaced by their scrypt
+  hash when the server reads the file. Without the file the site is open,
+  as before. Sessions are a signed cookie (30 days, HttpOnly, SameSite=Lax,
+  Secure over HTTPS); a new password or a removed line ends them. Five wrong
+  passwords in 15 minutes lock the name and the address for 15 minutes.
+  `node src/users-cli.js` adds users with made-up passwords, resets
+  passwords, changes kinds and removes users.
+- **Two kinds of user.** Premium: everything. Sneaky: the conditions map,
+  bulletins, snow, the tour list, trip planner, weather, resorts and huts,
+  and Plan a tour as a demo. The rest — GPX download, export and import,
+  forecast accuracy, the tour editor, place search that opens new areas,
+  Refresh now — answers with a popup: *Slope closed — open for premium
+  skiers only*. The server refuses them too, not just the page.
+- **The Plan a tour demo** for sneaky users: within 3 km of Harahorn, from
+  terrain the server has stored — never a new height. The map stops at the
+  edge; going elsewhere says "slope closed". The server downloads the area
+  a little each night (20 000 heights a night at most): the nearest 1.5 km
+  first, the rest over the next nights; the page shows how far it has come.
+  `DEMO_TOUR`, `DEMO_RADIUS_KM`, `DEMO_FIRST_KM`, `DEMO_DAILY_POINTS`, `DEMO`.
+- **Caddy with HTTPS** (`deploy/caddy/`): `/fjallskred/` and
+  `/molker-hemma/` on the DDNS name, a certificate that renews itself,
+  ports 80 and 443. Immich is left as it is.
+- **Works at a sub-path**: every link, script and API call in the pages is
+  relative, so the site runs under `/fjallskred/` as well as at the root.
+  `BASE_PATH` keeps the login cookie to that path.
+- The user and **Log out** in the header of every page.
+- Docker: mount `./data/auth` (in `docker-compose.yml`); create it with
+  owner 1000 (INSTALL.md, step 2).
+
 ## v5.7.5 — Plan a tour: problem slopes, reorder by dragging, a tour introduction, a better weather table, a scale (2026-09-25)
 
 - **Problem slopes 25°+**, a map layer with its own checkbox (on by

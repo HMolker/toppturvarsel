@@ -9,13 +9,18 @@ services:
     container_name: toppturvarsel
     restart: unless-stopped
     ports:
-      # Port on the Pi: set HOST_PORT in .env (kept across updates).
+      # Port on the Pi: set HOST_PORT in .env (kept across updates). Behind
+      # Caddy (deploy/caddy) use HOST_PORT=127.0.0.1:8095 so only Caddy
+      # reaches it and the router forwards 80/443, not this port.
       - "${HOST_PORT:-8080}:8080"
     env_file:
       - .env
     volumes:
       # Snapshots, alert ledger and history survive restarts and upgrades.
       - ./data/cache:/app/data/cache
+      # Logins (v5.8): users.csv, the list you keep, and the session key.
+      # Without users.csv the site is open as before.
+      - ./data/auth:/app/data/auth
       # Your own GPX files, one per tour slug; read-only is enough.
       - ./data/tracks:/app/data/tracks:ro
       # Your own photos, one folder per tour slug with a photos.json (made by

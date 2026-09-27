@@ -9,6 +9,7 @@ import { tileBounds, tileAllowed, pointAllowed, zoneBoxes } from './tiles.js';
 import { haversineKm } from './util/utm.js';
 import { log } from './util/log.js';
 import { placeZones } from './places.js';
+import { tileInDemo, inDemo } from './demo.js';
 import { glo30Usable, glo30Status } from './sources/glo30.js';
 
 /**
@@ -160,6 +161,52 @@ async function elevationsCached(points, country, { spacingM = 10 } = {}) {
  * DEM tiles
  * ------------------------------------------------------------------ */
 
+/** A stored DEM tile, however old; null if there is none. */
+async function readDemFile(z, x, y) {
+  try {
+    return JSON.parse(await readFile(path.resolve(config.dataDir, 'cache', 'dem', String(z), String(x), `${y}.json`), 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Heights from stored DEM tiles only (the finest stored zoom, bilinear), for
+ * a sneaky login's profiles. Throws "slope closed" where nothing is stored.
+ */
+export async function heightsFromStore(points) {
+  const memo = new Map();
+  const tile = async (z, x, y) => {
+    const k = `${z}/${x}/${y}`;
+    if (!memo.has(k)) memo.set(k, await readDemFile(z, x, y));
+    return memo.get(k);
+  };
+  const out = [];
+  for (const p of points) {
+    let v = null;
+    for (const z of [15, 14, 13, 12]) {
+      const n = 2 ** z;
+      const fx = ((p.lon + 180) / 360) * n;
+      const fy = ((1 - Math.log(Math.tan((p.lat * Math.PI) / 180) + 1 / Math.cos((p.lat * Math.PI) / 180)) / Math.PI) / 2) * n;
+      const x = Math.floor(fx), y = Math.floor(fy);
+      const t = await tile(z, x, y);
+      if (!t?.ele) continue;
+      const S = (t.n ?? DEM_N) - 1;
+      const gx = (fx - x) * S, gy = (fy - y) * S;
+      const i = Math.min(S - 1, Math.floor(gx)), j = Math.min(S - 1, Math.floor(gy));
+      const u = gx - i, w = gy - j;
+      const e = (a, b) => t.ele[b * (S + 1) + a];
+      const q = [e(i, j), e(i + 1, j), e(i, j + 1), e(i + 1, j + 1)];
+      if (q.some((c) => c === null)) continue;
+      v = (q[0] * (1 - u) + q[1] * u) * (1 - w) + (q[2] * (1 - u) + q[3] * u) * w;
+      break;
+    }
+    if (v === null) throw notYet('This part of the demo area is not downloaded yet: it fills in a little each night');
+    out.push(v);
+  }
+  return out;
+}
+
 const unmercY = (t) => (Math.atan(Math.sinh(Math.PI * (1 - 2 * t))) * 180) / Math.PI;
 
 /** The 17 × 17 sample points of a tile, row-major from its north-west corner. */
@@ -177,7 +224,11 @@ export function demPoints(z, x, y, n = DEM_N) {
 
 const demInflight = new Map();
 
-export async function getDemTile(z, x, y) {
+const closed = (msg) => Object.assign(new Error(msg), { status: 403, closed: true });
+// Inside the demo area but not stored yet: not "closed", just not there yet.
+const notYet = (msg) => Object.assign(new Error(msg), { status: 409, pending: true });
+
+export async function getDemTile(z, x, y, { cachedOnly = false } = {}) {
   if (!Number.isInteger(z) || z < DEM_MIN_Z || z > DEM_MAX_Z) {
     const e = new Error(`zoom ${z} outside ${DEM_MIN_Z}-${DEM_MAX_Z}`);
     e.status = 400;
@@ -191,6 +242,14 @@ export async function getDemTile(z, x, y) {
     throw e;
   }
   const key = `${z}/${x}/${y}`;
+  // A sneaky login (v5.8): the demo area, from what is stored, never a new height.
+  if (cachedOnly) {
+    // Quietly: the map asks for what it shows, and the edge of the view is outside.
+    if (!(await tileInDemo(z, x, y))) throw Object.assign(new Error('outside the demo area'), { status: 403, outside: true });
+    const t = await readDemFile(z, x, y);
+    if (!t) throw notYet('This part of the demo area is not downloaded yet: it fills in a little each night');
+    return t;
+  }
   if (demInflight.has(key)) return demInflight.get(key);
   const job = (async () => {
     const file = path.resolve(config.dataDir, 'cache', 'dem', String(z), String(x), `${y}.json`);
@@ -316,7 +375,7 @@ export function validateRoute(body) {
 
 const profileMemo = new Map();
 
-export async function getRouteProfile(body) {
+export async function getRouteProfile(body, { cachedOnly = false } = {}) {
   const v = validateRoute(body);
   if (v.error) {
     const e = new Error(v.error);
@@ -329,7 +388,10 @@ export async function getRouteProfile(body) {
     e.status = 403;
     throw e;
   }
-  const memoKey = createHash('sha1').update(JSON.stringify(v.points.map(pkey))).digest('hex');
+  if (cachedOnly) {
+    for (const p of v.points) if (!(await inDemo(p.lat, p.lon))) throw closed('Slope closed: routes outside the demo area are open for premium skiers only');
+  }
+  const memoKey = createHash('sha1').update(JSON.stringify(v.points.map(pkey))).digest('hex') + (cachedOnly ? ':stored' : '');
   const hit = profileMemo.get(memoKey);
   if (hit) return hit;
 
@@ -338,10 +400,12 @@ export async function getRouteProfile(body) {
   // Kartverket's 1 m / 10 m model and Lantmäteriet's 1 m model resolve a
   // 10 m cross; Copernicus is 90 m cells, so the cross must span them or
   // every slope reads flat.
-  const offsetM = country === 'NO' || lmEnabled() ? 10 : glo30Usable() ? 30 : 90;
+  const offsetM = cachedOnly ? 20 : country === 'NO' || lmEnabled() ? 10 : glo30Usable() ? 30 : 90;
   const { samples, spacing } = sampleRoute(v.points);
   const pts = crossPoints(samples, offsetM);
-  const { values, source, sources } = await elevationsCached(pts, country, { spacingM: offsetM });
+  const { values, source, sources } = cachedOnly
+    ? { values: await heightsFromStore(pts), source: 'stored demo terrain', sources: ['stored demo terrain'] }
+    : await elevationsCached(pts, country, { spacingM: offsetM });
 
   const out = samples.map((s, k) => {
     const [c, e, w, n, so] = values.slice(k * 5, k * 5 + 5);

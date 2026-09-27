@@ -2,7 +2,7 @@
  * What a drawn route crosses: distance, climb, time, how steep the ground
  * under it is, which way the steep parts face, and where they meet today's
  * avalanche problems. Pure functions over the server's route profile
- * (/api/terrain/profile), so they run the same in the browser and in tests.
+ * (api/terrain/profile), so they run the same in the browser and in tests.
  *
  * "Slope" here is always the slope of the TERRAIN under the route (the fall
  * line), not the route's own gradient: a skin track traversing a 38° face

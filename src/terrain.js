@@ -45,15 +45,17 @@ export function gridPoints(box, nx = NX, ny = NY) {
   return pts;
 }
 
-export async function getTerrain(tour) {
+export async function getTerrain(tour, { cachedOnly = false } = {}) {
   const slug = slugify(tour.name);
   const file = path.resolve(config.dataDir, 'cache', 'terrain', `${slug}.json`);
   try {
     const cached = JSON.parse(await readFile(file, 'utf8'));
-    if (Date.now() - new Date(cached.fetchedAt).getTime() < TTL) return cached;
+    // A sneaky login (v5.8) gets what is stored, however old, and never new heights.
+    if (cachedOnly || Date.now() - new Date(cached.fetchedAt).getTime() < TTL) return cached;
   } catch {
     /* not cached */
   }
+  if (cachedOnly) throw Object.assign(new Error('The terrain for this tour is not stored yet'), { status: 409, pending: true });
 
   const route = await getRoute(tour);
   const summit = route?.summit ?? { lat: tour.lat, lon: tour.lon };
@@ -105,15 +107,17 @@ export function slopeGridSize(box) {
  * contour grid. Up to 3600 points, so the first look at a tour costs about
  * 70 Kartverket requests (sent one after another), then nothing for 30 days.
  */
-export async function getSlopeGrid(tour) {
+export async function getSlopeGrid(tour, { cachedOnly = false } = {}) {
   const slug = slugify(tour.name);
   const file = path.resolve(config.dataDir, 'cache', 'slopes', `${slug}.json`);
   try {
     const cached = JSON.parse(await readFile(file, 'utf8'));
-    if (Date.now() - new Date(cached.fetchedAt).getTime() < SLOPE_TTL) return cached;
+    // A sneaky login (v5.8) gets what is stored, however old, and never new heights.
+    if (cachedOnly || Date.now() - new Date(cached.fetchedAt).getTime() < SLOPE_TTL) return cached;
   } catch {
     /* not cached */
   }
+  if (cachedOnly) throw Object.assign(new Error('The terrain for this tour is not stored yet'), { status: 409, pending: true });
   const route = await getRoute(tour);
   const summit = route?.summit ?? { lat: tour.lat, lon: tour.lon };
   const box = gridBox(route?.found ? route.points : [], summit);

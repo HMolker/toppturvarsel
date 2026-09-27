@@ -13,6 +13,7 @@ import { COUNTRIES, GROUPS, countryName, joinNames, normaliseSelection } from '.
 import { COAST, BORDER } from './geo.js';
 import { regionAreas } from './snowareas.js';
 import { attachPlaceSearch, pickPlace, kindName } from './placesearch.js';
+import './access.js';
 
 /* ------------------------------------------------------------------ *
  * state
@@ -82,8 +83,8 @@ const regionById = () => Object.fromEntries((state.snapshot?.regions ?? []).map(
 
 async function load() {
   const [condRes, alertRes] = await Promise.allSettled([
-    fetch('/api/conditions').then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))),
-    fetch('/api/alerts').then((r) => (r.ok ? r.json() : null)),
+    fetch('api/conditions').then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))),
+    fetch('api/alerts').then((r) => (r.ok ? r.json() : null)),
   ]);
 
   if (condRes.status === 'rejected') {
@@ -526,7 +527,7 @@ mainMap.on('move', () => {
 
 async function loadResorts() {
   try {
-    const r = await fetch('/api/resorts');
+    const r = await fetch('api/resorts');
     state.resorts = r.ok ? await r.json() : { resorts: [], sources: {}, error: `HTTP ${r.status}` };
   } catch (err) {
     state.resorts = { resorts: [], sources: {}, error: err.message };
@@ -574,7 +575,7 @@ async function loadHuts() {
   if (state.hutsLoading) return;
   state.hutsLoading = true;
   try {
-    const r = await fetch('/api/huts');
+    const r = await fetch('api/huts');
     const b = await r.json();
     state.huts = r.ok ? b : { places: [], error: b.detail ?? b.error ?? `HTTP ${r.status}` };
   } catch (err) {
@@ -720,7 +721,7 @@ function showPin() {
     b.textContent = 'Opening…';
     try {
       await pickPlace(p);
-      location.href = `/terrain#at=${p.lat.toFixed(5)},${p.lon.toFixed(5)},13&pin=${encodeURIComponent(p.name)}`;
+      location.href = `terrain#at=${p.lat.toFixed(5)},${p.lon.toFixed(5)},13&pin=${encodeURIComponent(p.name)}`;
     } catch (err) {
       b.disabled = false;
       b.textContent = 'Plan a tour here →';
@@ -829,7 +830,7 @@ $('#countryBar').addEventListener('click', (e) => {
 state.tracks = {};
 async function loadTracks() {
   try {
-    const r = await fetch('/api/tracks');
+    const r = await fetch('api/tracks');
     if (!r.ok) return;
     state.tracks = (await r.json()).tours ?? {};
     renderList();
@@ -1116,7 +1117,7 @@ function selectTour(name) {
       ? `<a class="btn" href="https://www.regobs.no/" target="_blank" rel="noopener">Regobs observations</a>`
       : '') +
     (reg.offMap ? '' : `<button class="btn" data-region="${esc(reg.id)}">Region overview</button>`) +
-    `<a class="btn" href="/terrain#tour=${encodeURIComponent(t.name)}" title="Slope and runout under the route, 3D, your own line">Plan this tour</a>` + `</div>` +
+    `<a class="btn" href="terrain#tour=${encodeURIComponent(t.name)}" title="Slope and runout under the route, 3D, your own line">Plan this tour</a>` + `</div>` +
     `</div></div>`;
 
   state.tourView = { route: null, terrain: null, photos: null, own: null, slopes: null };
@@ -1228,7 +1229,7 @@ function selectResort(id) {
     }, 1000);
     const ctl = new AbortController();
     const stop = setTimeout(() => ctl.abort(), 100000);
-    return fetch(`/api/resortmap?resort=${encodeURIComponent(id)}`, { signal: ctl.signal })
+    return fetch(`api/resortmap?resort=${encodeURIComponent(id)}`, { signal: ctl.signal })
       .then((res) => res.json().then((b) => (res.ok ? b : { error: b.detail ?? b.error ?? `HTTP ${res.status}` })))
       .catch((err) => ({ error: err.name === 'AbortError' ? 'no answer in 100 s' : err.message }))
       .then((m) => {
@@ -1249,14 +1250,14 @@ function selectResort(id) {
   };
   loadMap();
   // Snow at the resort's point, like a tour's; in simulation the nearest tour's depth sets the winter.
-  getJ(`/api/snowhistory?resort=${encodeURIComponent(id)}`).then((h) => still() && renderSnowHistory($('#snowHist'), h, tours[0]?.t ?? { snow: null }, 'the resort'));
+  getJ(`api/snowhistory?resort=${encodeURIComponent(id)}`).then((h) => still() && renderSnowHistory($('#snowHist'), h, tours[0]?.t ?? { snow: null }, 'the resort'));
   if (state.simulated) {
     // The simulation has no resort forecasts; the nearest tour's summit stands in, and says so.
     const near = tours[0]?.t;
     const fc = near ? state.outlook?.forecasts?.[near.name] : null;
     renderForecast($('#forecast'), fc ? { ...fc, place: `${near.name}, the nearest tour summit,` } : { error: 'not part of the simulation' });
   } else {
-    fetch(`/api/forecast?resort=${encodeURIComponent(id)}`)
+    fetch(`api/forecast?resort=${encodeURIComponent(id)}`)
       .then((res) => res.json().then((b) => (res.ok ? b : { error: b.detail ?? b.error ?? `HTTP ${res.status}` })))
       .catch((err) => ({ error: err.message }))
       .then((fc) => still() && renderForecast($('#forecast'), fc.error ? fc : { ...fc, place: 'the resort' }));
@@ -1322,7 +1323,7 @@ async function loadTourExtras(t, reg) {
       .then((r) => r.json().then((b) => (r.ok ? b : { error: b.detail ?? b.error ?? `HTTP ${r.status}`, ...b })))
       .catch((e) => ({ error: e.message }));
 
-  getJson(`/api/snowhistory?tour=${q}`).then((h) => still() && renderSnowHistory($('#snowHist'), h, t));
+  getJson(`api/snowhistory?tour=${q}`).then((h) => still() && renderSnowHistory($('#snowHist'), h, t));
   if (!state.huts) loadHuts();
 
   // Route, terrain and photos all feed the one map; repaint as each arrives.
@@ -1353,7 +1354,7 @@ async function loadTourExtras(t, reg) {
     }
   };
 
-  getJson(`/api/track?tour=${q}`).then((route) => {
+  getJson(`api/track?tour=${q}`).then((route) => {
     if (!still()) return;
     if (route.error && route.found === undefined) route = { found: false, reason: `Route lookup failed (${route.error}).` };
     view.route = route;
@@ -1361,23 +1362,23 @@ async function loadTourExtras(t, reg) {
     $('#routeMeta').innerHTML = routeSummary(route, t);
     paint();
   });
-  getJson(`/api/terrain?tour=${q}`).then((terrain) => {
+  getJson(`api/terrain?tour=${q}`).then((terrain) => {
     view.terrain = terrain;
     paint();
   });
-  getJson(`/api/photos?tour=${q}`).then((photos) => {
+  getJson(`api/photos?tour=${q}`).then((photos) => {
     view.photos = photos;
     paint();
   });
   // The fine grid for steepness is only worth fetching when there is a
   // bulletin with problems to shade.
   if (reg.bulletin?.problems?.length) {
-    getJson(`/api/slopes?tour=${q}`).then((slopes) => {
+    getJson(`api/slopes?tour=${q}`).then((slopes) => {
       view.slopes = slopes;
       paint();
     });
   }
-  getJson(`/api/own-photos?tour=${q}`).then((own) => {
+  getJson(`api/own-photos?tour=${q}`).then((own) => {
     view.own = own?.error ? null : own;
     paint();
   });
@@ -1385,7 +1386,7 @@ async function loadTourExtras(t, reg) {
     const fc = state.outlook?.forecasts?.[t.name];
     renderForecast($('#forecast'), fc ? { ...fc, simulated: true } : { error: 'not part of the simulation' }, t, state.outlook?.bulletins?.[t.region]);
   } else {
-    getJson(`/api/forecast?tour=${q}`).then((fc) => {
+    getJson(`api/forecast?tour=${q}`).then((fc) => {
       if (still()) renderForecast($('#forecast'), fc, t, state.outlook?.bulletins?.[t.region]);
     });
   }
@@ -1568,7 +1569,7 @@ function renderSources() {
 }
 
 // The running version, for the sources box: asked once per page load.
-fetch('/api/version')
+fetch('api/version')
   .then((r) => (r.ok ? r.json() : null))
   .catch(() => null)
   .then((v) => {
@@ -1655,7 +1656,7 @@ async function enterSimulation() {
   if (!regions?.length || !tours?.length) {
     // Nothing loaded yet (out of season, or the first refresh has not run):
     // the static lists are enough to invent a winter over.
-    const meta = await fetch('/api/meta').then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    const meta = await fetch('api/meta').then((r) => (r.ok ? r.json() : null)).catch(() => null);
     regions = meta?.regions ?? [];
     tours = meta?.tours ?? [];
   }
@@ -1715,7 +1716,7 @@ $('#refreshBtn').addEventListener('click', async (e) => {
   // real data.
   leaveSimulation();
   try {
-    await fetch('/api/refresh', { method: 'POST' });
+    await fetch('api/refresh', { method: 'POST' });
     await load();
   } catch {
     $('#freshTxt').textContent = 'refresh failed';
@@ -1797,7 +1798,7 @@ function initPlanner() {
 
 async function loadOutlook() {
   try {
-    const r = await fetch('/api/outlook');
+    const r = await fetch('api/outlook');
     state.outlook = r.ok ? await r.json() : { error: `HTTP ${r.status}` };
   } catch (err) {
     state.outlook = { error: err.message };

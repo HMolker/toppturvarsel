@@ -1,0 +1,53 @@
+# Caddy in front of the Pi's web apps (Fjällskred v5.8), with HTTPS.
+#
+#   https://tomtarochtroll.tplinkdns.com/fjallskred/    Fjällskred
+#   https://tomtarochtroll.tplinkdns.com/molker-hemma/  Molker hemma
+#   Immich stays where it is, on its own port.
+#
+# Caddy gets and renews the certificate by itself (Let's Encrypt, with
+# ZeroSSL as a fallback). It needs ports 80 and 443 forwarded to the Pi.
+# Settings come from deploy/caddy/.env (see .env.example there).
+
+{
+	email {$ACME_EMAIL}
+}
+
+{$SITE_HOST} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		X-Frame-Options SAMEORIGIN
+		-Server
+	}
+
+	# Fjällskred. handle_path takes /fjallskred off before passing the
+	# request on; the app's links are relative, so it works at a sub-path.
+	redir /fjallskred /fjallskred/ 308
+	handle_path /fjallskred/* {
+		reverse_proxy 127.0.0.1:{$FJALLSKRED_PORT}
+	}
+
+	# Molker hemma, the same way. If its pages use links from the root
+	# ("/api/…", "/style.css"), they break at a sub-path: see INSTALL.md,
+	# "Caddy", for what to do then.
+	redir /molker-hemma /molker-hemma/ 308
+	handle_path /molker-hemma/* {
+		reverse_proxy 127.0.0.1:{$MOLKER_HEMMA_PORT}
+	}
+
+	# The front door: a small page with the two.
+	handle {
+		root * /srv/www
+		file_server
+	}
+
+	log {
+		output file /data/access.log {
+			roll_size 10MiB
+			roll_keep 3
+		}
+	}
+}

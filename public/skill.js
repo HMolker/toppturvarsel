@@ -1,8 +1,9 @@
 import { COAST, BORDER } from './geo.js';
 import { esc } from './esc.js';
+import './access.js';
 
 /**
- * The forecast-accuracy tool (/skill): how well the forecast has done, by
+ * The forecast-accuracy tool (skill): how well the forecast has done, by
  * how far ahead it was made and by where.
  *
  * Everything on the page comes from /api/skill, which is built from the
@@ -412,7 +413,7 @@ function banner() {
 async function load() {
   let real = null;
   try {
-    const res = await fetch('/api/skill');
+    const res = await fetch('api/skill');
     real = res.ok ? await res.json() : null;
   } catch {
     /* offline: sample data still works */

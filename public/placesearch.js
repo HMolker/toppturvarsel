@@ -56,7 +56,7 @@ export function attachPlaceSearch(input, { local = () => [], onPick, country = n
         .join('');
     show(`${listHtml()}<div class="psnote">Searching Norway and Sweden…</div>`);
     try {
-      const r = await fetch(`/api/places?q=${encodeURIComponent(q)}${country ? `&country=${country}` : ''}`);
+      const r = await fetch(`api/places?q=${encodeURIComponent(q)}${country ? `&country=${country}` : ''}`);
       const body = await r.json();
       if (mine !== seq) return;
       if (!r.ok) throw new Error(body.error ?? `HTTP ${r.status}`);
@@ -101,7 +101,7 @@ export function attachPlaceSearch(input, { local = () => [], onPick, country = n
 
 /** Make a place part of the service area (Plan a tour can then be used there). */
 export async function pickPlace(place) {
-  const r = await fetch('/api/places/pick', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: place.id }) });
+  const r = await fetch('api/places/pick', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: place.id }) });
   const body = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(body.error ?? `HTTP ${r.status}`);
   return body.place;

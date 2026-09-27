@@ -73,7 +73,7 @@ export function renderRouteMap(el, { route, tour, country, terrain = null, photo
   for (let tx = t0x; tx <= t1x; tx++) {
     for (let ty = t0y; ty <= t1y; ty++) {
       tiles.push(
-        `<image href="/tiles/${src}/${f.z}/${tx}/${ty}.png" x="${(tx * TILE - f.x0).toFixed(1)}" y="${(ty * TILE - f.y0).toFixed(1)}" ` +
+        `<image href="tiles/${src}/${f.z}/${tx}/${ty}.png" x="${(tx * TILE - f.x0).toFixed(1)}" y="${(ty * TILE - f.y0).toFixed(1)}" ` +
           `width="${TILE}" height="${TILE}" preserveAspectRatio="none" onerror="this.remove()"/>`
       );
     }
@@ -325,7 +325,7 @@ export function routeSummary(route, tour) {
         ? `<p class="note">Profile from the elevations in your GPX file.</p>`
         : `<p class="note">Profile is a sketch from a 90 m terrain model, so summits and ridges are rounded off. ` +
           `Use it for distance and climb, not for slope angles; for those, see the Varsom slope-angle map.</p>`) +
-    `<div class="linkrow"><a class="btn" href="/api/track.gpx?tour=${encodeURIComponent(tour.name)}" download>Download GPX</a></div>`
+    `<div class="linkrow"><a class="btn" href="api/track.gpx?tour=${encodeURIComponent(tour.name)}" download>Download GPX</a></div>`
   );
 }
 
@@ -480,7 +480,7 @@ export function renderResortMap(el, { resort, data = null, country }) {
   const tiles = [];
   for (let tx = Math.floor(f.x0 / TS); tx <= Math.floor((f.x0 + W) / TS); tx++) {
     for (let ty = Math.floor(f.y0 / TS); ty <= Math.floor((f.y0 + H) / TS); ty++) {
-      tiles.push(`<image href="/tiles/${src}/${z}/${tx}/${ty}.png" x="${(tx * TS - f.x0).toFixed(1)}" y="${(ty * TS - f.y0).toFixed(1)}" width="${TS.toFixed(1)}" height="${TS.toFixed(1)}" preserveAspectRatio="none" onerror="this.remove()"/>`);
+      tiles.push(`<image href="tiles/${src}/${z}/${tx}/${ty}.png" x="${(tx * TS - f.x0).toFixed(1)}" y="${(ty * TS - f.y0).toFixed(1)}" width="${TS.toFixed(1)}" height="${TS.toFixed(1)}" preserveAspectRatio="none" onerror="this.remove()"/>`);
     }
   }
   const contourSvg = [];
@@ -695,7 +695,7 @@ export function renderPhotos(el, data, tour, mapEl, offset = 0) {
         (p, k) =>
           `<a class="photo" data-photo="${k + offset}" href="${esc(p.pageUrl)}" target="_blank" rel="noopener" title="Open on ${p.source === 'flickr' ? 'Flickr' : 'Wikimedia Commons'}">` +
           `<span class="photonumtag">${k + offset + 1}</span>` +
-          `<img src="/api/photo?tour=${q}&i=${p.i ?? k}" alt="${esc(p.title)}" loading="lazy" onerror="this.closest('.photo').classList.add('noimg')">` +
+          `<img src="api/photo?tour=${q}&i=${p.i ?? k}" alt="${esc(p.title)}" loading="lazy" onerror="this.closest('.photo').classList.add('noimg')">` +
           `<span class="photocap"><strong>${esc(p.from)}</strong>` +
           `<span>© ${esc(p.author)} · ${esc(p.license)}${p.date ? ` · ${esc(p.date)}` : ''}</span></span></a>`
       )
@@ -719,9 +719,9 @@ export function renderOwnPhotos(el, photos, tour, mapEl) {
     photos
       .map(
         (p, k) =>
-          `<a class="photo own" data-photo="${k}" href="/api/own-photo?tour=${q}&i=${p.i}" target="_blank" rel="noopener" title="Open full size">` +
+          `<a class="photo own" data-photo="${k}" href="api/own-photo?tour=${q}&i=${p.i}" target="_blank" rel="noopener" title="Open full size">` +
           `<span class="photonumtag">${k + 1}</span>` +
-          `<img src="/api/own-photo?tour=${q}&i=${p.i}" alt="${esc(p.caption || tour.name)}" loading="lazy" onerror="this.closest('.photo').classList.add('noimg')">` +
+          `<img src="api/own-photo?tour=${q}&i=${p.i}" alt="${esc(p.caption || tour.name)}" loading="lazy" onerror="this.closest('.photo').classList.add('noimg')">` +
           `<span class="photocap">${p.caption ? `<strong>${esc(p.caption)}</strong>` : ''}` +
           `<span>${[p.credit && `© ${esc(p.credit)}`, when(p.takenAt), p.located ? 'on the map' : 'no position']
             .filter(Boolean).join(' · ')}</span></span></a>`

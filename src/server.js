@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { config, loadRegions, loadTours, inSeason } from './config.js';
 import { store } from './store.js';
-import { refresh } from './refresh.js';
+import { refresh, completeSnapshot } from './refresh.js';
 import { evaluateAlerts, runAlerts } from './alerts.js';
 import { startScheduler } from './scheduler.js';
 import { findTour, getRoute, routeGpx, getForecast, warmRoutes, getPhotos, getPhotoThumb, trackStatuses } from './tracks.js';
@@ -204,7 +204,9 @@ async function handleApi(req, res, url, ctx = { user: null, sneaky: false }) {
   }
 
   if (route === '/api/conditions') {
-    const snapshot = await store.getSnapshot();
+    // With the regions and tours an update added since this snapshot (v6.0.2).
+    const [stored, regions, tours] = await Promise.all([store.getSnapshot(), loadRegions(), loadTours()]);
+    const snapshot = completeSnapshot(stored, regions, tours);
     if (!snapshot) {
       return json(res, 503, {
         error: 'no snapshot yet',

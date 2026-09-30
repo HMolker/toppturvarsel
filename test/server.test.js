@@ -68,8 +68,11 @@ test('GET /api/conditions returns the stored snapshot', async () => {
     const res = await fetch(`${base}/api/conditions`);
     assert.equal(res.status, 200);
     const body = await res.json();
-    assert.equal(body.regions.length, 2);
+    // The stored regions as they were, plus every region the data lists (v6.0.2).
+    const { loadRegions } = await import('../src/config.js');
+    assert.equal(body.regions.length, (await loadRegions()).length);
     assert.equal(body.regions[0].bulletin.danger, 3);
+    assert.ok(body.regions.some((r) => r.country === 'CH'));
   });
 });
 

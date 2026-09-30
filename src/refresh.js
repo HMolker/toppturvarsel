@@ -201,6 +201,43 @@ function bulletinUrl(region) {
   return `https://www.lavinprognoser.se/oversikt-alla-omraden/${region.slug}/`;
 }
 
+const emptyRegion = (r) => ({
+  id: r.id,
+  name: r.name,
+  country: r.country,
+  lat: r.lat,
+  lon: r.lon,
+  offMap: r.offMap ?? false,
+  bulletinUrl: bulletinUrl(r),
+  bulletin: { danger: null, assessed: false, outOfSeason: true },
+  snow: null,
+  observations: null,
+  observationSummary: null,
+});
+
+/**
+ * A stored snapshot, with the regions and tours added since it was made
+ * (v6.0.2). An update that adds a country or a tour must show it at once,
+ * not after the next refresh — which, out of season, is not until November.
+ * Removed ones are dropped; nothing already read is touched.
+ */
+export function completeSnapshot(snapshot, regions, tours) {
+  if (!snapshot) return snapshot;
+  const regionIds = new Set(regions.map((r) => r.id));
+  const tourNames = new Set(tours.map((t) => t.name));
+  const haveRegions = new Set((snapshot.regions ?? []).map((r) => r.id));
+  const haveTours = new Set((snapshot.tours ?? []).map((t) => t.name));
+  const newRegions = regions.filter((r) => !haveRegions.has(r.id));
+  const newTours = tours.filter((t) => !haveTours.has(t.name));
+  const gone = (snapshot.regions ?? []).some((r) => !regionIds.has(r.id)) || (snapshot.tours ?? []).some((t) => !tourNames.has(t.name));
+  if (!newRegions.length && !newTours.length && !gone) return snapshot;
+  return {
+    ...snapshot,
+    regions: [...(snapshot.regions ?? []).filter((r) => regionIds.has(r.id)), ...newRegions.map(emptyRegion)],
+    tours: [...(snapshot.tours ?? []).filter((t) => tourNames.has(t.name)), ...newTours.map((t) => ({ ...t, snow: null }))],
+  };
+}
+
 function emptySnapshot(regions, tours, date, status) {
   return {
     fetchedAt: new Date().toISOString(),
@@ -208,19 +245,7 @@ function emptySnapshot(regions, tours, date, status) {
     season: inSeason(date),
     status,
     sources: {},
-    regions: regions.map((r) => ({
-      id: r.id,
-      name: r.name,
-      country: r.country,
-      lat: r.lat,
-      lon: r.lon,
-      offMap: r.offMap ?? false,
-      bulletinUrl: bulletinUrl(r),
-      bulletin: { danger: null, assessed: false, outOfSeason: true },
-      snow: null,
-      observations: null,
-      observationSummary: null,
-    })),
+    regions: regions.map(emptyRegion),
     tours: tours.map((t) => ({ ...t, snow: null })),
   };
 }

@@ -202,3 +202,19 @@ test('force overrides the season gate', async () => {
   });
   assert.equal(snap.status, 'ok');
 });
+
+test('a snapshot from before an update shows the regions and tours added since (v6.0.2)', async () => {
+  const { completeSnapshot } = await import('../src/refresh.js');
+  const regions = [{ id: 'lyngen', name: 'Lyngen', country: 'NO', lat: 69.6, lon: 20.1 }, { id: 'ch-4222', name: 'Zermatt', country: 'CH', slfRegion: 'CH-4222', lat: 45.99, lon: 7.73 }];
+  const tours = [{ name: 'A', region: 'lyngen' }, { name: 'Breithorn (Zermatt)', region: 'ch-4222' }];
+  const old = { fetchedAt: '2026-05-01T06:00:00Z', status: 'ok', regions: [{ id: 'lyngen', bulletin: { danger: 2 } }, { id: 'gone', bulletin: {} }], tours: [{ name: 'A', snow: { depthCm: 80 } }] };
+  const snap = completeSnapshot(old, regions, tours);
+  assert.deepEqual(snap.regions.map((r) => r.id), ['lyngen', 'ch-4222']);
+  assert.equal(snap.regions[0].bulletin.danger, 2, 'what was read is kept');
+  assert.equal(snap.regions[1].country, 'CH');
+  assert.equal(snap.regions[1].bulletin.danger, null);
+  assert.match(snap.regions[1].bulletinUrl, /slf\.ch/);
+  assert.deepEqual(snap.tours.map((t) => t.name), ['A', 'Breithorn (Zermatt)']);
+  assert.equal(snap.tours[0].snow.depthCm, 80);
+  assert.equal(completeSnapshot(snap, regions, tours), snap, 'nothing to add: the same object');
+});

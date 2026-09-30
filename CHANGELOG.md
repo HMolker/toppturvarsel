@@ -3,6 +3,14 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v6.0.2 — new countries and tours show at once after an update (2026-09-30)
+
+- Fix: after updating to v6, Switzerland was missing from the country bar
+  until the next refresh — and out of season the scheduler does not refresh
+  until November. The conditions page now adds the regions and tours the
+  data lists that the stored snapshot does not know yet (empty until the
+  next refresh), and drops removed ones; nothing already read is touched.
+
 ## v6.0.1 — the setup as it runs, and a check of the live sources (2026-09-30)
 
 - **Caddy with DuckDNS** in `deploy/caddy`: the compose file now runs the

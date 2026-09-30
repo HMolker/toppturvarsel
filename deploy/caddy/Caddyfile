@@ -1,7 +1,7 @@
 # Caddy in front of the Pi's web apps (Fjällskred v5.8), with HTTPS.
 #
-#   https://tomtarochtroll.tplinkdns.com/fjallskred/    Fjällskred
-#   https://tomtarochtroll.tplinkdns.com/molker-hemma/  Molker hemma
+#   https://tomtarochtroll.duckdns.org/fjallskred/    Fjällskred
+#   https://tomtarochtroll.duckdns.org/molker-hemma/  Molker hemma
 #   Immich stays where it is, on its own port.
 #
 # Caddy gets and renews the certificate by itself (Let's Encrypt, with

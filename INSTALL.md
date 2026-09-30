@@ -220,34 +220,52 @@ docker compose exec toppturvarsel node src/users-cli.js remove olle
   Delete it to log everyone out. Neither file is ever in git.
 - To turn logins off again, move `users.csv` away.
 
-## 8c. HTTPS with Caddy (v5.8)
+## 8c. HTTPS with Caddy and DuckDNS
 
-Caddy sits in front on ports 80 and 443, gets a certificate for your
-`…tplinkdns.com` name by itself and keeps it renewed, and passes each
-path to its app:
+Caddy sits in front on ports 80 and 443, gets a certificate by itself and
+keeps it renewed, and passes each path to its app:
 
-- `https://<name>.tplinkdns.com/fjallskred/` → Fjällskred
-- `https://<name>.tplinkdns.com/molker-hemma/` → Molker hemma
-- `https://<name>.tplinkdns.com/` → a small page with the two
-- Immich stays as it is, on its own port.
+- `https://<name>.duckdns.org/fjallskred/` → Fjällskred
+- `https://<name>.duckdns.org/molker-hemma/` → Molker hemma
+- `https://<name>.duckdns.org/` → a small page with the two
+- Immich stays as it is, on the router's name and its own port.
+
+**Why DuckDNS and not the router's tplinkdns.com name.** TP-Link's name
+servers answer "no such name" (NXDOMAIN) when asked for the name's IPv6
+address, although the IPv4 address works. Browsers do not mind, but Let's
+Encrypt and ZeroSSL then refuse the certificate ("DNS problem: NXDOMAIN
+looking up A…"), every time. DuckDNS is free, answers correctly, and a small
+container keeps it pointing at the home connection when the address changes,
+just as the router does for its name. The router's name stays for Immich.
 
 1. **Router**: forward external port **80** and **443** (TCP) to the Pi,
-   same internal ports, next to the existing Immich rule (see 8). Nothing
-   else on the Pi may use 80 or 443. The Fjällskred rule for 8095 can go
-   once Caddy works.
-2. **Caddy**, in a folder of its own:
+   same internal ports, next to the existing Immich rule (see 8; on a
+   Swedish-language router the page is *NAT-omdirigering →
+   Portvidarebefordran*). Nothing else on the Pi may use 80 or 443.
+2. **DuckDNS**: sign in at [duckdns.org](https://www.duckdns.org) (GitHub or
+   Google), add a subdomain (e.g. `tomtarochtroll`) and note the token at the
+   top of the page. Spell the name exactly: it is `.duckdns.org`, not `.com`.
+3. **Caddy and the updater**, in a folder of their own:
 
    ```bash
    mkdir -p ~/apps/caddy
-   cp -r ~/apps/fjallskred/deploy/caddy/. ~/apps/caddy/
+   cp -r ~/apps/toppturvarsel/deploy/caddy/. ~/apps/caddy/
    cd ~/apps/caddy
    cp .env.example .env
-   nano .env        # SITE_HOST, ACME_EMAIL, FJALLSKRED_PORT=8095, MOLKER_HEMMA_PORT
+   nano .env                 # SITE_HOST=<name>.duckdns.org, ACME_EMAIL, FJALLSKRED_PORT=8095, MOLKER_HEMMA_PORT
+   cp duckdns.env.example duckdns.env
+   nano duckdns.env          # SUBDOMAINS=<name>, TOKEN=<from duckdns.org>
+   chmod 600 duckdns.env
    docker compose up -d
-   docker compose logs -f     # wait for "certificate obtained successfully"
+   docker compose logs duckdns | tail -3     # "… successful"
+   docker compose logs -f caddy              # wait for "certificate obtained successfully", then Ctrl+C
    ```
 
-3. **Fjällskred**, in `~/apps/fjallskred/.env`:
+   `logs -f` follows the log until Ctrl+C; Caddy keeps running. To check the
+   name from the Pi: `docker run --rm busybox nslookup <name>.duckdns.org 8.8.8.8`
+   should give your address, and the same with `-type=AAAA` must not say
+   NXDOMAIN.
+4. **Fjällskred**, in `~/apps/toppturvarsel/.env`:
 
    ```
    HOST_PORT=127.0.0.1:8095
@@ -258,9 +276,9 @@ path to its app:
    then `docker compose up -d`. `127.0.0.1:` makes the port reachable only
    by Caddy on the Pi itself; leave it out to also keep
    `http://<pi-ip>:8095` on your own network (then set `TRUST_PROXY=false`
-   if you ever forward 8095 again).
-4. Open `https://<name>.tplinkdns.com/fjallskred/` from your phone on
-   mobile data.
+   if you ever forward 8095 again). The router rule for 8095 can go.
+5. Open `https://<name>.duckdns.org/fjallskred/` from your phone on mobile
+   data.
 
 **Molker hemma at a sub-path.** Caddy strips `/molker-hemma` before passing
 a request on, so the app sees the paths it always has. That works if its
@@ -270,11 +288,38 @@ it its own name instead of a path (a second DDNS name or a subdomain, with
 its own `… { reverse_proxy 127.0.0.1:<port> }` block in the Caddyfile), or
 change its links to relative ones. Its own login is untouched.
 
-**If the certificate fails**: check that 80 and 443 reach the Pi (the
-error in the log names the one that did not), and that `SITE_HOST` is the
-DDNS name exactly. Caddy retries by itself, first with Let's Encrypt and
-then ZeroSSL; `data/` in the Caddy folder keeps the certificates between
-restarts.
+**If the certificate fails**, the log says why:
+`docker compose logs caddy | grep -iE "obtained|failed" | tail -5`.
+
+- *DNS problem: NXDOMAIN*: the name does not resolve properly — a typo in
+  `SITE_HOST` (`.com` for `.org`), or a DDNS service with the IPv6 fault above.
+- *Invalid response from http://…* naming some other site: `SITE_HOST` points
+  at someone else's name.
+- *timeout* or *connection refused*: port 80 or 443 does not reach the Pi.
+
+Caddy retries by itself, first with Let's Encrypt and then ZeroSSL; after a
+fix, `docker compose up -d --force-recreate caddy` tries at once. `data/` in
+the Caddy folder keeps the certificates between restarts. The harmless line
+"failed to sufficiently increase receive buffer size" is about HTTP/3 speed
+and can be ignored.
+
+## 8d. Are the sources still answering? (v6.0.1)
+
+One command asks each source once — Varsom, lavinprognoser.se, seNorge,
+SLF's bulletin and stations, swisstopo, Open-Meteo, MET Norway — and says
+whether it answers the way the code reads it:
+
+```bash
+cd ~/apps/toppturvarsel
+docker compose exec toppturvarsel node src/check-sources.js
+```
+
+`OK` is fine; `WARN` answers but needs a look (the line says what and where);
+`FAIL` is down or has changed shape. Nothing is stored or sent. Worth
+running after an update, when SLF's season starts (usually November), and
+on **11 December**, when the first Swedish bulletin of the winter tests the
+scraper: if the Swedish line says WARN then, the page has changed and
+`src/sources/lavinprognoser.js` needs a small fix.
 
 ## 9. Everyday use
 

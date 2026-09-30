@@ -3,6 +3,21 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v6.0.1 — the setup as it runs, and a check of the live sources (2026-09-30)
+
+- **Caddy with DuckDNS** in `deploy/caddy`: the compose file now runs the
+  DuckDNS updater next to Caddy (`duckdns.env`, never in git), and the
+  examples use `<name>.duckdns.org`. INSTALL.md 8c explains why the router's
+  tplinkdns.com name cannot get a certificate (its name servers answer
+  NXDOMAIN to IPv6 lookups) and what each certificate error in the log means.
+- **`node src/check-sources.js`**: asks each upstream once — Varsom,
+  lavinprognoser.se, seNorge, SLF's bulletin, stations and daily snow,
+  swisstopo's tiles, Open-Meteo, MET Norway — and prints OK / WARN / FAIL
+  with where to look. It checks that every Swiss region gets a danger level
+  from SLF's feed and every Swiss tour a station within 25 km, and warns if
+  the Swedish page cannot be read during the season (from 11 December).
+  INSTALL.md 8d.
+
 ## v6.0.0 — Switzerland (2026-09-30)
 
 The first country outside the Nordics, and the first step of the European

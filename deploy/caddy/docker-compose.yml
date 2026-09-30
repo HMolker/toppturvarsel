@@ -1,10 +1,12 @@
-# Caddy for the Pi (Fjällskred v5.8): HTTPS in front of Fjällskred and
-# Molker hemma. Its own folder and compose file, since it serves more than
-# one app:
+# Caddy for the Pi: HTTPS in front of Fjällskred and Molker hemma, plus the
+# DuckDNS updater that keeps the name pointing at the home connection
+# (v6.0.1: this is the setup that runs; see INSTALL.md, 8c).
 #
-#   mkdir -p ~/apps/caddy && cp Caddyfile docker-compose.yml .env.example ~/apps/caddy/
-#   cp -r www ~/apps/caddy/ && cd ~/apps/caddy && cp .env.example .env && nano .env
-#   docker compose up -d && docker compose logs -f
+#   mkdir -p ~/apps/caddy && cp -r ~/apps/toppturvarsel/deploy/caddy/. ~/apps/caddy/
+#   cd ~/apps/caddy
+#   cp .env.example .env && nano .env                     # SITE_HOST, ACME_EMAIL, ports
+#   cp duckdns.env.example duckdns.env && nano duckdns.env && chmod 600 duckdns.env
+#   docker compose up -d && docker compose logs -f caddy  # wait for "certificate obtained"
 #
 # network_mode: host lets Caddy take ports 80 and 443 on the Pi and reach
 # the apps on 127.0.0.1:<port>, however they are started.
@@ -23,3 +25,12 @@ services:
       # every start and runs into Let's Encrypt's limits.
       - ./data:/data
       - ./config:/config
+
+  # Tells DuckDNS the home connection's address every 5 minutes, as the
+  # router does for its own DDNS name. The token stays in duckdns.env.
+  duckdns:
+    image: lscr.io/linuxserver/duckdns:latest
+    container_name: duckdns
+    restart: unless-stopped
+    env_file:
+      - duckdns.env

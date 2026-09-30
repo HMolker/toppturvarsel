@@ -2,6 +2,8 @@ import { loadRegions, loadTours, inSeason, config } from './config.js';
 import { fetchNorwegianBulletins } from './sources/varsom.js';
 import { fetchSwedishBulletins } from './sources/lavinprognoser.js';
 import { fetchSnowForPoints, summariseByRegion } from './sources/senorge.js';
+import { fetchSwissBulletins, SLF_PAGE } from './sources/slf.js';
+import { fetchSwissSnow } from './sources/slfsnow.js';
 import { fetchObservationCounts } from './sources/regobs.js';
 import { store } from './store.js';
 import { cachedRouteStart } from './tracks.js';
@@ -35,13 +37,16 @@ export async function refresh({
   // flagged as such, and carrying the grid cell's altitude so a reading
   // taken low down is visible as a low-altitude reading rather than passed
   // off as a summit depth.
-  const tourPoints = tours.map((t) => ({ key: t.name, lat: t.lat, lon: t.lon }));
+  const countryOf = Object.fromEntries(regions.map((r) => [r.id, r.country]));
+  // Heights help the Swiss snow source pick a station at the right level;
+  // seNorge ignores them.
+  const tourPoints = tours.map((t) => ({ key: t.name, lat: t.lat, lon: t.lon, country: countryOf[t.region], ele: Number.isFinite(t.summit_m) ? t.summit_m - 0.4 * (t.vertical_m ?? 0) : undefined }));
   // Where a route is known, also sample its start: the trip planner uses it
   // to say "skiable from the car" or "carry skis".
   const startPoints = [];
   for (const t of tours) {
     const s = await cachedRouteStart(t).catch(() => null);
-    if (s) startPoints.push({ key: `start:${t.name}`, ...s });
+    if (s) startPoints.push({ key: `start:${t.name}`, country: countryOf[t.region], ele: Number.isFinite(t.summit_m) ? t.summit_m - (t.vertical_m ?? 0) : undefined, ...s });
   }
   const regionsWithoutTours = regions.filter(
     (r) => !r.offMap && !tours.some((t) => t.region === r.id)
@@ -50,9 +55,14 @@ export async function refresh({
     key: `region:${r.id}`,
     lat: r.lat,
     lon: r.lon,
+    country: r.country,
   }));
+  // seNorge's grid covers Norway and the Swedish mountains; Switzerland has SLF's stations (v6).
+  const allPoints = [...tourPoints, ...startPoints, ...fallbackPoints];
+  const nordicPoints = allPoints.filter((p) => p.country !== 'CH');
+  const swissPoints = allPoints.filter((p) => p.country === 'CH');
 
-  const [norway, sweden, snowByTour, observations] = await Promise.all([
+  const [norway, sweden, switzerland, nordicSnow, swissSnow, observations] = await Promise.all([
     fetchNorwegianBulletins(regions, { date }).catch((e) => {
       log.error(`varsom failed wholesale: ${e.message}`);
       return {};
@@ -61,8 +71,16 @@ export async function refresh({
       log.error(`lavinprognoser failed wholesale: ${e.message}`);
       return {};
     }),
-    fetchSnowForPoints([...tourPoints, ...startPoints, ...fallbackPoints], { date }).catch((e) => {
+    fetchSwissBulletins(regions).catch((e) => {
+      log.error(`slf failed wholesale: ${e.message}`);
+      return {};
+    }),
+    fetchSnowForPoints(nordicPoints, { date }).catch((e) => {
       log.error(`senorge failed wholesale: ${e.message}`);
+      return {};
+    }),
+    fetchSwissSnow(swissPoints).catch((e) => {
+      log.error(`slf snow failed wholesale: ${e.message}`);
       return {};
     }),
     fetchObservationCounts(regions).catch((e) => {
@@ -71,12 +89,13 @@ export async function refresh({
     }),
   ]);
 
+  const snowByTour = { ...nordicSnow, ...swissSnow };
   const snowByRegion = summariseByRegion(snowByTour, tours);
 
   const regionRows = regions.map((region) => {
     const bulletin = region.noForecast
       ? { source: 'none', noForecast: true, assessed: false, danger: null, headline: 'No avalanche forecast is issued for this area.' }
-      : region.country === 'NO' ? norway[region.id] : sweden[region.id];
+      : { NO: norway, SE: sweden, CH: switzerland }[region.country]?.[region.id];
 
     let snow = snowByRegion[region.id] ?? null;
     if (!snow) {
@@ -143,9 +162,15 @@ export async function refresh({
         scraped: true,
       },
       senorge: {
-        ok: Object.values(snowByTour).some((s) => s && !s.error),
-        points: Object.keys(snowByTour).length,
+        ok: Object.values(nordicSnow).some((s) => s && !s.error),
+        points: Object.keys(nordicSnow).length,
       },
+      ...(swissPoints.length
+        ? {
+            slf: { ok: Object.keys(switzerland).length > 0 && Object.values(switzerland).some((b) => !b.error), regions: Object.keys(switzerland).length },
+            slfSnow: { ok: Object.values(swissSnow).some((s) => s && !s.error), points: Object.keys(swissSnow).length },
+          }
+        : {}),
       regobs: {
         enabled: observations.counts
           ? Object.values(observations.counts).some((o) => o.enabled)
@@ -172,6 +197,7 @@ function bulletinUrl(region) {
   if (region.country === 'NO') {
     return `https://www.varsom.no/en/snow/forecast/warning/${encodeURIComponent(region.name.replace(/ \(Svalbard\)$/, ''))}/`;
   }
+  if (region.country === 'CH') return SLF_PAGE;
   return `https://www.lavinprognoser.se/oversikt-alla-omraden/${region.slug}/`;
 }
 

@@ -90,8 +90,16 @@ function tileCountry(z, x, y) {
   }
   return countryMemo.get(k);
 }
-const topoUrl = (z, x, y) => (tileInZone(z, x, y) ? `tiles/${tileCountry(z, x, y) === 'SE' ? 'se' : 'no'}/${z}/${x}/${y}.png` : null);
-const nveUrl = (z, x, y) => (tileInZone(z, x, y) && tileCountry(z, x, y) === 'NO' ? `tiles/nve/${z}/${x}/${y}.png` : null);
+// The topo map and the official slope map, by country: Kartverket and NVE in
+// Norway, OpenTopoMap in Sweden (no official slope map), swisstopo's map and
+// its "slope over 30°" in Switzerland (v6).
+const TOPO = { SE: 'se', CH: 'ch' };
+const SLOPEMAP = { NO: 'nve', CH: 'chs' };
+const topoUrl = (z, x, y) => (tileInZone(z, x, y) ? `tiles/${TOPO[tileCountry(z, x, y)] ?? 'no'}/${z}/${x}/${y}.png` : null);
+const nveUrl = (z, x, y) => {
+  const src = tileInZone(z, x, y) && SLOPEMAP[tileCountry(z, x, y)];
+  return src ? `tiles/${src}/${z}/${x}/${y}.png` : null;
+};
 
 /** The avalanche region for a point: the region of the nearest tour. */
 function regionAt(lat, lon) {
@@ -632,7 +640,7 @@ function renderPanel({ loading = false } = {}) {
   else {
     const b = w.bulletin;
     prob += `<p>${esc(w.name)}${b?.danger ? ` — ${dangerChip(b.danger)}` : ''} ${b?.problems?.length ? problemIcons(b.problems, { danger: b.danger, size: 22 }) : ''}<br><span class="note">region of the nearest tour, ${esc(w.tour)} (${w.km.toFixed(0)} km)</span></p>`;
-    if (!b) prob += `<p class="note">No bulletin today${w.country === 'SE' ? ' (Swedish forecasts run from 11 December)' : ' (out of season, or not yet loaded)'} — nothing to test the route against.</p>`;
+    if (!b) prob += `<p class="note">No bulletin today${w.country === 'SE' ? ' (Swedish forecasts run from 11 December)' : w.country === 'CH' ? ' (SLF publishes from late autumn to spring)' : ' (out of season, or not yet loaded)'} — nothing to test the route against.</p>`;
     else if (!b.problems?.length) prob += `<p class="okline">The bulletin names no avalanche problems.</p>`;
     else if (!a.problemSections.length) prob += `<p class="okline">No 30°+ ground on the route faces today's problem aspects at their heights.</p>`;
     else {
@@ -968,8 +976,8 @@ async function loadAreaGrid(box, what, { cellM = 45, maxTiles = null } = {}) {
   const country = nearest(c.lat, c.lon)?.item.country;
   await refreshBudget(); // is Lantmäteriet (or GLO-30) answering right now?
   const fineHere = S.fine.includes(country);
-  // Sweden on Open-Meteo's 90 m heights: fewer, coarser tiles.
-  const coarse = country === 'SE' && !fineHere;
+  // Sweden or Switzerland on Open-Meteo's 90 m heights: fewer, coarser tiles.
+  const coarse = (country === 'SE' || country === 'CH') && !fineHere;
   let r = null;
   for (let z = coarse ? DEM_MAX_Z - 1 : DEM_MAX_Z; z >= DEM_MIN_Z; z--) {
     r = tileRange(box, z);
@@ -1581,6 +1589,7 @@ async function refreshBudget() {
     if (z?.budget) S.budget = z.budget;
     if (Array.isArray(z?.fine)) S.fine = z.fine;
     if (z?.sweden) S.sweden = z.sweden;
+    if (z?.switzerland) S.switzerland = z.switzerland;
     S.lmError = z?.lantmateriet?.enabled ? z.lantmateriet.lastError : null;
     updateStatus();
   } catch { /* not important */ }
@@ -1615,6 +1624,9 @@ function renderLegend() {
   if (S.nve && country === 'NO') {
     parts.push(`<div class="legend-row"><span class="eyebrow">NVE</span><span>slope from 27° in green, then yellow → red → purple → black to 50°+; avalanche runout zones in three blues (short, medium, long)</span></div>`);
   }
+  if (S.nve && country === 'CH') {
+    parts.push(`<div class="legend-row"><span class="eyebrow">swisstopo</span><span>slope over 30° in four classes: 30–35°, 35–40°, 40–45° and steeper (no runout zones: those are Norway's NVE map only)</span></div>`);
+  }
   if (S.shade === 'slope') {
     parts.push(`<div class="legend-row"><span class="eyebrow">Slope</span>${SLOPE_CLASSES.filter((k) => SLOPE_COLOURS[k.key]).map((k) => sw(SLOPE_COLOURS[k.key], k.label)).join('')}${sw([30, 30, 30], '50°+')}</div>`);
   } else if (S.shade === 'aspect') {
@@ -1626,7 +1638,10 @@ function renderLegend() {
   }
   parts.push(`<div class="legend-row"><span><i class="swc" style="background:var(--ink)"></i>route under 25°</span><span class="note">steeper parts of the route in the slope colours</span></div>`);
   $('#tlegend').innerHTML = parts.join('');
-  $('#tattrib').innerHTML = `Map © ${country === 'SE' ? 'OpenTopoMap (CC-BY-SA), © OpenStreetMap contributors' : 'Kartverket'} · Slope &amp; runout © NVE (CC BY 4.0) · Heights: Kartverket DTM (Norway), ${esc(S.sweden ?? 'Copernicus GLO-90 via Open-Meteo')}${/GLO-30/.test(S.sweden ?? '') ? ' © DLR e.V. 2010-2014, © Airbus 2014-2018, provided under Copernicus by the EU and ESA' : ''} (Sweden) · Not for navigation`;
+  const glo = ' © DLR e.V. 2010-2014, © Airbus 2014-2018, provided under Copernicus by the EU and ESA';
+  $('#tattrib').innerHTML = country === 'CH'
+    ? `Map and slope classes © swisstopo · Heights: ${esc(S.switzerland ?? 'Copernicus GLO-90 via Open-Meteo')}${/GLO-30/.test(S.switzerland ?? '') ? glo : ''} · Bulletin © SLF (CC BY 4.0) · Not for navigation`
+    : `Map © ${country === 'SE' ? 'OpenTopoMap (CC-BY-SA), © OpenStreetMap contributors' : 'Kartverket'} · Slope &amp; runout © NVE (CC BY 4.0) · Heights: Kartverket DTM (Norway), ${esc(S.sweden ?? 'Copernicus GLO-90 via Open-Meteo')}${/GLO-30/.test(S.sweden ?? '') ? glo : ''} (Sweden) · Not for navigation`;
 }
 
 function updateStatus() {
@@ -1900,6 +1915,7 @@ async function init() {
   if (S.demo) { S.demo.status = zone?.demo ?? null; renderDemoBanner(); }
   S.zoneLoaded = !!zone;
   S.sweden = zone?.sweden ?? null;
+  S.switzerland = zone?.switzerland ?? null;
   S.lmError = zone?.lantmateriet?.enabled ? zone.lantmateriet.lastError : null;
   if (zone?.lantmateriet?.lastError) message(`Lantmäteriet's terrain model is not being used: ${zone.lantmateriet.lastError}`);
   renderLegend();

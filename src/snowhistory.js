@@ -84,7 +84,15 @@ async function getSeason(tour, key, { today }) {
   }
 }
 
+/** seNorge's grid: mainland Norway and the Swedish mountains (not the Alps). */
+export const inSeNorge = (p) => p.lat > 57.5 && p.lat < 71.5 && p.lon > 4 && p.lon < 31.5;
+
 export async function getSnowHistory(tour, { today = new Date() } = {}) {
+  if (!inSeNorge(tour)) {
+    const e = new Error('Snow through past winters comes from NVE seNorge, which covers Norway and the Swedish mountains only.');
+    e.status = 404;
+    throw e;
+  }
   const current = seasonOf(today);
   const keys = [];
   for (let k = YEARS; k >= 0; k--) {

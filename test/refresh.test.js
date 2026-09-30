@@ -19,6 +19,11 @@ process.env.ALERT_THRESHOLD_CM = '30';
 await mkdir(path.join(tmp, 'cache'), { recursive: true });
 
 const { refresh } = await import('../src/refresh.js');
+const { readFile } = await import('node:fs/promises');
+const slfBulletins = JSON.parse(await readFile(new URL('./fixtures/slf-bulletins.json', import.meta.url), 'utf8'));
+const allRegions = JSON.parse(await readFile(new URL('../data/regions.json', import.meta.url), 'utf8'));
+const swissIds = new Set(allRegions.filter((r) => r.country === 'CH').map((r) => r.id));
+const swissTours = JSON.parse(await readFile(new URL('../data/tours.json', import.meta.url), 'utf8')).filter((t) => swissIds.has(t.region));
 const { evaluateAlerts } = await import('../src/alerts.js');
 
 const realFetch = globalThis.fetch;
@@ -54,6 +59,15 @@ function stubFetch({ snowByCell = () => 120, dangerFor = () => '3', failVarsom =
         EndDate: '10.02.2026 06:00:00',
         Data: [depth - rise - 10, depth - rise - 8, depth - rise - 5, depth - rise, depth - rise, depth - rise / 2, depth],
       });
+    }
+
+    // Switzerland (v6): SLF's bulletin (a real one, fixture) and one IMIS station per Swiss tour.
+    if (u.includes('aws.slf.ch')) return jsonResponse(slfBulletins);
+    if (u.includes('measurement-api.slf.ch') && u.endsWith('/stations')) {
+      return jsonResponse(swissTours.map((t, i) => ({ code: `ST${i}`, label: `Station ${i}`, lat: t.lat + 0.02, lon: t.lon, elevation: 2500, type: 'SNOW_FLAT' })));
+    }
+    if (u.includes('measurement-api.slf.ch') && u.includes('/daily-snow')) {
+      return jsonResponse(swissTours.flatMap((t, i) => [10, 11, 12].map((d) => ({ station_code: `ST${i}`, measure_date: `2026-02-${d}T06:00:00Z`, HS: 150 + d, HN_1D: d === 12 ? 20 : 5 }))));
     }
 
     if (u.includes('lavinprognoser.se')) {
@@ -94,6 +108,18 @@ test('a full refresh populates every region and tour', async () => {
   assert.ok(snap.tours.every((t) => t.snow?.depthCm != null), 'every tour got a snow depth');
   assert.equal(snap.sources.senorge.ok, true);
   assert.equal(snap.sources.varsom.regions, 24);
+
+  // Switzerland: SLF's bulletin by micro-region, snow from the station near each tour.
+  const zermatt = snap.regions.find((r) => r.id === 'ch-4222');
+  assert.equal(zermatt.bulletin.source, 'slf');
+  assert.equal(zermatt.bulletin.danger, 3);
+  assert.match(zermatt.bulletinUrl, /slf\.ch/);
+  assert.equal(zermatt.snow.source, 'slf');
+  const allalin = snap.tours.find((t) => t.name === 'Allalinhorn');
+  assert.equal(allalin.snow.depthCm, 162);
+  assert.equal(allalin.snow.new48, 25);
+  assert.equal(snap.sources.slf.ok, true);
+  assert.equal(snap.sources.slfSnow.ok, true);
 });
 
 test('region snow summaries are derived from their own tours', async () => {

@@ -45,6 +45,10 @@ test('a saved selection is cleaned against what is available', () => {
   assert.deepEqual(normaliseSelection(['SE', 'XX'], ['NO', 'SE']), ['SE']);
   assert.deepEqual(normaliseSelection([], ['NO', 'SE']), ['NO', 'SE']);
   assert.deepEqual(normaliseSelection('garbage', ['NO']), ['NO']);
+  // v6: someone new starts on the Nordic countries; Switzerland is a click away.
+  assert.deepEqual(normaliseSelection([], ['NO', 'SE', 'CH']), ['NO', 'SE']);
+  assert.deepEqual(normaliseSelection(['CH'], ['NO', 'SE', 'CH']), ['CH']);
+  assert.deepEqual(normaliseSelection([], ['CH']), ['CH']);
 });
 
 test('country names read naturally', () => {

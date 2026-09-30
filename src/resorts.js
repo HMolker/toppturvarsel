@@ -7,8 +7,8 @@ import { log } from './util/log.js';
 import { fileURLToPath } from 'node:url';
 
 /**
- * Ski resorts layer: Norway live from Fnugg, Sweden from OpenStreetMap
- * (location, name, website; no live status exists to fetch).
+ * Ski resorts layer: Norway live from Fnugg, Sweden and Switzerland from
+ * OpenStreetMap (location, name, website; no live status exists to fetch).
  *
  * Each source is cached on disk on its own schedule and fails on its own:
  * if Fnugg is down, the last good Norwegian list is served, marked stale,
@@ -35,6 +35,9 @@ export const SOURCES = {
   // index answers a country query with nothing at all (200, no error), which
   // used to be kept for 30 days as "no Swedish resorts" (v5.5.3).
   se: { fetch: () => fetchOsmResorts('SE'), ttl: () => 30 * 24 * HOUR, name: 'OpenStreetMap', min: () => Number(process.env.RESORTS_SE_MIN ?? 20) },
+  // v6: Switzerland from OpenStreetMap too (location, name, website, lifts
+  // mapped); no open live lift status exists for Swiss resorts either.
+  ch: { fetch: () => fetchOsmResorts('CH'), ttl: () => 30 * 24 * HOUR, name: 'OpenStreetMap', min: () => Number(process.env.RESORTS_CH_MIN ?? 20) },
 };
 /** A list this short is a broken answer, not the country's resorts. */
 const tooFew = (key, list) => (list?.length ?? 0) < (SOURCES[key].min?.() ?? 0);

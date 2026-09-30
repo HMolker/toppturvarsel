@@ -9,9 +9,9 @@ import { UA } from '../util/ua.js';
  *   -> { navn: [{ skrivemåte, navneobjekttype, stedsnummer,
  *                 representasjonspunkt: { øst, nord }, kommuner: [{ kommunenavn }], fylker: [{ fylkesnavn }] }] }
  *   Open, no key. © Kartverket, CC BY 4.0.
- * Sweden: OpenStreetMap's Nominatim, limited to Sweden.
- *   GET https://nominatim.openstreetmap.org/search?q=…&format=jsonv2&countrycodes=se
- *   -> [{ place_id, lat, lon, name, display_name, type }]
+ * Sweden and Switzerland (v6): OpenStreetMap's Nominatim, limited to them.
+ *   GET https://nominatim.openstreetmap.org/search?q=…&format=jsonv2&countrycodes=se,ch&addressdetails=1
+ *   -> [{ place_id, lat, lon, name, display_name, type, address: { country_code } }]
  *   Its usage policy: at most one request a second, an identifying
  *   User-Agent, and no search-as-you-type. The page searches on Enter only,
  *   the server spaces requests and keeps every answer.
@@ -67,9 +67,14 @@ function nomQueued(fn) {
   return run;
 }
 
+// v6: Switzerland too. addressdetails gives each answer's country code.
+export const NOMINATIM_COUNTRIES = ['se', 'ch'];
 export function nominatimUrl(q) {
-  return `${NOM}?q=${encodeURIComponent(q)}&format=jsonv2&countrycodes=se&limit=8&accept-language=sv`;
+  return `${NOM}?q=${encodeURIComponent(q)}&format=jsonv2&countrycodes=${NOMINATIM_COUNTRIES.join(',')}&addressdetails=1&limit=8&accept-language=sv,de,fr,it`;
 }
+const COUNTRY_WORDS = /^(Sverige|Schweiz|Suisse|Svizzera|Svizra|Switzerland)$/i;
+// Swedish postcodes ("123 45") and Swiss ones ("3920") are not places.
+const POSTCODE = /^(\d{3} ?\d{2}|\d{4})$/;
 
 export async function searchNominatim(q) {
   return nomQueued(async () => {
@@ -87,8 +92,8 @@ export async function searchNominatim(q) {
           id: `osm:${x.osm_type ?? 'x'}${x.osm_id ?? x.place_id}`,
           name,
           kind: x.type ?? x.category ?? null,
-          area: parts.filter((s) => s !== name && s !== 'Sverige' && !/^\d{3} ?\d{2}$/.test(s)).slice(0, 2).join(', '),
-          country: 'SE',
+          area: parts.filter((s) => s !== name && !COUNTRY_WORDS.test(s) && !POSTCODE.test(s)).slice(0, 2).join(', '),
+          country: String(x.address?.country_code ?? 'se').toUpperCase(),
           lat: +lat.toFixed(5),
           lon: +lon.toFixed(5),
         };

@@ -65,7 +65,7 @@ export function renderRouteMap(el, { route, tour, country, terrain = null, photo
   const pts = route?.found ? route.points : [];
   const summit = route?.summit ?? { lat: tour.lat, lon: tour.lon, name: tour.name };
   const f = frame([...pts, summit], W, H);
-  const src = country === 'SE' ? 'se' : 'no';
+  const src = { SE: 'se', CH: 'ch' }[country] ?? 'no';
 
   const t0x = Math.floor(f.x0 / TILE), t1x = Math.floor((f.x0 + W) / TILE);
   const t0y = Math.floor(f.y0 / TILE), t1y = Math.floor((f.y0 + H) / TILE);
@@ -472,7 +472,7 @@ export function renderResortMap(el, { resort, data = null, country }) {
   const cx = ((Math.min(...xs) + Math.max(...xs)) / 2) * scale, cy = ((Math.min(...ys) + Math.max(...ys)) / 2) * scale;
   const f = { z: zf, scale, x0: cx - W / 2, y0: cy - H / 2, W, H };
   const TS = TILE * 2 ** (zf - z);
-  const src = country === 'SE' ? 'se' : 'no';
+  const src = { SE: 'se', CH: 'ch' }[country] ?? 'no';
   const P = (p) => px(f, p);
   const pl = (list) => list.map((p) => P(p).map((v) => v.toFixed(1)).join(',')).join(' ');
   const km = (m) => (m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m / 10) * 10} m`);

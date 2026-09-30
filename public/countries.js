@@ -9,7 +9,8 @@
  * `frame` is a coarse outline of the mainland, [lat, lon] points, used only
  * to frame the map: a bounding box would not do, since Norway's box is
  * mostly Sweden and Finland. Svalbard is left out on purpose: it is listed
- * as an off-map region.
+ * as an off-map region. For a small country the frame is also its outline
+ * on the sketch map (see geo.js).
  */
 export const COUNTRIES = {
   NO: {
@@ -22,10 +23,19 @@ export const COUNTRIES = {
     frame: [[55.3, 13.0], [56.5, 16.5], [59.0, 19.0], [60.5, 18.6], [62.5, 17.8], [65.8, 24.2], [68.5, 23.5],
       [69.1, 20.5], [68.0, 17.0], [63.0, 12.0], [59.0, 11.0], [57.5, 11.8]],
   },
+  // v6: Switzerland, from Natural Earth's 1:110m outline (public domain).
+  CH: {
+    name: 'Switzerland',
+    // Not in the first view of someone new: the page opens on the Nordic
+    // countries, and Switzerland is one click away (v6).
+    optIn: true,
+    frame: [[47.53, 9.59], [47.35, 9.63], [47.1, 9.48], [46.92, 9.93], [46.89, 10.44], [46.48, 10.36], [46.31, 9.92], [46.44, 9.18], [46.04, 8.97], [46.01, 8.49], [46.16, 8.32], [45.82, 7.76], [45.78, 7.27], [45.99, 6.84], [46.43, 6.5], [46.27, 6.02], [46.73, 6.04], [47.29, 6.77], [47.54, 6.74], [47.45, 7.19], [47.62, 7.47], [47.61, 8.32], [47.83, 8.52]],
+  },
 };
 
 /** Named groups of countries offered as one click, e.g. a mountain range. */
 export const GROUPS = [
+  { id: 'nordic', name: 'Nordic', countries: ['NO', 'SE'] },
   // { id: 'pyrenees', name: 'Pyrenees', countries: ['FR', 'ES', 'AD'] },
 ];
 
@@ -39,11 +49,14 @@ export function joinNames(codes) {
 
 /**
  * Keep a saved selection only where it still makes sense: unknown codes are
- * dropped, and an empty result means "everything available".
+ * dropped, and an empty result means everything available except the
+ * opt-in countries (or everything, if that leaves nothing).
  */
 export function normaliseSelection(saved, available) {
   const keep = (Array.isArray(saved) ? saved : []).filter((c) => available.includes(c));
-  return keep.length ? keep : [...available];
+  if (keep.length) return keep;
+  const first = available.filter((c) => !COUNTRIES[c]?.optIn);
+  return first.length ? first : [...available];
 }
 
 /**

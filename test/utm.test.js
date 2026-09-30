@@ -53,7 +53,8 @@ test('stays inside the plausible seNorge grid envelope for every tour', async ()
       'utf8'
     )
   );
-  for (const t of tours) {
+  // seNorge is the snow source for the Nordic tours only (Switzerland: SLF, v6).
+  for (const t of tours.filter((x) => x.lat > 55)) {
     const { x, y } = latLonToUTM(t.lat, t.lon);
     // seNorge covers mainland Norway plus a margin; Swedish tours sit east of it.
     assert.ok(x > -200000 && x < 1200000, `${t.name}: easting ${x} out of range`);

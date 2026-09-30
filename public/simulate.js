@@ -111,15 +111,25 @@ function simulateHourly(days, tour, fr) {
 export function simulate({ regions = [], tours = [], resorts = null, now = new Date(), seed = 'storm', threshold = 30 } = {}) {
   const rand = rng(seed);
   const today = new Date(`${iso(now)}T06:00:00Z`);
-  // The storm sits over one band of the mountains and fades north and south of it.
-  const lats = regions.filter((r) => !r.offMap).map((r) => r.lat);
-  const stormLat = lats.length ? clamp((Math.min(...lats) + Math.max(...lats)) / 2 + (rand() - 0.5) * 4, 59, 69) : 67;
+  // The storm sits over one band of the mountains and fades north and south
+  // of it: one storm for the Nordic mountains, one for the Alps (v6), so
+  // neither is centred halfway between them.
+  const ALPS = new Set(['CH']);
+  const stormLats = {};
+  for (const alps of [false, true]) {
+    const lats = regions.filter((r) => !r.offMap && ALPS.has(r.country) === alps).map((r) => r.lat);
+    const mid = lats.length ? (Math.min(...lats) + Math.max(...lats)) / 2 : 67;
+    stormLats[alps] = alps ? mid + (rand() - 0.5) * 0.6 : clamp(mid + (rand() - 0.5) * 4, 59, 69);
+  }
 
   const regionRows = regions.map((region) => {
     const rr = rng(`${seed}:${region.id}`);
     // 1 at the centre of the storm, 0 about 500 km away.
-    const load = clamp(1 - Math.abs(region.lat - stormLat) / 4.5, 0, 1) * (0.75 + rr() * 0.45);
-    const base = Math.round(clamp(45 + (region.lat - 57) * 13 + rr() * 60, 25, 285));
+    const alps = ALPS.has(region.country);
+    const load = clamp(1 - Math.abs(region.lat - stormLats[alps]) / 4.5, 0, 1) * (0.75 + rr() * 0.45);
+    const base = Math.round(alps ? 90 + rr() * 150 : clamp(45 + (region.lat - 57) * 13 + rr() * 60, 25, 285));
+    // Problem heights: the Alps' treeline and snowline sit some 1500 m higher.
+    const lift = alps ? 1400 : 0;
     const new48 = Math.round(load * (26 + rr() * 26));
     const new24 = Math.round(new48 * (0.35 + rr() * 0.2));
     const danger = region.noForecast ? null : new48 >= 34 ? 4 : new48 >= 20 ? 3 : new48 >= 8 ? (rr() > 0.5 ? 3 : 2) : rr() > 0.75 ? 2 : 1;
@@ -129,19 +139,19 @@ export function simulate({ regions = [], tours = [], resorts = null, now = new D
       problems.push({
         type: 'Dry slab avalanche', problemType: 'Wind slab', probability: danger >= 4 ? 'Very likely' : danger === 3 ? 'Likely' : 'Possible',
         size: danger >= 4 ? '3 - Large' : '2 - Medium', danger,
-        aspects: ASPECT_BITS.lee, heights: { fill: 1, h1: Math.round((600 + rr() * 300) / 50) * 50, h2: 0 },
+        aspects: ASPECT_BITS.lee, heights: { fill: 1, h1: Math.round((600 + lift + rr() * 300) / 50) * 50, h2: 0 },
       });
     }
     if (danger >= 3) {
       problems.push({
         type: 'Dry slab avalanche', problemType: 'New snow', probability: 'Likely', size: '2 - Medium', danger,
-        aspects: ASPECT_BITS.all, heights: { fill: 1, h1: 400, h2: 0 },
+        aspects: ASPECT_BITS.all, heights: { fill: 1, h1: 400 + lift, h2: 0 },
       });
     }
     if (danger >= 2 && rr() > 0.6) {
       problems.push({
         type: 'Dry slab avalanche', problemType: 'Persistent weak layers', probability: 'Possible', size: '3 - Large', danger,
-        aspects: ASPECT_BITS.lee, heights: { fill: 1, h1: 900, h2: 0 },
+        aspects: ASPECT_BITS.lee, heights: { fill: 1, h1: 900 + lift, h2: 0 },
       });
     }
 
@@ -168,7 +178,7 @@ export function simulate({ regions = [], tours = [], resorts = null, now = new D
             validFrom: `${iso(addDays(today, k))}T00:00:00`,
             danger: region.noForecast ? null : k === 4 ? 2 : Math.max(1, danger - k),
             problems: k === 4
-              ? [{ type: 'Wet loose snow avalanche', problemType: 'Wet snow', probability: 'Likely', size: '2 - Medium', danger: 2, aspects: ASPECT_BITS.sun, heights: { fill: 2, h1: 1400, h2: 0 } }]
+              ? [{ type: 'Wet loose snow avalanche', problemType: 'Wet snow', probability: 'Likely', size: '2 - Medium', danger: 2, aspects: ASPECT_BITS.sun, heights: { fill: 2, h1: 1400 + lift, h2: 0 } }]
               : problems.slice(0, Math.max(0, problems.length - k)),
           })),
         };
@@ -177,7 +187,7 @@ export function simulate({ regions = [], tours = [], resorts = null, now = new D
     return {
       id: region.id, name: region.name, country: region.country, lat: region.lat, lon: region.lon,
       offMap: region.offMap ?? false,
-      bulletinUrl: region.noForecast ? null : region.country === 'NO' ? 'https://www.varsom.no/snoskredvarsling/' : 'https://lavinprognoser.se/',
+      bulletinUrl: region.noForecast ? null : { NO: 'https://www.varsom.no/snoskredvarsling/', SE: 'https://lavinprognoser.se/', CH: 'https://www.slf.ch/en/avalanche-bulletin-and-snow-situation/' }[region.country] ?? null,
       bulletin,
       snow: {
         depthCm: base, new24, new48, new72: Math.round(new48 * 1.3), depthMaxCm: base + 40,
@@ -221,6 +231,7 @@ export function simulate({ regions = [], tours = [], resorts = null, now = new D
     sources: {
       varsom: { ok: true, regions: regionRows.filter((r) => r.country === 'NO').length, simulated: true },
       lavinprognoser: { ok: true, regions: regionRows.filter((r) => r.country === 'SE').length, simulated: true },
+      slf: { ok: true, regions: regionRows.filter((r) => r.country === 'CH').length, simulated: true },
       senorge: { ok: true, points: tourRows.length, simulated: true },
       regobs: { enabled: false },
     },

@@ -76,6 +76,14 @@ const overpassBody = {
   ],
 };
 
+const overpassSwiss = {
+  elements: [
+    { type: 'way', id: 20, center: { lat: 46.02, lon: 7.75 }, bounds: bb(46.02, 7.75, 0.05), tags: { landuse: 'winter_sports', name: 'Zermatt – Matterhorn', website: 'https://www.matterhornparadise.ch' } },
+    { type: 'way', id: 21, center: { lat: 46.01, lon: 7.74 }, tags: { aerialway: 'gondola' } },
+    { type: 'way', id: 22, center: { lat: 46.0, lon: 7.73 }, tags: { aerialway: 'chair_lift' } },
+  ],
+};
+
 test('OSM: Swedish resorts with website and mapped lifts, no live status', () => {
   const r = shapeOsmResorts(overpassBody, 'SE');
   assert.deepEqual(r.map((x) => x.name).sort(), ['Lindvallen', 'Åre']);
@@ -106,6 +114,8 @@ globalThis.fetch = async (url, opts = {}) => {
     calls.overpass++;
     if (overpassSlowMs) await new Promise((r) => setTimeout(r, overpassSlowMs));
     assert.equal(opts.method, 'POST');
+    // v6: the Swiss query gets a Swiss answer (one resort, two lifts).
+    if (decodeURIComponent(String(opts.body)).includes('"CH"')) return J(overpassSwiss);
     return J(overpassBody);
   }
   // The test's own server may be called; nothing else may leave the test.
@@ -128,17 +138,22 @@ async function withServer(fn) {
 }
 
 process.env.RESORTS_SE_MIN = '1'; // the stub has two Swedish resorts
+process.env.RESORTS_CH_MIN = '1'; // and one Swiss
 
 test('/api/resorts merges both countries, caches, and survives an outage', async () => {
   await withServer(async (base) => {
     const r = await (await fetch(`${base}/api/resorts`)).json();
-    assert.equal(r.resorts.length, 5);
+    assert.equal(r.resorts.length, 6);
     assert.equal(r.sources.no.name, 'Fnugg');
     assert.equal(r.sources.se.count, 2);
+    assert.equal(r.sources.ch.count, 1);
+    const zermatt = r.resorts.find((x) => x.country === 'CH');
+    assert.equal(zermatt.mappedLifts, 2);
+    assert.equal(zermatt.live, false);
     assert.equal(calls.fnugg, 1);
     await fetch(`${base}/api/resorts`);
     assert.equal(calls.fnugg, 1, 'served from cache');
-    assert.equal(calls.overpass, 1);
+    assert.equal(calls.overpass, 2, 'one query each for Sweden and Switzerland');
   });
 
   // Expire the Norwegian cache, then take Fnugg down: last good list stays.

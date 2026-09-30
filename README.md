@@ -5,7 +5,8 @@
 *Molker Digital · free-touring monitor.* (The code, Docker service and
 environment still use the working name `toppturvarsel`.)
 
-A self-hosted web service for ski touring in Norway and Sweden. It pulls live
+A self-hosted web service for ski touring in Norway, Sweden and (from v6)
+Switzerland. It pulls live
 avalanche bulletins and modelled snow depth several times a day, shows them on
 a map against a curated list of touring objectives, and emails or pushes you
 when a region gets loaded.
@@ -17,14 +18,15 @@ process, zero npm dependencies, one Docker container.
 
 ## What it actually does
 
-- **Avalanche danger** for all 24 Norwegian forecast regions (NVE / Varsom)
-  and the 6 Swedish ones (Naturvårdsverket), with the avalanche problems,
+- **Avalanche danger** for all 24 Norwegian forecast regions (NVE / Varsom),
+  the 6 Swedish ones (Naturvårdsverket) and, from v6, the Swiss micro-regions
+  with listed tours (SLF), with the avalanche problems,
   mountain weather, snow surface and the forecaster's summary of recent
   observations and avalanche activity.
 - **Snow depth and new snow** from NVE's seNorge 1 km model grid, sampled at
   **each tour's own coordinates** rather than a region centroid — so
   Rørnestinden gets Rørnestinden's snow, not the fjord's.
-- **91 curated tours** with difficulty and quality ratings, filterable and
+- **106 curated tours** (15 of them Swiss) with difficulty and quality ratings, filterable and
   sortable by how much snow just fell on them, each marked with whether a
   GPX track is available (your own, or a route from OpenStreetMap).
 - **Country selection** as the first filter: pick Norway, Sweden or both, and
@@ -348,6 +350,34 @@ each night, nearest 1.5 km first). GPX, forecast accuracy, the tour editor
 and opening new areas answer *Slope closed — open for premium skiers only*,
 in the page and on the server. HTTPS comes from Caddy
 (`deploy/caddy/`), with the site at `/fjallskred/`. See INSTALL.md, 8b–8c.
+
+## Switzerland (v6)
+
+The first country outside the Nordics. Everything the page does in Norway
+works in Switzerland, from these open sources:
+
+| What | Source | Notes |
+|---|---|---|
+| Avalanche bulletin | SLF, CAAMLv6 JSON (`aws.slf.ch/api/bulletin/caaml/en/json`) | Danger level with SLF's + / = / − subdivision, morning and afternoon levels on spring days, avalanche problems with aspects and heights, the danger description. One bulletin covers many of SLF's ~150 micro-regions; each Swiss region here is one micro-region (`slfRegion` in `data/regions.json`). |
+| Snow depth, new snow | SLF IMIS stations (`measurement-api.slf.ch/public/api/imis/…`) | Each tour takes the station near it at a similar height (100 m of height counts like 1 km of distance, up to 25 km); the page names the station. New snow is SLF's daily modelled value, summed for 48 and 72 h. |
+| Topo map, slope map | swisstopo WMTS: the national map in grey and "slope classes over 30°" | On Plan a tour and the tour maps; the "Slope map" checkbox shows NVE's map in Norway and swisstopo's in Switzerland. No runout zones (NVE only). |
+| Heights | Copernicus GLO-30 (or GLO-90 via Open-Meteo) | swissALTI3D (0.5–2 m) is the next step. |
+| Weather | Open-Meteo and MET Norway | Both cover the Alps. |
+| Resorts | OpenStreetMap | Location, website, lifts mapped; no open live status. |
+| Place search | Nominatim, now `countrycodes=se,ch` | |
+
+Not yet in Switzerland: snow history through past winters (it comes from
+NVE's seNorge grid), official lift names, field observations (Regobs is
+Norwegian) and the forecast-accuracy page.
+
+The page opens on Norway and Sweden for someone new; Switzerland is one
+click in the country bar (the choice is remembered). The coordinates of the
+Swiss tours are approximate, like all the others, and a tour's micro-region
+was chosen by name: if a tour sits on the edge of two, SLF usually gives both
+the same level, but read the bulletin.
+
+Data © SLF (WSL Institute for Snow and Avalanche Research), CC BY 4.0; maps
+© swisstopo; Switzerland's outline on the sketch map from Natural Earth.
 
 ## Trip planner
 

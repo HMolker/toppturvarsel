@@ -447,7 +447,9 @@ export async function zoneInfo() {
     // Countries whose terrain comes from files (cheap to read finely): the
     // 3D view can use a finer grid there.
     // Sweden is fine (no point budget) on Lantmäteriet's files or GLO-30's (v5.6.2).
-    fine: elevation.lmUsable() || glo30Usable() ? ['SE'] : [],
+    // Switzerland (v6) is on GLO-30 as well.
+    fine: [...(elevation.lmUsable() || glo30Usable() ? ['SE'] : []), ...(glo30Usable() ? ['CH'] : [])],
+    switzerland: glo30Usable() ? 'Copernicus GLO-30 (30 m)' : 'Copernicus GLO-90 via Open-Meteo (90 m)',
     sweden: elevation.lmUsable() ? 'Lantmäteriet Markhöjdmodell 1 m' : glo30Usable() ? 'Copernicus GLO-30 (30 m)' : 'Copernicus GLO-90 via Open-Meteo (90 m)',
     glo30: glo30Status(),
     // Places picked in the place search: part of the service area (v5.6).

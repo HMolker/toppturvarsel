@@ -13,6 +13,7 @@ import { log } from './util/log.js';
  *       https://cache.kartverket.no/v1/wmts/1.0.0/topograatone/default/webmercator/{z}/{y}/{x}.png
  *   se: OpenTopoMap, © OpenStreetMap contributors, SRTM; style © OpenTopoMap
  *       (CC-BY-SA). Kartverket's map stops at the border.
+ *   ch, chs: swisstopo's national map and slope classes (v6), © swisstopo.
  *
  * NOT AN OPEN PROXY. A tile is served only if it lies within ~12 km of a
  * listed tour and between zoom 9 and 16. Anything else is a 403 without
@@ -31,7 +32,16 @@ const SOURCES = {
   // Web Mercator, levels 5-16 (service metadata checked 2026-09-23).
   // © NVE, CC BY 4.0.
   nve: (z, x, y) => `https://gis3.nve.no/arcgis/rest/services/wmts/Bratthet_med_utlop_2024/MapServer/tile/${z}/${y}/${x}`,
+  // Switzerland (v6), swisstopo's WMTS in Web Mercator, TileMatrix/TileCol/TileRow
+  // = z/x/y (docs.geo.admin.ch). Free geodata, © swisstopo, credit required.
+  //   ch:  the national map in grey, like Kartverket's (JPEG; PNG tried second)
+  //   chs: "slope classes over 30°" — transparent, only where it is 30° or steeper
+  ch: (z, x, y) => [`https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.pixelkarte-grau/default/current/3857/${z}/${x}/${y}.jpeg`,
+    `https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.pixelkarte-grau/default/current/3857/${z}/${x}/${y}.png`],
+  chs: (z, x, y) => `https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.hangneigung-ueber_30/default/current/3857/${z}/${x}/${y}.png`,
 };
+// Overlays: "nothing to draw here" is an answer, remembered like a tile.
+const OVERLAYS = new Set(['nve', 'chs']);
 const MIN_Z = 9, MAX_Z = 16;
 const MARGIN_KM = 12;
 const TTL = 30 * 86400e3;
@@ -113,9 +123,12 @@ async function pickedBoxes() {
   return (await placeZones()).map((z) => ({ lat: z.lat, lon: z.lon, country: z.country }));
 }
 
+// swisstopo's map comes as JPEG; tiles are kept as they came, so say which.
+const imageType = (buf) => (buf?.[0] === 0xff && buf?.[1] === 0xd8 ? 'image/jpeg' : 'image/png');
+
 export async function serveTile(res, src, z, x, y) {
   const t = await getTile(src, z, x, y);
-  res.writeHead(t.status, { 'Content-Type': t.status === 200 ? 'image/png' : 'text/plain', 'Cache-Control': t.status === 200 ? 'public, max-age=604800' : 'no-store' });
+  res.writeHead(t.status, { 'Content-Type': t.status === 200 ? imageType(t.body) : 'text/plain', 'Cache-Control': t.status === 200 ? 'public, max-age=604800' : 'no-store' });
   res.end(t.body);
 }
 
@@ -142,11 +155,14 @@ export async function getTile(src, z, x, y, { skipZoneCheck = false } = {}) {
   }
 
   try {
-    const upstream = await fetch(SOURCES[src](z, x, y), {
-      headers: { 'User-Agent': UA },
-      signal: AbortSignal.timeout(15000),
-    });
-    if (upstream.status === 404 && src === 'nve') {
+    const urls = [SOURCES[src](z, x, y)].flat();
+    let upstream;
+    for (const u of urls) {
+      upstream = await fetch(u, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(15000) });
+      if (upstream.ok || ![400, 404].includes(upstream.status)) break;
+    }
+    // swisstopo answers an empty overlay tile with 204 or 404.
+    if ((upstream.status === 404 || upstream.status === 204) && OVERLAYS.has(src)) {
       await mkdir(path.dirname(file), { recursive: true });
       await writeFile(`${file}.none`, '');
       return r(404, 'no tile here');

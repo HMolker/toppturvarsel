@@ -10,10 +10,21 @@ import { factsHtml, DIFF_NAMES } from './resortfacts.js';
 import { simulate, simulateResorts, simulateHuts } from './simulate.js';
 import { dangerChip, problemIcons, problemIcon, problemRose, elevationDiagram, elevationText, initAvalancheTips, problemKey, PROBLEMS } from './avalanche.js';
 import { COUNTRIES, GROUPS, countryName, joinNames, normaliseSelection } from './countries.js';
-import { COAST, BORDER } from './geo.js';
+import { LANDS, BORDER } from './geo.js';
 import { regionAreas } from './snowareas.js';
 import { attachPlaceSearch, pickPlace, kindName } from './placesearch.js';
 import './access.js';
+
+/** Map credit and the terrain model behind a country's maps (v6: Switzerland). */
+const MAP_CREDIT = { SE: 'OpenTopoMap, © OpenStreetMap contributors', CH: 'swisstopo' };
+const mapCredit = (country) => MAP_CREDIT[country] ?? 'Kartverket';
+const ELEV_CREDIT = { SE: 'Copernicus DEM (GLO-30 / GLO-90)', CH: 'Copernicus DEM (GLO-30 / GLO-90)' };
+const elevCredit = (country) => ELEV_CREDIT[country] ?? 'Kartverket (DTM 1 m / 10 m)';
+const REGION_KIND = {
+  NO: 'Norwegian forecast region (NVE / Varsom)',
+  SE: 'Swedish forecast region (Naturvårdsverket)',
+  CH: 'Swiss micro-region (SLF, WSL Institute for Snow and Avalanche Research)',
+};
 
 /* ------------------------------------------------------------------ *
  * state
@@ -287,7 +298,7 @@ function areasFor(regions) {
 
 /** The sketch: land, snow base around each region (snow layer), coast, border. */
 function sketchSvg() {
-  const coast = pathOf(COAST, true);
+  const coast = LANDS.map((l) => pathOf(l, true)).join(' ');
   const out = [
     `<defs><clipPath id="landclip"><path d="${coast}"/></clipPath></defs>`,
     `<path d="${coast}" fill="var(--land)" stroke="none"/>`,
@@ -500,6 +511,7 @@ function resortLegend() {
     : [
         inSel('NO') && `Norway: live, Fnugg, ${when(src?.no)}${src?.no?.stale ? ' (stale)' : ''}`,
         inSel('SE') && 'Sweden: location only, OpenStreetMap — no live status is published',
+        inSel('CH') && 'Switzerland: location only, OpenStreetMap — no open live status',
       ].filter(Boolean).join(' · ');
   return (
     `<div class="legend-row"><span class="eyebrow">Resorts — share open</span>` +
@@ -628,7 +640,7 @@ function selectHut(id) {
           return `<li data-tour="${esc(t.name)}" tabindex="0"><span class="rsname">${esc(t.name)}</span><span class="note">${d.toFixed(1)} km · ${t.summit_m} m · diff ${t.difficulty}/5</span>${score}</li>`;
         }).join('')}</ul><p class="note">Distance as the crow flies; today's planner score where the tour passes the avalanche filter.</p>`
       : '<p class="note">No listed tours within 15 km.</p>') +
-    `<p class="attrib">Map © ${country === 'SE' ? 'OpenTopoMap, © OpenStreetMap contributors' : 'Kartverket'} · Place: © OpenStreetMap contributors</p>` +
+    `<p class="attrib">Map © ${mapCredit(country)} · Place: © OpenStreetMap contributors</p>` +
     `</div><div class="tourcol"><dl>` +
     `<dt>Type</dt><dd>${esc(HUT_KIND[h.kind])}${h.staffed ? ', staffed' : ''}</dd>` +
     (h.org || h.operator ? `<dt>Run by</dt><dd>${esc(h.operator ?? (h.org === 'DNT' ? 'Den Norske Turistforening' : 'Svenska Turistföreningen'))}</dd>` : '') +
@@ -708,7 +720,7 @@ function showPin() {
   const km = (a, b) => Math.hypot((a.lat - b.lat) * 111.2, (a.lon - b.lon) * 111.2 * Math.cos((a.lat * Math.PI) / 180));
   const near = (state.snapshot?.tours ?? []).map((t) => ({ t, d: km(p, t) })).sort((a, b) => a.d - b.d)[0];
   bar.innerHTML =
-    `<span><b>${esc(p.name)}</b> <span class="note">${esc([kindName(p.kind), p.area, p.country === 'SE' ? 'Sweden' : 'Norway'].filter(Boolean).join(' · '))}</span></span>` +
+    `<span><b>${esc(p.name)}</b> <span class="note">${esc([kindName(p.kind), p.area, countryName(p.country)].filter(Boolean).join(' · '))}</span></span>` +
     (near ? `<span class="note">nearest listed tour: <a href="#" data-near="${esc(near.t.name)}">${esc(near.t.name)}</a>, ${Math.round(near.d)} km</span>` : '') +
     `<button type="button" class="btn" id="pinPlan">Plan a tour here →</button>` +
     `<button type="button" class="btn" id="pinClear" aria-label="Remove the pin">×</button>`;
@@ -969,7 +981,7 @@ function dangerPill(region) {
   if (!d) {
     const why = region.bulletin?.noForecast
       ? 'no avalanche forecast here'
-      : region.bulletin?.seasonOver
+      : region.bulletin?.seasonOver || region.bulletin?.outOfSeason
       ? 'season over'
       : region.bulletin?.error
         ? 'could not be read'
@@ -987,6 +999,13 @@ function bulletinBlock(region) {
     bits.push(`<div class="warnbox"><strong>Emergency warning:</strong> ${esc(b.emergencyWarning)}</div>`);
   }
   if (b.headline) bits.push(`<p class="bulletintext">${esc(b.headline)}</p>`);
+  // SLF (v6): the level's subdivision (3+, 3=, 3−) and, on spring days, the morning and afternoon levels.
+  if (b.source === 'slf' && b.danger) {
+    const times = (b.dangerRatings ?? []).filter((r) => r.danger && r.period !== 'all_day');
+    const when = { earlier: 'morning', later: 'afternoon' };
+    bits.push(`<p class="note">SLF level ${b.danger}${b.dangerSub ?? ''}` +
+      (times.length > 1 ? ` · ${times.map((r) => `${when[r.period] ?? r.period} ${r.danger}${r.sub ?? ''}`).join(', ')}` : '') + `</p>`);
+  }
 
   if (b.problems?.length) {
     // Colour from danger 3 up, black and white below: a raised level is
@@ -1017,6 +1036,7 @@ function bulletinBlock(region) {
   }
 
   for (const [label, val] of [
+    ['Danger description', b.description],
     ['Snow surface', b.snowSurface],
     ['Current weak layers', b.weakLayers],
     ['Recent avalanche activity', b.latestAvalancheActivity],
@@ -1039,12 +1059,16 @@ function snowBlock(snow, label = 'Snow') {
   if (!snow || snow.error || snow.depthCm == null) {
     return `<p class="note">No modelled snow data for this point.</p>`;
   }
+  // Switzerland (v6): a measuring station near the tour, not a grid cell over it.
+  const st = snow.station;
   const parts = [
-    `<strong>${cm(snow.depthCm)} cm</strong> modelled depth`,
+    `<strong>${cm(snow.depthCm)} cm</strong> ${snow.source === 'slf' ? 'depth' : 'modelled depth'}`,
     snow.new24 != null ? `+${cm(snow.new24)} cm/24h` : null,
     snow.new48 != null ? `<strong>+${cm(snow.new48)} cm/48h</strong>` : null,
     snow.new72 != null ? `+${cm(snow.new72)} cm/72h` : null,
-    snow.gridAltitude != null ? `grid cell ${snow.gridAltitude} m` : null,
+    st ? `SLF station ${esc(st.label)}, ${st.elevation ?? '?'} m, ${st.km} km away`
+      : snow.source === 'slf' ? 'SLF stations'
+      : snow.gridAltitude != null ? `grid cell ${snow.gridAltitude} m` : null,
   ].filter(Boolean);
 
   // A fallback sample is one grid cell at the region marker, which may sit
@@ -1088,8 +1112,8 @@ function selectTour(name) {
     `<div id="routeMeta">${routeSummary(null, t)}</div>` +
     `<div id="ownPhotosWrap" hidden><h4>Your photos</h4><div id="ownPhotos"></div></div>` +
     `<h4>Photos near the summit</h4><div id="photos"></div>` +
-    `<p class="attrib">Map © ${reg.country === 'SE' ? 'OpenTopoMap, © OpenStreetMap contributors' : 'Kartverket'} · ` +
-    `Route © OpenStreetMap contributors (ODbL) · Elevation: ${reg.country === 'SE' ? 'Copernicus DEM GLO-90 via Open-Meteo' : 'Kartverket (DTM 1 m / 10 m)'} · ` +
+    `<p class="attrib">Map © ${mapCredit(reg.country)} · ` +
+    `Route © OpenStreetMap contributors (ODbL) · Elevation: ${elevCredit(reg.country)} · ` +
     `Photos: Wikimedia Commons, credited per image</p>` +
     `</div>` +
     `<div class="tourcol">` +
@@ -1187,7 +1211,7 @@ function selectResort(id) {
           })
           .join('')}</ul><p class="note">Today's planner score, where the tour passes the avalanche filter; ✕ where it does not.</p>`
       : '<p class="note">No listed touring objectives within 40 km.</p>') +
-    `<p class="attrib">Map © ${r.country === 'SE' ? 'OpenTopoMap, © OpenStreetMap contributors' : 'Kartverket'} · Lift status: ${esc(src)}</p>` +
+    `<p class="attrib">Map © ${mapCredit(r.country)} · Lift status: ${esc(src)}</p>` +
     `</div>` +
     `<div class="tourcol">` +
     `<dl>` +
@@ -1281,7 +1305,10 @@ $('#detail').addEventListener('click', (e) => {
 function renderSnowHistory(el, h, t, place = "the tour's") {
   if (!el) return;
   if (!h || h.error || !h.seasons) {
-    el.innerHTML = `<p class="note">Snow history could not be loaded right now${h?.error ? ` (${esc(h.error)})` : ''}.</p>`;
+    // v6: outside seNorge's grid (Switzerland) the server says why, rather than "try later".
+    el.innerHTML = h?.detail && /covers/.test(h.detail)
+      ? `<p class="note">${esc(h.detail)}</p>`
+      : `<p class="note">Snow history could not be loaded right now${h?.error ? ` (${esc(h.error)})` : ''}.</p>`;
     return;
   }
   const has = (k) => (h.seasons[k]?.depth ?? []).some((v) => Number.isFinite(v));
@@ -1402,9 +1429,7 @@ function selectRegion(id) {
   $('#detailTitle').textContent = reg.name;
   $('#detail').innerHTML =
     `<p class="bulletintext">${dangerPill(reg)} &nbsp; <span class="note">${
-      reg.country === 'NO'
-        ? 'Norwegian forecast region (NVE / Varsom)'
-        : 'Swedish forecast region (Naturvårdsverket)'
+      REGION_KIND[reg.country] ?? 'Forecast region'
     }${reg.bulletin?.publishTime ? ` · published ${esc(String(reg.bulletin.publishTime).slice(0, 16).replace('T', ' '))}` : ''}</span></p>` +
     snowBlock(reg.snow, `Across ${reg.snow?.sampleCount ?? 0} tour points`) +
     bulletinBlock(reg) +
@@ -1412,7 +1437,9 @@ function selectRegion(id) {
     (reg.country === 'NO'
       ? `<a class="btn" href="https://www.regobs.no/" target="_blank" rel="noopener">Regobs observations</a>`
       : '') +
-    `<a class="btn" href="https://www.senorge.no/" target="_blank" rel="noopener">seNorge snow maps</a></div>` +
+    (reg.country === 'CH'
+      ? `<a class="btn" href="https://www.slf.ch/en/avalanche-bulletin-and-snow-situation/measured-values/" target="_blank" rel="noopener">SLF measured values</a></div>`
+      : `<a class="btn" href="https://www.senorge.no/" target="_blank" rel="noopener">seNorge snow maps</a></div>`) +
     (inReg.length
       ? `<p class="note" style="margin:14px 0 4px">Tours in this region</p><div>` +
         inReg
@@ -1509,6 +1536,8 @@ function renderSources() {
       s.lavinprognoser ? `${s.lavinprognoser.regions} regions · scraped, best-effort` : 'not run',
     ],
     ['seNorge (snow depth)', s.senorge?.ok, s.senorge ? `${s.senorge.points} tour points sampled` : 'not run'],
+    ['SLF (CH avalanche)', s.slf?.ok, s.slf ? `${s.slf.regions} micro-regions read from the bulletin` : 'not run'],
+    ['SLF IMIS (CH snow)', s.slfSnow?.ok, s.slfSnow ? `${s.slfSnow.points} tour points, nearest station at a similar height` : 'not run'],
     [
       'Regobs (observations)',
       s.regobs?.enabled ? s.regobs.verified : null,
@@ -1520,8 +1549,8 @@ function renderSources() {
     ],
   ];
 
-  // Which countries each source serves (seNorge's grid covers both).
-  const COUNTRY_OF = [['NO'], ['SE'], ['NO', 'SE'], ['NO']];
+  // Which countries each source serves (seNorge's grid covers both Nordic ones).
+  const COUNTRY_OF = [['NO'], ['SE'], ['NO', 'SE'], ['CH'], ['CH'], ['NO']];
   const v = state.version;
   const since = v?.startedAt ? new Date(v.startedAt) : null;
   const versionCard =

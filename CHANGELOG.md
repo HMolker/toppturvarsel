@@ -3,6 +3,31 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v6.0.0 — Switzerland (2026-09-30)
+
+The first country outside the Nordics, and the first step of the European
+feasibility study.
+
+- **SLF's avalanche bulletin** from its open CAAMLv6 feed: danger level with
+  the + / = / − subdivision, morning and afternoon levels on spring days,
+  avalanche problems with aspects and heights (drawn and used by the planner
+  and Plan a tour exactly like Varsom's), and the danger description. 15
+  Swiss regions, each one of SLF's micro-regions with listed tours.
+- **Snow from SLF's IMIS stations**: depth and 24/48/72 h new snow at the
+  station near each tour at a similar height, named on the page.
+- **15 Swiss tours**: Allalinhorn, Breithorn (Zermatt), Pigne d'Arolla,
+  Pointe de Drône, Hockenhorn, Wildstrubel, Wildhorn, Titlis, Gemsstock,
+  Piz Buin, Flüela Schwarzhorn, Sulzfluh, Piz Kesch, Piz Palü, Muttler.
+- **swisstopo's maps** on Plan a tour and the tour maps: the national map in
+  grey, and "slope classes over 30°" under the Slope map checkbox (NVE's in
+  Norway). Heights from Copernicus GLO-30 for now.
+- **Swiss resorts** from OpenStreetMap; **place search** finds Swiss places.
+- **Switzerland in the country bar**, with its outline on the sketch map; a
+  new "Nordic" chip; someone new still starts on Norway and Sweden.
+- Snow history says it is Nordic-only instead of "try later" for Swiss
+  tours; the simulated winter has a storm over the Alps too.
+- `demo/swiss-check.mjs`: a browser check of the Swiss parts, offline.
+
 ## v5.8.0 — logins (premium and sneaky), a Plan a tour demo, HTTPS with Caddy (2026-09-27)
 
 - **Logins**, from a list you keep: `data/auth/users.csv`, one user a line

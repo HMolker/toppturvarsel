@@ -117,7 +117,8 @@ export function summariseByRegion(snowByTourKey, tours) {
     const best = entries.reduce((a, b) => ((b.snow.new48 ?? -1) > (a.snow.new48 ?? -1) ? b : a));
 
     out[regionId] = {
-      source: 'senorge',
+      // seNorge's grid, or SLF's stations in Switzerland (v6): whatever the tours were read from.
+      source: entries[0].snow.source ?? 'senorge',
       sampleCount: entries.length,
       depthCm: median(depths),
       depthMaxCm: depths[depths.length - 1],

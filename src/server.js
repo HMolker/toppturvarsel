@@ -329,7 +329,7 @@ async function handleApi(req, res, url, ctx = { user: null, sneaky: false }) {
     try {
       return jsonz(req, res, 200, await getSnowHistory({ name: `resort ${r.id}`, lat: r.lat, lon: r.lon }), { 'Cache-Control': 'public, max-age=3600' });
     } catch (err) {
-      return json(res, 502, { error: 'snow history unavailable', detail: err.message });
+      return json(res, err.status ?? 502, { error: 'snow history unavailable', detail: err.message });
     }
   }
 
@@ -355,7 +355,7 @@ async function handleApi(req, res, url, ctx = { user: null, sneaky: false }) {
   if (route === '/api/places') {
     try {
       const c = url.searchParams.get('country');
-      return jsonz(req, res, 200, await searchPlaces(url.searchParams.get('q'), { country: c === 'NO' || c === 'SE' ? c : null }), { 'Cache-Control': 'public, max-age=86400' });
+      return jsonz(req, res, 200, await searchPlaces(url.searchParams.get('q'), { country: ['NO', 'SE', 'CH'].includes(c) ? c : null }), { 'Cache-Control': 'public, max-age=86400' });
     } catch (err) {
       return json(res, err.status ?? 502, { error: err.message });
     }
@@ -437,7 +437,7 @@ async function handleApi(req, res, url, ctx = { user: null, sneaky: false }) {
       try {
         return jsonz(req, res, 200, await getSnowHistory(tour), { 'Cache-Control': 'public, max-age=3600' });
       } catch (err) {
-        return json(res, 502, { error: 'snow history unavailable', detail: err.message });
+        return json(res, err.status ?? 502, { error: 'snow history unavailable', detail: err.message });
       }
     }
     if (route === '/api/slopes') {

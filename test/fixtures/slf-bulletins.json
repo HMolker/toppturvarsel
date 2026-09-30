@@ -1,0 +1,261 @@
+{
+ "bulletins": [
+  {
+   "bulletinID": "a3f28319-b069-4301-97fd-dface3bb5262",
+   "validTime": {
+    "startTime": "2026-02-15T07:00:00Z",
+    "endTime": "2026-02-15T16:00:00Z"
+   },
+   "nextUpdate": "2026-02-15T16:00:00Z",
+   "publicationTime": "2026-02-15T07:00:00Z",
+   "lang": "en",
+   "unscheduled": false,
+   "regions": [
+    {
+     "regionID": "CH-6112",
+     "name": "obere Leventina"
+    },
+    {
+     "regionID": "CH-4244",
+     "name": "südliches Obergoms"
+    },
+    {
+     "regionID": "CH-4242",
+     "name": "Binntal"
+    },
+    {
+     "regionID": "CH-4231",
+     "name": "nördliches Simplon Gebiet"
+    },
+    {
+     "regionID": "CH-4222",
+     "name": "Zermatt"
+    },
+    {
+     "regionID": "CH-4241",
+     "name": "Reckingen"
+    },
+    {
+     "regionID": "CH-4223",
+     "name": "Saas Fee"
+    },
+    {
+     "regionID": "CH-4214",
+     "name": "Riederalp"
+    },
+    {
+     "regionID": "CH-4122",
+     "name": "Val d'Hérens"
+    },
+    {
+     "regionID": "CH-4221",
+     "name": "untere Vispertäler"
+    },
+    {
+     "regionID": "CH-4224",
+     "name": "Monte Rosa"
+    },
+    {
+     "regionID": "CH-4123",
+     "name": "Arolla"
+    },
+    {
+     "regionID": "CH-4225",
+     "name": "Mattmark"
+    },
+    {
+     "regionID": "CH-4232",
+     "name": "südliches Simplon Gebiet"
+    },
+    {
+     "regionID": "CH-4115",
+     "name": "Martigny-Verbier"
+    },
+    {
+     "regionID": "CH-4243",
+     "name": "nördliches Obergoms"
+    },
+    {
+     "regionID": "CH-6111",
+     "name": "Bedrettotal"
+    },
+    {
+     "regionID": "CH-4212",
+     "name": "Turtmanntal"
+    },
+    {
+     "regionID": "CH-4124",
+     "name": "Val d'Anniviers"
+    },
+    {
+     "regionID": "CH-4125",
+     "name": "Mountet"
+    },
+    {
+     "regionID": "CH-2224",
+     "name": "südliches Urseren"
+    },
+    {
+     "regionID": "CH-4116",
+     "name": "Haut Val de Bagnes"
+    },
+    {
+     "regionID": "CH-4113",
+     "name": "Val d'Entremont-Val Ferret"
+    }
+   ],
+   "dangerRatings": [
+    {
+     "mainValue": "considerable",
+     "validTimePeriod": "all_day",
+     "customData": {
+      "CH": {
+       "subdivision": "plus"
+      }
+     }
+    }
+   ],
+   "avalancheProblems": [
+    {
+     "problemType": "wind_slab",
+     "dangerRatingValue": "considerable",
+     "elevation": {
+      "lowerBound": 2000,
+      "upperBound": null
+     },
+     "aspects": [
+      "N",
+      "NE",
+      "E",
+      "SE",
+      "S",
+      "SW",
+      "W",
+      "NW"
+     ],
+     "validTimePeriod": "all_day",
+     "customData": {
+      "CH": {
+       "subdivision": "plus",
+       "coreZoneText": "Danger level \"considerable\" (3+) in all aspects above 2000m."
+      }
+     },
+     "comment": "As a consequence of a strong northerly wind, avalanche prone wind slabs formed during the night especially adjacent to ridgelines and in pass areas. The fresh and somewhat older wind slabs are lying on top of a weakly bonded old snowpack. Single winter sport participants can release avalanches in many places. Remotely triggered avalanches are to be expected. Avalanches can penetrate deep layers and reach large size. Whumpfing sounds and the formation of shooting cracks when stepping on the snowpack and fresh avalanches are a clear indication of a weakly bonded snowpack. <br/> Backcountry touring and other off-piste activities call for extensive experience in the assessment of avalanche danger and great restraint."
+    },
+    {
+     "problemType": "persistent_weak_layers",
+     "dangerRatingValue": "considerable",
+     "elevation": {
+      "lowerBound": 2000,
+      "upperBound": null
+     },
+     "aspects": [
+      "N",
+      "NE",
+      "E",
+      "SE",
+      "S",
+      "SW",
+      "W",
+      "NW"
+     ],
+     "validTimePeriod": "all_day",
+     "customData": {
+      "CH": {
+       "subdivision": "plus",
+       "coreZoneText": "Danger level \"considerable\" (3+) in all aspects above 2000m."
+      }
+     },
+     "comment": "As a consequence of a strong northerly wind, avalanche prone wind slabs formed during the night especially adjacent to ridgelines and in pass areas. The fresh and somewhat older wind slabs are lying on top of a weakly bonded old snowpack. Single winter sport participants can release avalanches in many places. Remotely triggered avalanches are to be expected. Avalanches can penetrate deep layers and reach large size. Whumpfing sounds and the formation of shooting cracks when stepping on the snowpack and fresh avalanches are a clear indication of a weakly bonded snowpack. <br/> Backcountry touring and other off-piste activities call for extensive experience in the assessment of avalanche danger and great restraint."
+    }
+   ],
+   "customData": {
+    "CH": {
+     "aggregation": [
+      {
+       "category": "dry",
+       "validTimePeriod": "all_day",
+       "problemTypes": [
+        "wind_slab",
+        "persistent_weak_layers"
+       ]
+      }
+     ]
+    }
+   }
+  },
+  {
+   "bulletinID": "test-spring",
+   "validTime": {
+    "startTime": "2026-02-15T07:00:00Z",
+    "endTime": "2026-02-15T16:00:00Z"
+   },
+   "nextUpdate": "2026-02-15T16:00:00Z",
+   "publicationTime": "2026-02-15T07:00:00Z",
+   "lang": "en",
+   "unscheduled": false,
+   "regions": [
+    {
+     "regionID": "CH-5123",
+     "name": "Davos"
+    },
+    {
+     "regionID": "CH-7112",
+     "name": "Bernina"
+    }
+   ],
+   "dangerRatings": [
+    {
+     "mainValue": "low",
+     "validTimePeriod": "earlier",
+     "customData": {
+      "CH": {
+       "subdivision": "neutral"
+      }
+     }
+    },
+    {
+     "mainValue": "moderate",
+     "validTimePeriod": "later",
+     "customData": {
+      "CH": {
+       "subdivision": "minus"
+      }
+     }
+    }
+   ],
+   "avalancheProblems": [
+    {
+     "problemType": "wet_snow",
+     "dangerRatingValue": "moderate",
+     "elevation": {
+      "lowerBound": null,
+      "upperBound": 2400
+     },
+     "aspects": [
+      "E",
+      "SE",
+      "S",
+      "SW",
+      "W"
+     ],
+     "validTimePeriod": "later",
+     "comment": "Test text."
+    },
+    {
+     "problemType": "gliding_snow",
+     "dangerRatingValue": "moderate",
+     "elevation": {
+      "lowerBound": 1800,
+      "upperBound": 2600
+     },
+     "aspects": [
+      "S"
+     ],
+     "validTimePeriod": "all_day",
+     "comment": "Test text."
+    }
+   ]
+  }
+ ]
+}

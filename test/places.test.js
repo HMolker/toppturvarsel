@@ -43,9 +43,13 @@ globalThis.fetch = async (url, opts = {}) => {
     calls.nom++;
     calls.nomUA = opts.headers?.['User-Agent'] ?? null;
     const q = new URL(u).searchParams;
-    assert.equal(q.get('countrycodes'), 'se');
+    assert.equal(q.get('countrycodes'), 'se,ch');
+    assert.equal(q.get('addressdetails'), '1');
     if (q.get('q') === 'Städjan') {
       return J([{ place_id: 1, osm_type: 'node', osm_id: 42, lat: '61.9197', lon: '12.8730', name: 'Städjan', type: 'peak', display_name: 'Städjan, Älvdalens kommun, Dalarnas län, Sverige' }]);
+    }
+    if (q.get('q') === 'Allalin') {
+      return J([{ place_id: 3, osm_type: 'node', osm_id: 99, lat: '46.0461', lon: '7.8947', name: 'Allalinhorn', type: 'peak', display_name: 'Allalinhorn, Saas-Almagell, Visp, Wallis/Valais, 3905, Schweiz/Suisse/Svizzera/Svizra', address: { country_code: 'ch' } }]);
     }
     if (q.get('q') === 'Omberg') {
       return J([{ place_id: 2, osm_type: 'node', osm_id: 7, lat: '58.3200', lon: '14.6500', name: 'Omberg', type: 'hill', display_name: 'Omberg, Ödeshögs kommun, Östergötlands län, Sverige' }]);
@@ -79,6 +83,10 @@ test('Norway from Kartverket, Sweden from Nominatim, mountains first, kept', asy
   const n = calls.kv + calls.nom;
   await searchPlaces('  städjan ');
   assert.equal(calls.kv + calls.nom, n, 'answered from the cache');
+  // v6: Switzerland through the same Nominatim search, its country from the answer.
+  const ch = await searchPlaces('Allalin');
+  assert.equal(ch.places[0].country, 'CH');
+  assert.equal(ch.places[0].area, 'Saas-Almagell, Visp');
   const onlyNo = await searchPlaces('Romsdalen', { country: 'NO' });
   assert.ok(onlyNo.places.every((p) => p.country === 'NO'));
   await assert.rejects(searchPlaces('a'), (e) => e.status === 400);

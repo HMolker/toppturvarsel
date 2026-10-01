@@ -18,7 +18,7 @@ import './access.js';
 /** Map credit and the terrain model behind a country's maps (v6: Switzerland). */
 const MAP_CREDIT = { SE: 'OpenTopoMap, © OpenStreetMap contributors', CH: 'swisstopo' };
 const mapCredit = (country) => MAP_CREDIT[country] ?? 'Kartverket';
-const ELEV_CREDIT = { SE: 'Copernicus DEM (GLO-30 / GLO-90)', CH: 'Copernicus DEM (GLO-30 / GLO-90)' };
+const ELEV_CREDIT = { SE: 'Copernicus DEM (GLO-30 / GLO-90)', CH: 'swisstopo swissALTI3D (2 m)' };
 const elevCredit = (country) => ELEV_CREDIT[country] ?? 'Kartverket (DTM 1 m / 10 m)';
 const REGION_KIND = {
   NO: 'Norwegian forecast region (NVE / Varsom)',

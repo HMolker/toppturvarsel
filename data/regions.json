@@ -52,5 +52,9 @@
   { "id": "ch-5111",   "name": "Northern Prättigau",             "country": "CH", "slfRegion": "CH-5111", "lat": 47.0, "lon": 9.83 },
   { "id": "ch-5231",   "name": "Albula valley",                  "country": "CH", "slfRegion": "CH-5231", "lat": 46.62, "lon": 9.83 },
   { "id": "ch-7112",   "name": "Bernina",                        "country": "CH", "slfRegion": "CH-7112", "lat": 46.4, "lon": 9.97 },
-  { "id": "ch-7121",   "name": "Samnaun",                        "country": "CH", "slfRegion": "CH-7121", "lat": 46.91, "lon": 10.36 }
+  { "id": "ch-7121",   "name": "Samnaun",                        "country": "CH", "slfRegion": "CH-7121", "lat": 46.91, "lon": 10.36 },
+  { "id": "ch-4124",   "name": "Val d'Anniviers",                "country": "CH", "slfRegion": "CH-4124", "lat": 46.13, "lon": 7.65 },
+  { "id": "ch-3222",   "name": "Alpstein–Alvier",                "country": "CH", "slfRegion": "CH-3222", "lat": 47.22, "lon": 9.4 },
+  { "id": "ch-6111",   "name": "Bedretto valley",                "country": "CH", "slfRegion": "CH-6111", "lat": 46.5, "lon": 8.45 },
+  { "id": "ch-1246",   "name": "Gadmen valley",                  "country": "CH", "slfRegion": "CH-1246", "lat": 46.72, "lon": 8.4 }
 ]

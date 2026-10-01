@@ -101,11 +101,46 @@ const nveUrl = (z, x, y) => {
   return src ? `tiles/${src}/${z}/${x}/${y}.png` : null;
 };
 
-/** The avalanche region for a point: the region of the nearest tour. */
+/**
+ * The avalanche region for a point: the region of the nearest tour — or, in
+ * Switzerland (v6.1), SLF's own micro-region at the point, asked of the
+ * server once per ~1 km square (the outlines live there). Until the answer
+ * comes, the nearest tour's region stands in, then the map redraws.
+ */
+const swissRegions = new Map(); // "lat,lon" (2 decimals) -> answer | null | Promise
+const rkey = (lat, lon) => `${lat.toFixed(2)},${lon.toFixed(2)}`;
+function swissLookup(lat, lon) {
+  const k = rkey(lat, lon);
+  if (swissRegions.has(k)) {
+    const v = swissRegions.get(k);
+    return v instanceof Promise ? undefined : v;
+  }
+  const p = fetch(`api/region?lat=${lat.toFixed(4)}&lon=${lon.toFixed(4)}`)
+    .then((r) => (r.ok ? r.json() : null))
+    .catch(() => null)
+    .then((v) => {
+      swissRegions.set(k, v);
+      map.requestRender();
+      renderLegend();
+      return v;
+    });
+  swissRegions.set(k, p);
+  return undefined;
+}
+/** Wait for the Swiss answer at a point, when there is one to wait for. */
+async function ensureRegion(lat, lon) {
+  regionAt(lat, lon);
+  const v = swissRegions.get(rkey(lat, lon));
+  if (v instanceof Promise) await v;
+}
 function regionAt(lat, lon) {
   const n = nearest(lat, lon, S.tours);
   if (!n) return null;
   const meta = S.regionsMeta[n.item.region];
+  if (meta?.country === 'CH') {
+    const s = swissLookup(lat, lon);
+    if (s) return { id: `slf:${s.microRegion}`, name: s.name, country: 'CH', micro: s.microRegion, bulletin: s.bulletin, bulletinUrl: s.bulletinUrl, tour: n.item.name, km: n.km };
+  }
   const live = S.bulletins[n.item.region];
   return { id: n.item.region, name: meta?.name ?? n.item.region, country: meta?.country, bulletin: live?.bulletin ?? null, bulletinUrl: live?.bulletinUrl ?? meta?.bulletinUrl ?? null, tour: n.item.name, km: n.km };
 }
@@ -542,6 +577,8 @@ async function runAnalysis() {
     const prof = await postProfile(S.route);
     if (S.pendingKey !== key) return;
     const mid = prof.samples[Math.floor(prof.samples.length / 2)];
+    await ensureRegion(mid.lat, mid.lon);
+    if (S.pendingKey !== key) return;
     S.where = regionAt(mid.lat, mid.lon);
     S.runout = await runoutFor(prof);
     if (S.pendingKey !== key) return;
@@ -639,7 +676,7 @@ function renderPanel({ loading = false } = {}) {
   if (!w) prob += `<p class="note">No avalanche region known here.</p>`;
   else {
     const b = w.bulletin;
-    prob += `<p>${esc(w.name)}${b?.danger ? ` — ${dangerChip(b.danger)}` : ''} ${b?.problems?.length ? problemIcons(b.problems, { danger: b.danger, size: 22 }) : ''}<br><span class="note">region of the nearest tour, ${esc(w.tour)} (${w.km.toFixed(0)} km)</span></p>`;
+    prob += `<p>${esc(w.name)}${b?.danger ? ` — ${dangerChip(b.danger)}` : ''} ${b?.problems?.length ? problemIcons(b.problems, { danger: b.danger, size: 22 }) : ''}<br><span class="note">${w.micro ? `SLF micro-region ${esc(w.micro)}, where the route is` : `region of the nearest tour, ${esc(w.tour)} (${w.km.toFixed(0)} km)`}</span></p>`;
     if (!b) prob += `<p class="note">No bulletin today${w.country === 'SE' ? ' (Swedish forecasts run from 11 December)' : w.country === 'CH' ? ' (SLF publishes from late autumn to spring)' : ' (out of season, or not yet loaded)'} — nothing to test the route against.</p>`;
     else if (!b.problems?.length) prob += `<p class="okline">The bulletin names no avalanche problems.</p>`;
     else if (!a.problemSections.length) prob += `<p class="okline">No 30°+ ground on the route faces today's problem aspects at their heights.</p>`;

@@ -24,6 +24,8 @@ import { fetchSwedishBulletins } from './sources/lavinprognoser.js';
 import { fetchSnowForPoints } from './sources/senorge.js';
 import { shapeSwiss } from './sources/slf.js';
 import { pickStation } from './sources/slfsnow.js';
+import { describeSquare } from './sources/swissalti3d.js';
+import { swissMicroRegions, regionIn } from './sources/eawsregions.js';
 
 const SLF_BULLETIN = process.env.SLF_BULLETIN_URL || 'https://aws.slf.ch/api/bulletin/caaml';
 const SLF_MEASURE = process.env.SLF_MEASUREMENT_URL || 'https://measurement-api.slf.ch/public/api/imis';
@@ -139,6 +141,35 @@ export async function checks({ now = new Date() } = {}) {
         const latest = rows.map((x) => String(x.measure_date)).sort().pop();
         const withHs = rows.filter((x) => Number.isFinite(x.HS)).length;
         return ok(`${rows.length} readings, latest ${latest.slice(0, 16)}; ${withHs} with a snow depth`);
+      },
+    },
+    {
+      name: 'swissALTI3D (Swiss terrain, 2 m)',
+      async run() {
+        const t = swissTours[0];
+        if (!t) return warn('no Swiss tours listed');
+        const d = await describeSquare(t.lat, t.lon);
+        if (!d) return fail(`no file found for ${t.name}'s square in swisstopo's catalogue`);
+        const off = Number.isFinite(d.height) ? Math.round(d.height - t.summit_m) : null;
+        const line = `${d.id}: ${d.info}; ${Math.round(d.height)} m at ${t.name}'s point (listed summit ${t.summit_m} m)`;
+        // The listed coordinates are approximate: far below the summit means they miss it.
+        return off !== null && off < -150 ? warn(`${line} — the tour's coordinates may be off`) : ok(line);
+      },
+    },
+    {
+      name: 'SLF micro-region outlines (EAWS)',
+      async run() {
+        const regions = await swissMicroRegions();
+        if (!regions) return fail('could not load the outlines (regions.avalanches.org)');
+        const wrong = [];
+        for (const t of swissTours) {
+          const listed = swissRegions.find((r) => r.id === t.region)?.slfRegion;
+          const at = regionIn(regions, t.lat, t.lon);
+          if (at !== listed) wrong.push(`${t.name}: listed ${listed}, lies in ${at ?? 'none'}`);
+        }
+        return wrong.length
+          ? warn(`${regions.length} micro-regions; ${wrong.length} tour(s) in another one than listed — ${wrong.join('; ')} (fix slfRegion / the tour's region in data/)`)
+          : ok(`${regions.length} micro-regions; every Swiss tour lies in the one it is listed in`);
       },
     },
     {

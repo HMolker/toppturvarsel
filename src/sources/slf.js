@@ -40,17 +40,43 @@ const PROBLEM_NAME = {
 };
 const ASPECTS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
 
-export async function fetchSwissBulletins(regions, { lang = 'en' } = {}) {
+export async function fetchSwissBulletins(regions, opts) {
+  return (await fetchSwissFeed(regions, opts)).byRegion;
+}
+
+/**
+ * The bulletin for our regions, and (v6.1) every micro-region in it, so a
+ * point anywhere in Switzerland can be given its own: { byRegion, all }.
+ */
+export async function fetchSwissFeed(regions, { lang = 'en' } = {}) {
   const targets = regions.filter((r) => r.country === 'CH' && r.slfRegion);
-  if (!targets.length) return {};
+  if (!targets.length) return { byRegion: {}, all: null };
   let body;
   try {
     body = await getJSON(`${BASE}/${lang}/json`, { timeoutMs: 20000 });
   } catch (err) {
     log.warn(`slf: bulletin failed: ${err.message}`);
-    return Object.fromEntries(targets.map((r) => [r.id, { source: 'slf', error: err.message, danger: null }]));
+    return { byRegion: Object.fromEntries(targets.map((r) => [r.id, { source: 'slf', error: err.message, danger: null }])), all: null };
   }
-  return shapeSwiss(body, targets);
+  return { byRegion: shapeSwiss(body, targets), all: shapeSwissAll(body) };
+}
+
+/**
+ * Every bulletin once, and which micro-region reads which:
+ * { bulletins: [shaped], byMicro: { "CH-4222": 0 }, names: { "CH-4222": "Zermatt" } }.
+ */
+export function shapeSwissAll(body) {
+  const list = Array.isArray(body?.bulletins) ? body.bulletins : [];
+  const out = { bulletins: [], byMicro: {}, names: {} };
+  list.forEach((b) => {
+    const k = out.bulletins.push(shapeBulletin(b)) - 1;
+    for (const r of b.regions ?? []) {
+      if (!r?.regionID) continue;
+      out.byMicro[r.regionID] = k;
+      if (r.name) out.names[r.regionID] = r.name;
+    }
+  });
+  return out;
 }
 
 /** Pure: the API's body and our regions in, one bulletin per region out. */

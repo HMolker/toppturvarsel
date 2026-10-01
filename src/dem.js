@@ -11,6 +11,7 @@ import { log } from './util/log.js';
 import { placeZones } from './places.js';
 import { tileInDemo, inDemo } from './demo.js';
 import { glo30Usable, glo30Status } from './sources/glo30.js';
+import { swissUsable, swissStatus } from './sources/swissalti3d.js';
 
 /**
  * The terrain model behind the v5 terrain page (/terrain): slope and aspect
@@ -400,7 +401,7 @@ export async function getRouteProfile(body, { cachedOnly = false } = {}) {
   // Kartverket's 1 m / 10 m model and Lantmäteriet's 1 m model resolve a
   // 10 m cross; Copernicus is 90 m cells, so the cross must span them or
   // every slope reads flat.
-  const offsetM = cachedOnly ? 20 : country === 'NO' || lmEnabled() ? 10 : glo30Usable() ? 30 : 90;
+  const offsetM = cachedOnly ? 20 : country === 'NO' || lmEnabled() || (country === 'CH' && swissUsable()) ? 10 : glo30Usable() ? 30 : 90;
   const { samples, spacing } = sampleRoute(v.points);
   const pts = crossPoints(samples, offsetM);
   const { values, source, sources } = cachedOnly
@@ -447,9 +448,10 @@ export async function zoneInfo() {
     // Countries whose terrain comes from files (cheap to read finely): the
     // 3D view can use a finer grid there.
     // Sweden is fine (no point budget) on Lantmäteriet's files or GLO-30's (v5.6.2).
-    // Switzerland (v6) is on GLO-30 as well.
-    fine: [...(elevation.lmUsable() || glo30Usable() ? ['SE'] : []), ...(glo30Usable() ? ['CH'] : [])],
-    switzerland: glo30Usable() ? 'Copernicus GLO-30 (30 m)' : 'Copernicus GLO-90 via Open-Meteo (90 m)',
+    // Switzerland: swissALTI3D's 2 m files (v6.1), else GLO-30.
+    fine: [...(elevation.lmUsable() || glo30Usable() ? ['SE'] : []), ...(swissUsable() || glo30Usable() ? ['CH'] : [])],
+    switzerland: swissUsable() ? 'swisstopo swissALTI3D (2 m)' : glo30Usable() ? 'Copernicus GLO-30 (30 m)' : 'Copernicus GLO-90 via Open-Meteo (90 m)',
+    swissalti3d: swissStatus(),
     sweden: elevation.lmUsable() ? 'Lantmäteriet Markhöjdmodell 1 m' : glo30Usable() ? 'Copernicus GLO-30 (30 m)' : 'Copernicus GLO-90 via Open-Meteo (90 m)',
     glo30: glo30Status(),
     // Places picked in the place search: part of the service area (v5.6).

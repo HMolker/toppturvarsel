@@ -232,7 +232,7 @@ test('route profile in Sweden: a 10 m cross on the 1 m model, and the zone repor
     assert.ok(Math.abs(s.slope - want) < 2.5, `slope ${s.slope} vs ${want.toFixed(1)}`);
     assert.ok(Math.abs(s.ele - h(px, py)) < 1, `height ${s.ele} vs ${h(px, py).toFixed(1)}`);
     const zone = await (await fetch(`${base}/api/terrain/zone`)).json();
-    assert.deepEqual(zone.fine, ['SE']);
+    assert.deepEqual(zone.fine, ['SE', 'CH'], 'Sweden on the 1 m model; Switzerland on swissALTI3D (v6.1)');
     assert.equal(zone.lantmateriet.enabled, true);
   } finally {
     await new Promise((r) => server.close(r));

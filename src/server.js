@@ -6,6 +6,8 @@ import { fileURLToPath } from 'node:url';
 import { config, loadRegions, loadTours, inSeason } from './config.js';
 import { store } from './store.js';
 import { refresh, completeSnapshot } from './refresh.js';
+import { swissMicroRegionAt } from './sources/eawsregions.js';
+import { SLF_PAGE } from './sources/slf.js';
 import { evaluateAlerts, runAlerts } from './alerts.js';
 import { startScheduler } from './scheduler.js';
 import { findTour, getRoute, routeGpx, getForecast, warmRoutes, getPhotos, getPhotoThumb, trackStatuses } from './tracks.js';
@@ -201,6 +203,23 @@ async function handleApi(req, res, url, ctx = { user: null, sneaky: false }) {
   }
   if (sneaky && PREMIUM_API.has(route)) {
     return closedJson(res, { '/api/skill': 'forecast accuracy', '/api/places/pick': 'opening new areas', '/api/refresh': 'refreshing', '/api/test-alert': 'alerts', '/api/track.gpx': 'GPX download' }[route]);
+  }
+
+  // v6.1: the Swiss micro-region at a point, with its bulletin from the last refresh.
+  if (route === '/api/region') {
+    const lat = Number(url.searchParams.get('lat')), lon = Number(url.searchParams.get('lon'));
+    if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 85 || Math.abs(lon) > 180) return json(res, 400, { error: 'lat and lon, please' });
+    const micro = await swissMicroRegionAt(lat, lon).catch(() => null);
+    if (!micro) return json(res, 404, { error: 'not in a Swiss avalanche micro-region (or the outlines are not loaded yet)' }, { 'Cache-Control': 'no-store' });
+    const swiss = (await store.getSnapshot())?.swiss;
+    const k = swiss?.byMicro?.[micro];
+    return json(res, 200, {
+      country: 'CH',
+      microRegion: micro,
+      name: swiss?.names?.[micro] ?? micro,
+      bulletin: Number.isInteger(k) ? swiss.bulletins[k] : { source: 'slf', danger: null, assessed: false, outOfSeason: !swiss?.bulletins?.length, problems: [] },
+      bulletinUrl: SLF_PAGE,
+    }, { 'Cache-Control': 'private, max-age=600' });
   }
 
   if (route === '/api/conditions') {

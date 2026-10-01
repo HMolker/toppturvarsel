@@ -27,7 +27,7 @@ await mkdir(outDir, { recursive: true });
 
 const dataDir = await mkdtemp(path.join(tmpdir(), 'ttv-swiss-check-'));
 await mkdir(path.join(dataDir, 'cache'), { recursive: true });
-Object.assign(process.env, { DATA_DIR: dataDir, LOG_LEVEL: 'error', TRACKS_WARMUP: 'false', SEASON_ONLY: 'false', TERRAIN_DAILY_POINTS: '1000000', GLO30: 'off', DEMO: 'off' });
+Object.assign(process.env, { DATA_DIR: dataDir, LOG_LEVEL: process.env.LOG_LEVEL ?? 'error', TRACKS_WARMUP: 'false', SEASON_ONLY: 'false', TERRAIN_DAILY_POINTS: '1000000', GLO30: 'off', DEMO: 'off' });
 
 const tours = JSON.parse(await readFile(path.join(repo, 'data/tours.json'), 'utf8'));
 const regions = JSON.parse(await readFile(path.join(repo, 'data/regions.json'), 'utf8'));
@@ -88,13 +88,33 @@ function drawTile(tz, tx, ty, kind) {
 }
 
 /* ---------- the upstreams ---------- */
-const seen = { slf: 0, imis: 0, chTiles: 0, chsTiles: 0 };
+const seen = { slf: 0, imis: 0, chTiles: 0, chsTiles: 0, alti: 0 };
+const alti = await import('../src/sources/swissalti3d.js');
+const { writeTiff } = await import('../test/helpers/tiff.js');
 const realFetch = globalThis.fetch;
 globalThis.fetch = async (url, opts = {}) => {
   const u = String(url);
   const J = (b) => new Response(JSON.stringify(b), { status: 200, headers: { 'Content-Type': 'application/json' } });
   if (/^https?:\/\/(127\.0\.0\.1|localhost)[:/]/.test(u)) return realFetch(url, opts);
   if (u.includes('aws.slf.ch')) { seen.slf++; return J(bulletins); }
+  // v6.1: swissALTI3D, the 2 m squares drawn from the made-up mountains, and SLF's micro-region outlines.
+  if (u.includes('/api/stac/') && u.includes('swissalti3d')) {
+    const b = new URL(u).searchParams.get('bbox').split(',').map(Number);
+    const { e, n } = alti.lv95((b[1] + b[3]) / 2, (b[0] + b[2]) / 2);
+    const id = `swissalti3d_2024_${alti.squareOf(e, n)}`;
+    return J({ features: [{ id, properties: { datetime: '2024-01-01T00:00:00Z' }, assets: { [`${id}_2_2056_5728.tif`]: { href: `https://data.geo.admin.ch/ch.swisstopo.swissalti3d/${id}/${id}_2_2056_5728.tif` } } }] });
+  }
+  if (/swissalti3d_\d+_(\d+)-(\d+)_2_2056_5728\.tif$/.test(u)) {
+    seen.alti++;
+    const [, ke, kn] = u.match(/_(\d+)-(\d+)_2_2056_5728\.tif$/).map(Number);
+    const W = 100; // 10 m cells here, to keep the check quick; the real files are 2 m
+    return new Response(writeTiff({ width: W, height: W, tile: 64, scale: [1000 / W, 1000 / W, 0], tie: [0, 0, 0, ke * 1000, (kn + 1) * 1000, 0],
+      values: (x, y) => { const p = alti.wgs84(ke * 1000 + (x + 0.5) * (1000 / W), (kn + 1) * 1000 - (y + 0.5) * (1000 / W)); return z(p.lat, p.lon); } }), { status: 200 });
+  }
+  if (u.includes('regions.avalanches.org')) {
+    const sq = (t, d) => [[[t.lon - d, t.lat - d], [t.lon + d, t.lat - d], [t.lon + d, t.lat + d], [t.lon - d, t.lat + d], [t.lon - d, t.lat - d]]];
+    return J({ type: 'FeatureCollection', features: swiss.map((t) => ({ type: 'Feature', properties: { id: regions.find((r) => r.id === t.region).slfRegion }, geometry: { type: 'MultiPolygon', coordinates: [sq(t, 0.05)] } })) });
+  }
   if (u.includes('measurement-api.slf.ch') && u.endsWith('/stations')) {
     seen.imis++;
     return J(swiss.map((t, i) => ({ code: `IMIS${i}`, label: `${t.name.split(' ')[0]} station`, lat: t.lat + 0.03, lon: t.lon - 0.02, elevation: Math.round((t.summit_m - 900) / 10) * 10, country_code: 'CH', canton_code: 'VS', type: 'SNOW_FLAT' })));

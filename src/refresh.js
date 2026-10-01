@@ -2,7 +2,7 @@ import { loadRegions, loadTours, inSeason, config } from './config.js';
 import { fetchNorwegianBulletins } from './sources/varsom.js';
 import { fetchSwedishBulletins } from './sources/lavinprognoser.js';
 import { fetchSnowForPoints, summariseByRegion } from './sources/senorge.js';
-import { fetchSwissBulletins, SLF_PAGE } from './sources/slf.js';
+import { fetchSwissFeed, SLF_PAGE } from './sources/slf.js';
 import { fetchSwissSnow } from './sources/slfsnow.js';
 import { fetchObservationCounts } from './sources/regobs.js';
 import { store } from './store.js';
@@ -62,7 +62,7 @@ export async function refresh({
   const nordicPoints = allPoints.filter((p) => p.country !== 'CH');
   const swissPoints = allPoints.filter((p) => p.country === 'CH');
 
-  const [norway, sweden, switzerland, nordicSnow, swissSnow, observations] = await Promise.all([
+  const [norway, sweden, swissFeed, nordicSnow, swissSnow, observations] = await Promise.all([
     fetchNorwegianBulletins(regions, { date }).catch((e) => {
       log.error(`varsom failed wholesale: ${e.message}`);
       return {};
@@ -71,9 +71,9 @@ export async function refresh({
       log.error(`lavinprognoser failed wholesale: ${e.message}`);
       return {};
     }),
-    fetchSwissBulletins(regions).catch((e) => {
+    fetchSwissFeed(regions).catch((e) => {
       log.error(`slf failed wholesale: ${e.message}`);
-      return {};
+      return { byRegion: {}, all: null };
     }),
     fetchSnowForPoints(nordicPoints, { date }).catch((e) => {
       log.error(`senorge failed wholesale: ${e.message}`);
@@ -89,6 +89,7 @@ export async function refresh({
     }),
   ]);
 
+  const switzerland = swissFeed.byRegion;
   const snowByTour = { ...nordicSnow, ...swissSnow };
   const snowByRegion = summariseByRegion(snowByTour, tours);
 
@@ -181,6 +182,8 @@ export async function refresh({
     },
     regions: regionRows,
     tours: tourRows,
+    // v6.1: every Swiss micro-region's bulletin, for points away from the listed tours.
+    ...(swissFeed.all ? { swiss: swissFeed.all } : {}),
   };
 
   await store.saveSnapshot(snapshot);

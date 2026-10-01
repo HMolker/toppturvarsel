@@ -1,3 +1,4 @@
+import { swissElevations, swissUsable, swissPause } from './swissalti3d.js';
 import { UA } from '../util/ua.js';
 import { haversineKm } from '../util/utm.js';
 import { lmEnabled, lmElevations, lmUsable, lmPause, LM_PAUSE_MS } from './lmcog.js';
@@ -106,6 +107,8 @@ export async function fetchKartverket(points) {
  * Returns { values, source, charged }: `charged` is how many points were
  * sent to a per-point service, which is what the daily budget counts.
  */
+const SWISS_MAX_SPACING_M = 60;
+
 export async function bestElevations(points, country, { spacingM = 50, maxCharged = Infinity } = {}) {
   const values = new Array(points.length).fill(null);
   let todo = points.map((_, i) => i);
@@ -154,6 +157,21 @@ export async function bestElevations(points, country, { spacingM = 50, maxCharge
       /* GLO-30 / Copernicus below */
     }
   }
+  // v6.1: Switzerland from swisstopo's swissALTI3D, 2 m, open files (no point budget).
+  // Only for fine sampling (a drawn route): a map tile's points lie hundreds of
+  // metres apart and would each pull a whole 1 km file, 20 or more per tile.
+  let swissFailed = null;
+  if (todo.length && country === 'CH' && swissUsable() && spacingM <= SWISS_MAX_SPACING_M) {
+    try {
+      const sw = await swissElevations(todo.map((i) => points[i]));
+      todo.forEach((idx, k) => (values[idx] = sw[k]));
+      done('swisstopo-swissalti3d');
+    } catch (err) {
+      swissFailed = err.message;
+      swissPause(err);
+      log.warn(`elevation: swissALTI3D failed (${err.message}); using GLO-30, trying it again in 10 min`);
+    }
+  }
   // v5.6.2: Copernicus GLO-30 from its open files, 30 m, no daily limit —
   // before Open-Meteo's 90 m copy of the same model.
   let gloFailed = null;
@@ -178,6 +196,7 @@ export async function bestElevations(points, country, { spacingM = 50, maxCharge
       // Say why the finer sources were not used, too: that is the thing to fix.
       if (lmFailed) err.message = `${err.message}. Lantmäteriet (Sweden's 1 m model) was not used: ${lmFailed}`;
       if (gloFailed) err.message = `${err.message}. GLO-30 (30 m) was not used: ${gloFailed}`;
+      if (swissFailed) err.message = `${err.message}. swissALTI3D (Switzerland's 2 m model) was not used: ${swissFailed}`;
       throw err;
     }
     todo.forEach((idx, k) => (values[idx] = fill[k]));

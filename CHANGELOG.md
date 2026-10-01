@@ -3,6 +3,25 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v6.1.0 — Switzerland in 2 m, and a bulletin for any point (2026-10-01)
+
+- **swissALTI3D**: drawn routes and tour analysis in Switzerland now read
+  swisstopo's 2 m terrain model (open files found through swisstopo's STAC
+  catalogue; one 1 km file at a time, kept a year, capped by
+  `SWISSALTI3D_DAILY_MB`). Slopes on a route are no longer 30 m averages.
+  New general GeoTIFF reader (`src/sources/tiffraster.js`, no dependencies).
+  Map-tile grids stay on GLO-30. If swisstopo fails the page falls back to
+  GLO-30 for ten minutes.
+- **Micro-region outlines**: any point in Switzerland finds its own SLF
+  micro-region and bulletin (`/api/region`); the snapshot now carries every
+  bulletin, and 4 more regions (Val d'Anniviers, Alpstein–Alvier, Bedretto,
+  Gadmen) are listed.
+- 9 more Swiss tours (Bishorn, Weissmies, Strahlhorn, Alphubel, Mont Vélan,
+  Piz Morteratsch, Säntis, Pizzo Rotondo, Sustenhorn): 24 in all, 115 overall.
+- `check-sources` also tests swissALTI3D and the outline file.
+- The formats of the new upstreams were read from their documentation; the
+  first real download happens on your Pi, so run `check-sources` after updating.
+
 ## v6.0.2 — new countries and tours show at once after an update (2026-09-30)
 
 - Fix: after updating to v6, Switzerland was missing from the country bar

@@ -26,7 +26,7 @@ process, zero npm dependencies, one Docker container.
 - **Snow depth and new snow** from NVE's seNorge 1 km model grid, sampled at
   **each tour's own coordinates** rather than a region centroid — so
   Rørnestinden gets Rørnestinden's snow, not the fjord's.
-- **106 curated tours** (15 of them Swiss) with difficulty and quality ratings, filterable and
+- **115 curated tours** (24 of them Swiss) with difficulty and quality ratings, filterable and
   sortable by how much snow just fell on them, each marked with whether a
   GPX track is available (your own, or a route from OpenStreetMap).
 - **Country selection** as the first filter: pick Norway, Sweden or both, and
@@ -361,7 +361,8 @@ works in Switzerland, from these open sources:
 | Avalanche bulletin | SLF, CAAMLv6 JSON (`aws.slf.ch/api/bulletin/caaml/en/json`) | Danger level with SLF's + / = / − subdivision, morning and afternoon levels on spring days, avalanche problems with aspects and heights, the danger description. One bulletin covers many of SLF's ~150 micro-regions; each Swiss region here is one micro-region (`slfRegion` in `data/regions.json`). |
 | Snow depth, new snow | SLF IMIS stations (`measurement-api.slf.ch/public/api/imis/…`) | Each tour takes the station near it at a similar height (100 m of height counts like 1 km of distance, up to 25 km); the page names the station. New snow is SLF's daily modelled value, summed for 48 and 72 h. |
 | Topo map, slope map | swisstopo WMTS: the national map in grey and "slope classes over 30°" | On Plan a tour and the tour maps; the "Slope map" checkbox shows NVE's map in Norway and swisstopo's in Switzerland. No runout zones (NVE only). |
-| Heights | Copernicus GLO-30 (or GLO-90 via Open-Meteo) | swissALTI3D (0.5–2 m) is the next step. |
+| Heights | swisstopo swissALTI3D, 2 m (v6.1), through the open STAC catalogue; GLO-30 / GLO-90 for map tiles and when swisstopo is down | Used for drawn routes and tour analysis. Each 1 km file (500 × 500 heights) is downloaded once and kept a year; `SWISSALTI3D_DAILY_MB` caps the traffic (default 300), `SWISSALTI3D=off` leaves Switzerland on GLO-30. Map-tile grids (300 m apart) stay on GLO-30: they would pull 20 files each. |
+| Micro-region outlines | EAWS region set (`regions.avalanches.org`) | Click or draw anywhere in Switzerland and the page finds the micro-region there and shows its own bulletin (`/api/region`). Outlines kept 30 days on disk. |
 | Weather | Open-Meteo and MET Norway | Both cover the Alps. |
 | Resorts | OpenStreetMap | Location, website, lifts mapped; no open live status. |
 | Place search | Nominatim, now `countrycodes=se,ch` | |

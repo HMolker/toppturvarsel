@@ -6,7 +6,8 @@ import { fileURLToPath } from 'node:url';
 import { config, loadRegions, loadTours, inSeason } from './config.js';
 import { store } from './store.js';
 import { refresh, completeSnapshot } from './refresh.js';
-import { swissMicroRegionAt } from './sources/eawsregions.js';
+import { swissMicroRegionAt, alpineMicroRegionAt } from './sources/eawsregions.js';
+import { EUREGIO_PAGE } from './sources/eawsfeed.js';
 import { SLF_PAGE } from './sources/slf.js';
 import { evaluateAlerts, runAlerts } from './alerts.js';
 import { startScheduler } from './scheduler.js';
@@ -205,20 +206,34 @@ async function handleApi(req, res, url, ctx = { user: null, sneaky: false }) {
     return closedJson(res, { '/api/skill': 'forecast accuracy', '/api/places/pick': 'opening new areas', '/api/refresh': 'refreshing', '/api/test-alert': 'alerts', '/api/track.gpx': 'GPX download' }[route]);
   }
 
-  // v6.1: the Swiss micro-region at a point, with its bulletin from the last refresh.
+  // v6.1: the micro-region at a point, with its bulletin from the last refresh.
+  // v6.2: Switzerland (SLF), and Austria and Euregio (the EAWS bulletin files).
   if (route === '/api/region') {
     const lat = Number(url.searchParams.get('lat')), lon = Number(url.searchParams.get('lon'));
     if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 85 || Math.abs(lon) > 180) return json(res, 400, { error: 'lat and lon, please' });
-    const micro = await swissMicroRegionAt(lat, lon).catch(() => null);
-    if (!micro) return json(res, 404, { error: 'not in a Swiss avalanche micro-region (or the outlines are not loaded yet)' }, { 'Cache-Control': 'no-store' });
-    const swiss = (await store.getSnapshot())?.swiss;
-    const k = swiss?.byMicro?.[micro];
+    const snap = await store.getSnapshot();
+    const swissId = await swissMicroRegionAt(lat, lon).catch(() => null);
+    if (swissId) {
+      const swiss = snap?.swiss;
+      const k = swiss?.byMicro?.[swissId];
+      return json(res, 200, {
+        country: 'CH',
+        microRegion: swissId,
+        name: swiss?.names?.[swissId] ?? swissId,
+        bulletin: Number.isInteger(k) ? swiss.bulletins[k] : { source: 'slf', danger: null, assessed: false, outOfSeason: !swiss?.bulletins?.length, problems: [] },
+        bulletinUrl: SLF_PAGE,
+      }, { 'Cache-Control': 'private, max-age=600' });
+    }
+    const alp = await alpineMicroRegionAt(lat, lon).catch(() => null);
+    if (!alp) return json(res, 404, { error: 'not in a known avalanche micro-region (or the outlines are not loaded yet)' }, { 'Cache-Control': 'no-store' });
+    const eaws = snap?.eaws;
+    const k = eaws?.byMicro?.[alp.id];
     return json(res, 200, {
-      country: 'CH',
-      microRegion: micro,
-      name: swiss?.names?.[micro] ?? micro,
-      bulletin: Number.isInteger(k) ? swiss.bulletins[k] : { source: 'slf', danger: null, assessed: false, outOfSeason: !swiss?.bulletins?.length, problems: [] },
-      bulletinUrl: SLF_PAGE,
+      country: alp.state.startsWith('IT') ? 'IT' : 'AT',
+      microRegion: alp.id,
+      name: eaws?.names?.[alp.id] ?? alp.id,
+      bulletin: Number.isInteger(k) ? eaws.bulletins[k] : { source: 'eaws', danger: null, assessed: false, outOfSeason: !eaws?.bulletins?.length, problems: [] },
+      bulletinUrl: EUREGIO_PAGE,
     }, { 'Cache-Control': 'private, max-age=600' });
   }
 
@@ -376,7 +391,7 @@ async function handleApi(req, res, url, ctx = { user: null, sneaky: false }) {
   if (route === '/api/places') {
     try {
       const c = url.searchParams.get('country');
-      return jsonz(req, res, 200, await searchPlaces(url.searchParams.get('q'), { country: ['NO', 'SE', 'CH'].includes(c) ? c : null }), { 'Cache-Control': 'public, max-age=86400' });
+      return jsonz(req, res, 200, await searchPlaces(url.searchParams.get('q'), { country: ['NO', 'SE', 'CH', 'AT', 'IT'].includes(c) ? c : null }), { 'Cache-Control': 'public, max-age=86400' });
     } catch (err) {
       return json(res, err.status ?? 502, { error: err.message });
     }

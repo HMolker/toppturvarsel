@@ -25,6 +25,9 @@ const allRegions = JSON.parse(await readFile(new URL('../data/regions.json', imp
 const swissIds = new Set(allRegions.filter((r) => r.country === 'CH').map((r) => r.id));
 const swissTours = JSON.parse(await readFile(new URL('../data/tours.json', import.meta.url), 'utf8')).filter((t) => swissIds.has(t.region));
 const { evaluateAlerts } = await import('../src/alerts.js');
+const { alpineStubs } = await import('./helpers/alps.js');
+const alpine = alpineStubs({ regions: allRegions });
+const italianIds = new Set(allRegions.filter((r) => r.country === 'IT').map((r) => r.id));
 
 const realFetch = globalThis.fetch;
 
@@ -74,6 +77,10 @@ function stubFetch({ snowByCell = () => 120, dangerFor = () => '3', failVarsom =
       return textResponse('<html><body><img alt="Risk 2"><p>Måttlig lavinfara</p></body></html>');
     }
 
+    // Austria and Euregio (v6.2): the EAWS files, the outlines and GeoSphere's stations.
+    const alp = alpine(u);
+    if (alp) return alp;
+
     throw new Error(`unexpected fetch in test: ${u}`);
   };
 }
@@ -105,7 +112,8 @@ test('a full refresh populates every region and tour', async () => {
   assert.ok(se.filter((r) => !r.bulletin.noForecast).every((r) => r.bulletin.danger === 2), 'Swedish pages parsed to danger 2');
   assert.ok(se.some((r) => r.bulletin.noForecast && r.bulletin.danger === null && r.bulletinUrl === null), 'no-forecast area says so');
 
-  assert.ok(snap.tours.every((t) => t.snow?.depthCm != null), 'every tour got a snow depth');
+  // (South Tyrol and Trentino have no station in this stub: GeoSphere's are Austrian.)
+  assert.ok(snap.tours.filter((t) => !italianIds.has(t.region)).every((t) => t.snow?.depthCm != null), 'every tour got a snow depth');
   assert.equal(snap.sources.senorge.ok, true);
   assert.equal(snap.sources.varsom.regions, 24);
 
@@ -120,6 +128,22 @@ test('a full refresh populates every region and tour', async () => {
   assert.equal(allalin.snow.new48, 25);
   assert.equal(snap.sources.slf.ok, true);
   assert.equal(snap.sources.slfSnow.ok, true);
+
+  // Austria and Euregio (v6.2): the bulletin of the micro-region at each region's point, GeoSphere's station for the snow.
+  const wild = snap.regions.find((r) => r.id === 'at-oetztal');
+  assert.equal(wild.bulletin.source, 'eaws');
+  assert.equal(wild.bulletin.danger, 3);
+  assert.equal(wild.bulletin.provider, 'LWD Tirol');
+  assert.match(wild.bulletin.microRegion, /^AT-07-/);
+  assert.equal(wild.bulletinUrl, 'https://avalanche.report/');
+  assert.equal(snap.regions.find((r) => r.id === 'it-presanella').bulletin.danger, 3);
+  const wildspitze = snap.tours.find((t) => t.name === 'Wildspitze');
+  assert.equal(wildspitze.snow.source, 'geosphere');
+  assert.equal(wildspitze.snow.derived, true);
+  assert.ok(wildspitze.snow.depthCm > 0 && wildspitze.snow.new24 > 0);
+  assert.equal(snap.sources.eaws.ok, true);
+  assert.equal(snap.sources.geosphere.ok, true);
+  assert.ok(snap.eaws.bulletins.length >= 10, 'every micro-region of the files is kept for any point');
 });
 
 test('region snow summaries are derived from their own tours', async () => {
@@ -153,7 +177,7 @@ test('a Varsom outage does not lose the snow data or crash the refresh', async (
   const snap = await refresh({ force: true, date: new Date('2026-02-10T08:00:00Z') });
 
   assert.equal(snap.status, 'ok', 'partial failure must still produce a snapshot');
-  assert.ok(snap.tours.every((t) => t.snow?.depthCm != null), 'snow survived the bulletin outage');
+  assert.ok(snap.tours.filter((t) => !italianIds.has(t.region)).every((t) => t.snow?.depthCm != null), 'snow survived the bulletin outage');
 
   const no = snap.regions.filter((r) => r.country === 'NO');
   assert.ok(no.every((r) => r.bulletin.danger == null), 'no invented danger levels');

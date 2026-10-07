@@ -12,4 +12,8 @@ export const BORDER = [[69.06,20.55],[68.7,19.5],[68.4,18.1],[67.8,17.3],[67.13,
 export const CH_OUTLINE = [[47.525,9.594],[47.348,9.633],[47.103,9.48],[46.921,9.932],[46.894,10.443],[46.484,10.363],[46.315,9.923],[46.44,9.183],[46.037,8.966],[46.005,8.49],[46.164,8.317],[45.824,7.756],[45.777,7.274],[45.991,6.844],[46.43,6.5],[46.273,6.023],[46.726,6.037],[47.288,6.769],[47.542,6.737],[47.45,7.192],[47.621,7.467],[47.614,8.317],[47.831,8.523]];
 
 /** Every land outline the sketch map draws (and clips the snow colours to). */
-export const LANDS = [COAST, CH_OUTLINE];
+// v6.2: Austria and the Euregio part of Italy: the same outlines as the map frames.
+import { COUNTRIES } from './countries.js';
+export const AT_OUTLINE = COUNTRIES.AT.frame;
+export const IT_OUTLINE = COUNTRIES.IT.frame;
+export const LANDS = [COAST, CH_OUTLINE, AT_OUTLINE, IT_OUTLINE];

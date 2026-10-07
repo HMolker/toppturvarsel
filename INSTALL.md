@@ -306,7 +306,7 @@ and can be ignored.
 ## 8d. Are the sources still answering? (v6.0.1)
 
 One command asks each source once — Varsom, lavinprognoser.se, seNorge,
-SLF's bulletin and stations, swisstopo (maps and the 2 m terrain files), SLF's micro-region outlines, Open-Meteo, MET Norway — and says
+SLF's bulletin and stations, swisstopo (maps and the 2 m terrain files), SLF's micro-region outlines, the Austrian and Euregio bulletin files and outlines, GeoSphere's stations, basemap.at, Open-Meteo, MET Norway — and says
 whether it answers the way the code reads it:
 
 ```bash

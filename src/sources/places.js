@@ -9,8 +9,8 @@ import { UA } from '../util/ua.js';
  *   -> { navn: [{ skrivemåte, navneobjekttype, stedsnummer,
  *                 representasjonspunkt: { øst, nord }, kommuner: [{ kommunenavn }], fylker: [{ fylkesnavn }] }] }
  *   Open, no key. © Kartverket, CC BY 4.0.
- * Sweden and Switzerland (v6): OpenStreetMap's Nominatim, limited to them.
- *   GET https://nominatim.openstreetmap.org/search?q=…&format=jsonv2&countrycodes=se,ch&addressdetails=1
+ * Sweden, Switzerland (v6), Austria and Italy (v6.2): OpenStreetMap's Nominatim, limited to them.
+ *   GET https://nominatim.openstreetmap.org/search?q=…&format=jsonv2&countrycodes=se,ch,at,it&addressdetails=1
  *   -> [{ place_id, lat, lon, name, display_name, type, address: { country_code } }]
  *   Its usage policy: at most one request a second, an identifying
  *   User-Agent, and no search-as-you-type. The page searches on Enter only,
@@ -68,13 +68,13 @@ function nomQueued(fn) {
 }
 
 // v6: Switzerland too. addressdetails gives each answer's country code.
-export const NOMINATIM_COUNTRIES = ['se', 'ch'];
+export const NOMINATIM_COUNTRIES = ['se', 'ch', 'at', 'it'];
 export function nominatimUrl(q) {
   return `${NOM}?q=${encodeURIComponent(q)}&format=jsonv2&countrycodes=${NOMINATIM_COUNTRIES.join(',')}&addressdetails=1&limit=8&accept-language=sv,de,fr,it`;
 }
-const COUNTRY_WORDS = /^(Sverige|Schweiz|Suisse|Svizzera|Svizra|Switzerland)$/i;
-// Swedish postcodes ("123 45") and Swiss ones ("3920") are not places.
-const POSTCODE = /^(\d{3} ?\d{2}|\d{4})$/;
+const COUNTRY_WORDS = /^(Sverige|Schweiz|Suisse|Svizzera|Svizra|Switzerland|Österreich|Austria|Italia|Italy)$/i;
+// Swedish postcodes ("123 45"), Swiss and Austrian ones ("3920") and Italian ones ("39100") are not places.
+const POSTCODE = /^(\d{3} ?\d{2}|\d{4,5})$/;
 
 export async function searchNominatim(q) {
   return nomQueued(async () => {

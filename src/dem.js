@@ -449,8 +449,10 @@ export async function zoneInfo() {
     // 3D view can use a finer grid there.
     // Sweden is fine (no point budget) on Lantmäteriet's files or GLO-30's (v5.6.2).
     // Switzerland: swissALTI3D's 2 m files (v6.1), else GLO-30.
-    fine: [...(elevation.lmUsable() || glo30Usable() ? ['SE'] : []), ...(swissUsable() || glo30Usable() ? ['CH'] : [])],
+    fine: [...(elevation.lmUsable() || glo30Usable() ? ['SE'] : []), ...(swissUsable() || glo30Usable() ? ['CH'] : []), ...(glo30Usable() ? ['AT', 'IT'] : [])],
     switzerland: swissUsable() ? 'swisstopo swissALTI3D (2 m)' : glo30Usable() ? 'Copernicus GLO-30 (30 m)' : 'Copernicus GLO-90 via Open-Meteo (90 m)',
+    // Austria and Euregio (v6.2): Copernicus GLO-30 (Austria's 1 m laser model is 50 km download tiles, too large to read live).
+    alps: glo30Usable() ? 'Copernicus GLO-30 (30 m)' : 'Copernicus GLO-90 via Open-Meteo (90 m)',
     swissalti3d: swissStatus(),
     sweden: elevation.lmUsable() ? 'Lantmäteriet Markhöjdmodell 1 m' : glo30Usable() ? 'Copernicus GLO-30 (30 m)' : 'Copernicus GLO-90 via Open-Meteo (90 m)',
     glo30: glo30Status(),

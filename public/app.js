@@ -16,14 +16,16 @@ import { attachPlaceSearch, pickPlace, kindName } from './placesearch.js';
 import './access.js';
 
 /** Map credit and the terrain model behind a country's maps (v6: Switzerland). */
-const MAP_CREDIT = { SE: 'OpenTopoMap, © OpenStreetMap contributors', CH: 'swisstopo' };
+const MAP_CREDIT = { SE: 'OpenTopoMap, © OpenStreetMap contributors', CH: 'swisstopo', AT: 'basemap.at (CC BY 4.0)', IT: 'OpenTopoMap, © OpenStreetMap contributors' };
 const mapCredit = (country) => MAP_CREDIT[country] ?? 'Kartverket';
-const ELEV_CREDIT = { SE: 'Copernicus DEM (GLO-30 / GLO-90)', CH: 'swisstopo swissALTI3D (2 m)' };
+const ELEV_CREDIT = { SE: 'Copernicus DEM (GLO-30 / GLO-90)', CH: 'swisstopo swissALTI3D (2 m)', AT: 'Copernicus DEM (GLO-30 / GLO-90)', IT: 'Copernicus DEM (GLO-30 / GLO-90)' };
 const elevCredit = (country) => ELEV_CREDIT[country] ?? 'Kartverket (DTM 1 m / 10 m)';
 const REGION_KIND = {
   NO: 'Norwegian forecast region (NVE / Varsom)',
   SE: 'Swedish forecast region (Naturvårdsverket)',
   CH: 'Swiss micro-region (SLF, WSL Institute for Snow and Avalanche Research)',
+  AT: 'Austrian avalanche region (the state avalanche services, via EAWS / avalanche.report)',
+  IT: 'Euregio micro-region (the avalanche services of South Tyrol and Trentino, via avalanche.report)',
 };
 
 /* ------------------------------------------------------------------ *
@@ -512,6 +514,7 @@ function resortLegend() {
         inSel('NO') && `Norway: live, Fnugg, ${when(src?.no)}${src?.no?.stale ? ' (stale)' : ''}`,
         inSel('SE') && 'Sweden: location only, OpenStreetMap — no live status is published',
         inSel('CH') && 'Switzerland: location only, OpenStreetMap — no open live status',
+        inSel('AT') && 'Austria: location only, OpenStreetMap — no open live status',
       ].filter(Boolean).join(' · ');
   return (
     `<div class="legend-row"><span class="eyebrow">Resorts — share open</span>` +
@@ -1006,6 +1009,15 @@ function bulletinBlock(region) {
     bits.push(`<p class="note">SLF level ${b.danger}${b.dangerSub ?? ''}` +
       (times.length > 1 ? ` · ${times.map((r) => `${when[r.period] ?? r.period} ${r.danger}${r.sub ?? ''}`).join(', ')}` : '') + `</p>`);
   }
+  // Austria and Euregio (v6.2): who made the bulletin, which micro-region it is, and morning/afternoon levels.
+  if (b.source === 'eaws' && b.danger) {
+    const times = (b.dangerRatings ?? []).filter((r) => r.danger && r.period !== 'all_day');
+    const when = { earlier: 'morning', later: 'afternoon' };
+    bits.push(`<p class="note">Level ${b.danger}` +
+      (times.length > 1 ? ` · ${times.map((r) => `${when[r.period] ?? r.period} ${r.danger}`).join(', ')}` : '') +
+      (b.microName ? ` · micro-region ${esc(b.microName)} (${esc(b.microRegion)})` : '') +
+      (b.provider ? ` · bulletin by ${esc(b.provider)}` : '') + `</p>`);
+  }
 
   if (b.problems?.length) {
     // Colour from danger 3 up, black and white below: a raised level is
@@ -1062,11 +1074,12 @@ function snowBlock(snow, label = 'Snow') {
   // Switzerland (v6): a measuring station near the tour, not a grid cell over it.
   const st = snow.station;
   const parts = [
-    `<strong>${cm(snow.depthCm)} cm</strong> ${snow.source === 'slf' ? 'depth' : 'modelled depth'}`,
+    `<strong>${cm(snow.depthCm)} cm</strong> ${snow.source === 'slf' || snow.source === 'geosphere' ? 'depth' : 'modelled depth'}`,
     snow.new24 != null ? `+${cm(snow.new24)} cm/24h` : null,
     snow.new48 != null ? `<strong>+${cm(snow.new48)} cm/48h</strong>` : null,
     snow.new72 != null ? `+${cm(snow.new72)} cm/72h` : null,
-    st ? `SLF station ${esc(st.label)}, ${st.elevation ?? '?'} m, ${st.km} km away`
+    snow.derived && (snow.new24 != null || snow.new48 != null) ? 'new snow = rise in snow depth' : null,
+    st ? `${snow.source === 'geosphere' ? 'GeoSphere' : 'SLF'} station ${esc(st.label)}, ${st.elevation ?? '?'} m, ${st.km} km away${snow.stale ? ' (reading more than a day old)' : ''}`
       : snow.source === 'slf' ? 'SLF stations'
       : snow.gridAltitude != null ? `grid cell ${snow.gridAltitude} m` : null,
   ].filter(Boolean);
@@ -1439,7 +1452,9 @@ function selectRegion(id) {
       : '') +
     (reg.country === 'CH'
       ? `<a class="btn" href="https://www.slf.ch/en/avalanche-bulletin-and-snow-situation/measured-values/" target="_blank" rel="noopener">SLF measured values</a></div>`
-      : `<a class="btn" href="https://www.senorge.no/" target="_blank" rel="noopener">seNorge snow maps</a></div>`) +
+      : reg.country === 'AT' || reg.country === 'IT'
+        ? `</div>`
+        : `<a class="btn" href="https://www.senorge.no/" target="_blank" rel="noopener">seNorge snow maps</a></div>`) +
     (inReg.length
       ? `<p class="note" style="margin:14px 0 4px">Tours in this region</p><div>` +
         inReg
@@ -1538,6 +1553,8 @@ function renderSources() {
     ['seNorge (snow depth)', s.senorge?.ok, s.senorge ? `${s.senorge.points} tour points sampled` : 'not run'],
     ['SLF (CH avalanche)', s.slf?.ok, s.slf ? `${s.slf.regions} micro-regions read from the bulletin` : 'not run'],
     ['SLF IMIS (CH snow)', s.slfSnow?.ok, s.slfSnow ? `${s.slfSnow.points} tour points, nearest station at a similar height` : 'not run'],
+    ['EAWS bulletins (AT / South Tyrol / Trentino)', s.eaws?.ok, s.eaws ? `${s.eaws.regions} regions read · ${Object.entries(s.eaws.states ?? {}).map(([k, v]) => `${k} ${v.ok ? (v.day ? v.bulletins : 'none yet') : 'failed'}`).join(', ')}` : 'not run'],
+    ['GeoSphere (AT snow)', s.geosphere?.ok, s.geosphere ? `${s.geosphere.points} tour points, nearest station with snow data` : 'not run'],
     [
       'Regobs (observations)',
       s.regobs?.enabled ? s.regobs.verified : null,
@@ -1550,7 +1567,7 @@ function renderSources() {
   ];
 
   // Which countries each source serves (seNorge's grid covers both Nordic ones).
-  const COUNTRY_OF = [['NO'], ['SE'], ['NO', 'SE'], ['CH'], ['CH'], ['NO']];
+  const COUNTRY_OF = [['NO'], ['SE'], ['NO', 'SE'], ['CH'], ['CH'], ['AT', 'IT'], ['AT', 'IT'], ['NO']];
   const v = state.version;
   const since = v?.startedAt ? new Date(v.startedAt) : null;
   const versionCard =

@@ -26,7 +26,7 @@ process, zero npm dependencies, one Docker container.
 - **Snow depth and new snow** from NVE's seNorge 1 km model grid, sampled at
   **each tour's own coordinates** rather than a region centroid — so
   Rørnestinden gets Rørnestinden's snow, not the fjord's.
-- **115 curated tours** (24 of them Swiss) with difficulty and quality ratings, filterable and
+- **131 curated tours** (24 Swiss, 17 Austrian or Euregio) with difficulty and quality ratings, filterable and
   sortable by how much snow just fell on them, each marked with whether a
   GPX track is available (your own, or a route from OpenStreetMap).
 - **Country selection** as the first filter: pick Norway, Sweden or both, and
@@ -379,6 +379,29 @@ the same level, but read the bulletin.
 
 Data © SLF (WSL Institute for Snow and Avalanche Research), CC BY 4.0; maps
 © swisstopo; Switzerland's outline on the sketch map from Natural Earth.
+
+## Austria and Euregio (v6.2)
+
+Austria, and South Tyrol and Trentino (Euregio), work like Switzerland, from
+open sources. Italy is only these two provinces: the rest of Italy has no
+region or tour here yet.
+
+| What | Source | Notes |
+|---|---|---|
+| Avalanche bulletin | The European Avalanche Warning Services' daily CAAMLv6 files, `static.avalanche.report/eaws_bulletins/{date}/{date}-{AT-07}.json` | One file per state or province (`eawsState` in `data/regions.json`); Tyrol, South Tyrol and Trentino are always read together. After 17:00 Vienna time tomorrow's folder is tried first. Each bulletin names the service that made it (LWD Tirol, the provinces of Bolzano and Trento, the other states). Danger level per height, problems with aspects and heights, the danger text. |
+| Which micro-region | EAWS outlines, `regions.avalanches.org/micro-regions/{AT-07}_micro-regions.geojson.json` | A region's bulletin is the micro-region at its point, so no ID has to be typed in. Click or draw anywhere in the area and the page finds the bulletin there (`/api/region`). Retired regions (with an end date) are skipped. Kept 30 days on disk. |
+| Snow depth, new snow | GeoSphere Austria's TAWES stations (`dataset.api.hub.geosphere.at`, parameter `SCHNEE`) | The nearest station with snow data, 100 m of height counting as 1 km, up to 25 km. Most snow stations are in valleys. **New snow is derived**: the rises in depth between 6-hour readings over 24, 48 and 72 h, ignoring falls and rises under 1 cm; the page says so. South Tyrol and Trentino have no station here yet, so most of their tours show no snow. |
+| Map | basemap.at (grey), Austria, CC BY 4.0; OpenTopoMap for South Tyrol and Trentino | No official slope map for either: use Shading → slope on Plan a tour. |
+| Heights | Copernicus GLO-30 (30 m) | Austria's 1 m laser model is published as 50 km download tiles (EPSG:3035), too large to read live; not used. |
+| Resorts | OpenStreetMap, Austria only | |
+
+The tours' coordinates are approximate, like all the others, and a region
+takes the bulletin of the micro-region at its point: a tour a few km away can
+lie in the next one (`node src/check-sources.js` lists those). The bulletin
+files carry no licence statement that I could find: the data is shown with the
+service's name and a link to avalanche.report, for personal, non-commercial
+use. Maps © basemap.at; outlines of Austria and Euregio on the sketch map are
+schematic.
 
 ## Trip planner
 

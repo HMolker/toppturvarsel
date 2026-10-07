@@ -60,7 +60,8 @@ test('/api/region: the micro-region at a point with its bulletin; downloaded onc
   globalThis.fetch = async (url, opts) => {
     const u = String(url);
     if (/^https?:\/\/127\.0\.0\.1/.test(u)) return realFetch(url, opts);
-    if (u.includes('regions.avalanches.org')) { calls++; return new Response(JSON.stringify(outlines), { status: 200 }); }
+    if (u.includes('CH_micro-regions')) { calls++; return new Response(JSON.stringify(outlines), { status: 200 }); }
+    if (u.includes('regions.avalanches.org')) return new Response('not found', { status: 404 }); // Austria's and Italy's files: not in this test
     return new Response('offline', { status: 503 });
   };
   try {

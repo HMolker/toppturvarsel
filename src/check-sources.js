@@ -25,7 +25,9 @@ import { fetchSnowForPoints } from './sources/senorge.js';
 import { shapeSwiss } from './sources/slf.js';
 import { pickStation } from './sources/slfsnow.js';
 import { describeSquare } from './sources/swissalti3d.js';
-import { swissMicroRegions, regionIn } from './sources/eawsregions.js';
+import { swissMicroRegions, regionIn, microRegions } from './sources/eawsregions.js';
+import { fetchEawsFeed, stateUrl } from './sources/eawsfeed.js';
+import { fetchAlpineSnow } from './sources/geosphere.js';
 
 const SLF_BULLETIN = process.env.SLF_BULLETIN_URL || 'https://aws.slf.ch/api/bulletin/caaml';
 const SLF_MEASURE = process.env.SLF_MEASUREMENT_URL || 'https://measurement-api.slf.ch/public/api/imis';
@@ -45,6 +47,12 @@ const swissSeason = (d = new Date()) => {
   return m >= 12 || m <= 4;
 };
 
+/** Austrian and Euregio season: the services publish from about December to April. */
+const alpineSeason = (d = new Date()) => {
+  const m = d.getUTCMonth() + 1;
+  return m >= 12 || m <= 4;
+};
+
 async function tile(url) {
   const res = await fetch(url, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(20000) });
   const buf = Buffer.from(await res.arrayBuffer());
@@ -58,6 +66,10 @@ export async function checks({ now = new Date() } = {}) {
   const swissRegions = regions.filter((r) => r.country === 'CH');
   const swissIds = new Set(swissRegions.map((r) => r.id));
   const swissTours = tours.filter((t) => swissIds.has(t.region));
+  // v6.2: Austria and Euregio.
+  const alpineRegions = regions.filter((r) => r.country === 'AT' || r.country === 'IT');
+  const alpineIds = new Set(alpineRegions.map((r) => r.id));
+  const alpineTours = tours.filter((t) => alpineIds.has(t.region));
   const ok = (detail) => ({ status: 'OK', detail });
   const warn = (detail) => ({ status: 'WARN', detail });
   const fail = (detail) => ({ status: 'FAIL', detail });
@@ -185,6 +197,82 @@ export async function checks({ now = new Date() } = {}) {
         if (topo.status !== 200 || topo.kind === 'not an image') return fail(line);
         if (![200, 204, 404].includes(slope.status)) return fail(line);
         return ok(line);
+      },
+    },
+    {
+      name: 'EAWS bulletin files (Austria, Euregio)',
+      async run() {
+        if (!alpineRegions.length) return warn('no Austrian or Italian regions listed');
+        // The file layout, on a day with a bulletin: 1 March of this winter.
+        const y = now.getUTCMonth() >= 2 ? now.getUTCFullYear() : now.getUTCFullYear() - 1;
+        const known = `${y}-03-01`;
+        const probe = await getJSON(stateUrl(known, 'AT-07'), { timeoutMs: 20000, retries: 1 });
+        if (probe === null) return fail(`${stateUrl(known, 'AT-07')} does not exist — the file layout has changed; see src/sources/eawsfeed.js`);
+        const b0 = probe.bulletins?.[0];
+        if (!b0 || !Array.isArray(b0.regions) || !Array.isArray(b0.dangerRatings) || !b0.regions[0]?.regionID) return fail('a known day\'s file lacks bulletins[].regions / dangerRatings — the CAAML shape has changed');
+        const feed = await fetchEawsFeed(alpineRegions, { now });
+        const bad = Object.entries(feed.states).filter(([, v]) => !v.ok);
+        if (bad.length) return fail(bad.map(([k, v]) => `${k}: ${v.error}`).join('; '));
+        const days = Object.entries(feed.states).map(([k, v]) => `${k} ${v.day ? `${v.bulletins} bulletins (${v.day})` : 'none'}`).join(', ');
+        const open = Object.values(feed.states).some((v) => v.day);
+        if (!open) return alpineSeason(now) ? warn(`no bulletin although it is the season (${days})`) : ok(`file layout fine (checked ${known}: ${probe.bulletins.length} bulletins); none published now (outside the season)`);
+        const missing = alpineRegions.filter((r) => !feed.byRegion[r.id]?.danger);
+        if (missing.length) return warn(`${days}; no danger level for ${missing.map((r) => `${r.name} (${feed.byRegion[r.id]?.microRegion ?? feed.byRegion[r.id]?.error ?? '?'})`).join(', ')}`);
+        const providers = [...new Set(alpineRegions.map((r) => feed.byRegion[r.id]?.provider).filter(Boolean))];
+        return ok(`${days}; all ${alpineRegions.length} regions have a danger level${providers.length ? ` (${providers.join(', ')})` : ''}`);
+      },
+    },
+    {
+      name: 'EAWS micro-region outlines (Austria, Euregio)',
+      async run() {
+        if (!alpineRegions.length) return warn('no Austrian or Italian regions listed');
+        const wrong = [];
+        let n = 0;
+        for (const code of [...new Set(alpineRegions.map((r) => r.eawsState))]) {
+          const list = await microRegions(code);
+          if (!list) return fail(`could not load the outlines of ${code} (regions.avalanches.org)`);
+          n += list.length;
+          for (const r of alpineRegions.filter((x) => x.eawsState === code)) {
+            if (!regionIn(list, r.lat, r.lon)) wrong.push(`${r.name}: its point lies in no ${code} micro-region`);
+          }
+        }
+        for (const t of alpineTours) {
+          const r = alpineRegions.find((x) => x.id === t.region);
+          const list = await microRegions(r.eawsState);
+          const here = regionIn(list, t.lat, t.lon), there = regionIn(list, r.lat, r.lon);
+          if (here !== there) wrong.push(`${t.name}: lies in ${here ?? 'none'}, its region ${r.name} in ${there}`);
+        }
+        return wrong.length
+          ? warn(`${n} micro-regions; ${wrong.join('; ')} (move the tour to another region in data/, or check eawsState)`)
+          : ok(`${n} micro-regions; every region's point and every tour lie in the same micro-region`);
+      },
+    },
+    {
+      name: 'GeoSphere Austria (snow stations)',
+      async run() {
+        if (!alpineTours.length) return warn('no Austrian or Italian tours listed');
+        const pts = alpineTours.map((t) => ({ key: t.name, lat: t.lat, lon: t.lon, ele: t.summit_m - 0.4 * t.vertical_m }));
+        const got = await fetchAlpineSnow(pts, { now });
+        const errs = Object.values(got).filter((x) => x.error && !/no GeoSphere station/.test(x.error));
+        if (errs.length) return fail(errs[0].error);
+        const hits = Object.values(got).filter((x) => !x.error);
+        if (!hits.length) return alpineSeason(now) ? warn('no tour has a station with snow data within 25 km although it is the season') : ok('answers; no station reports snow now (outside the season)');
+        const old = hits.filter((x) => x.stale).length;
+        return old
+          ? warn(`${hits.length} of ${alpineTours.length} tours have a station; ${old} reading(s) more than a day old`)
+          : ok(`${hits.length} of ${alpineTours.length} tours have a station with snow data within 25 km`);
+      },
+    },
+    {
+      name: 'basemap.at tile (Austria)',
+      async run() {
+        const t = alpineTours.find((x) => alpineRegions.find((r) => r.id === x.region)?.country === 'AT');
+        if (!t) return warn('no Austrian tours listed');
+        const [x, y] = tileXY(13, t.lat, t.lon);
+        const r = await tile(`https://mapsneu.wien.gv.at/basemap/bmapgrau/normal/google3857/13/${y}/${x}.png`);
+        const line = `map ${r.status} ${r.kind} (at ${t.name})`;
+        if ([400, 404].includes(r.status)) return fail(`${line} — check the layer name in src/tiles.js`);
+        return r.status === 200 && r.kind !== 'not an image' ? ok(line) : fail(line);
       },
     },
     {

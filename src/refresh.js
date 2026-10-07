@@ -4,6 +4,8 @@ import { fetchSwedishBulletins } from './sources/lavinprognoser.js';
 import { fetchSnowForPoints, summariseByRegion } from './sources/senorge.js';
 import { fetchSwissFeed, SLF_PAGE } from './sources/slf.js';
 import { fetchSwissSnow } from './sources/slfsnow.js';
+import { fetchEawsFeed, EUREGIO_PAGE } from './sources/eawsfeed.js';
+import { fetchAlpineSnow } from './sources/geosphere.js';
 import { fetchObservationCounts } from './sources/regobs.js';
 import { store } from './store.js';
 import { cachedRouteStart } from './tracks.js';
@@ -59,10 +61,12 @@ export async function refresh({
   }));
   // seNorge's grid covers Norway and the Swedish mountains; Switzerland has SLF's stations (v6).
   const allPoints = [...tourPoints, ...startPoints, ...fallbackPoints];
-  const nordicPoints = allPoints.filter((p) => p.country !== 'CH');
+  // v6.2: Austria and Euregio (South Tyrol, Trentino) have the EAWS bulletin files and GeoSphere's stations.
+  const alpinePoints = allPoints.filter((p) => p.country === 'AT' || p.country === 'IT');
+  const nordicPoints = allPoints.filter((p) => !['CH', 'AT', 'IT'].includes(p.country));
   const swissPoints = allPoints.filter((p) => p.country === 'CH');
 
-  const [norway, sweden, swissFeed, nordicSnow, swissSnow, observations] = await Promise.all([
+  const [norway, sweden, swissFeed, eawsFeed, nordicSnow, swissSnow, alpineSnow, observations] = await Promise.all([
     fetchNorwegianBulletins(regions, { date }).catch((e) => {
       log.error(`varsom failed wholesale: ${e.message}`);
       return {};
@@ -75,12 +79,20 @@ export async function refresh({
       log.error(`slf failed wholesale: ${e.message}`);
       return { byRegion: {}, all: null };
     }),
+    fetchEawsFeed(regions).catch((e) => {
+      log.error(`eaws failed wholesale: ${e.message}`);
+      return { byRegion: {}, all: null, states: {} };
+    }),
     fetchSnowForPoints(nordicPoints, { date }).catch((e) => {
       log.error(`senorge failed wholesale: ${e.message}`);
       return {};
     }),
     fetchSwissSnow(swissPoints).catch((e) => {
       log.error(`slf snow failed wholesale: ${e.message}`);
+      return {};
+    }),
+    fetchAlpineSnow(alpinePoints).catch((e) => {
+      log.error(`geosphere snow failed wholesale: ${e.message}`);
       return {};
     }),
     fetchObservationCounts(regions).catch((e) => {
@@ -90,13 +102,14 @@ export async function refresh({
   ]);
 
   const switzerland = swissFeed.byRegion;
-  const snowByTour = { ...nordicSnow, ...swissSnow };
+  const euregio = eawsFeed.byRegion;
+  const snowByTour = { ...nordicSnow, ...swissSnow, ...alpineSnow };
   const snowByRegion = summariseByRegion(snowByTour, tours);
 
   const regionRows = regions.map((region) => {
     const bulletin = region.noForecast
       ? { source: 'none', noForecast: true, assessed: false, danger: null, headline: 'No avalanche forecast is issued for this area.' }
-      : { NO: norway, SE: sweden, CH: switzerland }[region.country]?.[region.id];
+      : { NO: norway, SE: sweden, CH: switzerland, AT: euregio, IT: euregio }[region.country]?.[region.id];
 
     let snow = snowByRegion[region.id] ?? null;
     if (!snow) {
@@ -172,6 +185,12 @@ export async function refresh({
             slfSnow: { ok: Object.values(swissSnow).some((s) => s && !s.error), points: Object.keys(swissSnow).length },
           }
         : {}),
+      ...(alpinePoints.length
+        ? {
+            eaws: { ok: Object.values(euregio).some((b) => b && !b.error), regions: Object.keys(euregio).length, states: eawsFeed.states },
+            geosphere: { ok: Object.values(alpineSnow).some((s) => s && !s.error), points: Object.keys(alpineSnow).length },
+          }
+        : {}),
       regobs: {
         enabled: observations.counts
           ? Object.values(observations.counts).some((o) => o.enabled)
@@ -184,6 +203,8 @@ export async function refresh({
     tours: tourRows,
     // v6.1: every Swiss micro-region's bulletin, for points away from the listed tours.
     ...(swissFeed.all ? { swiss: swissFeed.all } : {}),
+    // v6.2: every micro-region's bulletin in the Austrian and Euregio files.
+    ...(eawsFeed.all ? { eaws: eawsFeed.all } : {}),
   };
 
   await store.saveSnapshot(snapshot);
@@ -201,6 +222,7 @@ function bulletinUrl(region) {
     return `https://www.varsom.no/en/snow/forecast/warning/${encodeURIComponent(region.name.replace(/ \(Svalbard\)$/, ''))}/`;
   }
   if (region.country === 'CH') return SLF_PAGE;
+  if (region.country === 'AT' || region.country === 'IT') return EUREGIO_PAGE;
   return `https://www.lavinprognoser.se/oversikt-alla-omraden/${region.slug}/`;
 }
 

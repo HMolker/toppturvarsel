@@ -38,6 +38,8 @@ export const SOURCES = {
   // v6: Switzerland from OpenStreetMap too (location, name, website, lifts
   // mapped); no open live lift status exists for Swiss resorts either.
   ch: { fetch: () => fetchOsmResorts('CH'), ttl: () => 30 * 24 * HOUR, name: 'OpenStreetMap', min: () => Number(process.env.RESORTS_CH_MIN ?? 20) },
+  // v6.2: Austria likewise. (Italy's resorts are not listed: only South Tyrol and Trentino have a bulletin here.)
+  at: { fetch: () => fetchOsmResorts('AT'), ttl: () => 30 * 24 * HOUR, name: 'OpenStreetMap', min: () => Number(process.env.RESORTS_AT_MIN ?? 20) },
 };
 /** A list this short is a broken answer, not the country's resorts. */
 const tooFew = (key, list) => (list?.length ?? 0) < (SOURCES[key].min?.() ?? 0);

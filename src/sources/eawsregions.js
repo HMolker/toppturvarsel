@@ -15,16 +15,34 @@ import { log } from '../util/log.js';
  * micro-region whose bulletin applies, not just the listed tours' regions.
  * Kept on disk for 30 days; when the download fails an older copy is used,
  * and without any copy the page falls back to the nearest tour's region.
+ *
+ * v6.2: the same set has a file per Austrian state and per Italian province
+ * (AT-07 Tyrol, IT-32-BZ South Tyrol, IT-32-TN Trentino …), same layout;
+ * a few features carry an end date when a region was redrawn, and those are
+ * left out. `microRegions(code)` loads any one of them, and
+ * `alpineMicroRegionAt` finds the region at a point in Austria or Euregio.
  */
 
-const URL_CH = process.env.EAWS_REGIONS_CH_URL || 'https://regions.avalanches.org/micro-regions/CH_micro-regions.geojson.json';
+const BASE = (process.env.EAWS_REGIONS_URL || 'https://regions.avalanches.org/micro-regions').replace(/\/$/, '');
+const URL_CH = process.env.EAWS_REGIONS_CH_URL || `${BASE}/CH_micro-regions.geojson.json`;
 const TTL = 30 * 86400e3;
 const RETRY_MS = 30 * 60e3;
-const file = () => path.resolve(config.dataDir, 'cache', 'eaws', 'CH_micro-regions.json');
 
-let memo = null; // { at, regions }
-let failedAt = 0;
-let inflight = null;
+/** Austria's states and Euregio's two Italian provinces: the files looked in for a point in the eastern Alps. */
+export const ALPINE_STATES = ['AT-07', 'AT-08', 'AT-05', 'AT-02', 'AT-06', 'AT-04', 'AT-03', 'IT-32-BZ', 'IT-32-TN'];
+const urlFor = (code) => (code === 'CH' ? URL_CH : `${BASE}/${code}_micro-regions.geojson.json`);
+const file = (code) => path.resolve(config.dataDir, 'cache', 'eaws', `${code}_micro-regions.json`);
+
+const sets = new Map(); // code -> { memo: { at, regions } | null, failedAt, inflight }
+const setOf = (code) => sets.get(code) ?? sets.set(code, { memo: null, failedAt: 0, inflight: null }).get(code);
+
+/** A feature that was retired: some end date (end_date, endDate …) in the past. */
+function retired(props, today = new Date().toISOString().slice(0, 10)) {
+  for (const [k, v] of Object.entries(props ?? {})) {
+    if (/end/i.test(k) && /date/i.test(k) && typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v) && v.slice(0, 10) < today) return true;
+  }
+  return false;
+}
 
 /** GeoJSON -> [{ id, bbox: [w, s, e, n], polygons: [[outer, ...holes]] }] with rings of [lon, lat]. */
 export function parseRegions(body) {
@@ -33,7 +51,7 @@ export function parseRegions(body) {
   for (const f of body.features) {
     const id = f?.properties?.id;
     const g = f?.geometry;
-    if (!id || !g) continue;
+    if (!id || !g || retired(f.properties)) continue;
     const polygons = g.type === 'MultiPolygon' ? g.coordinates : g.type === 'Polygon' ? [g.coordinates] : [];
     if (!polygons.length) continue;
     let w = Infinity, s = Infinity, e = -Infinity, n = -Infinity;
@@ -65,49 +83,53 @@ export function regionIn(regions, lat, lon) {
   return null;
 }
 
-async function readStored() {
+async function readStored(code) {
   try {
-    const st = await stat(file());
-    return { age: Date.now() - st.mtimeMs, body: JSON.parse(await readFile(file(), 'utf8')) };
+    const st = await stat(file(code));
+    return { age: Date.now() - st.mtimeMs, body: JSON.parse(await readFile(file(code), 'utf8')) };
   } catch {
     return null;
   }
 }
 
-/** The Swiss micro-regions, or null when none have ever been loaded. */
-export async function swissMicroRegions() {
-  if (memo && Date.now() - memo.at < TTL) return memo.regions;
-  if (inflight) return inflight;
-  inflight = (async () => {
-    const stored = await readStored();
+/** The micro-regions of one file ("CH", "AT-07", "IT-32-BZ" …), or null when none have ever been loaded. */
+export async function microRegions(code) {
+  const st = setOf(code);
+  if (st.memo && Date.now() - st.memo.at < TTL) return st.memo.regions;
+  if (st.inflight) return st.inflight;
+  st.inflight = (async () => {
+    const stored = await readStored(code);
     if (stored && stored.age < TTL) {
-      memo = { at: Date.now() - stored.age, regions: parseRegions(stored.body) };
-      return memo.regions;
+      st.memo = { at: Date.now() - stored.age, regions: parseRegions(stored.body) };
+      return st.memo.regions;
     }
-    if (Date.now() - failedAt > RETRY_MS) {
+    if (Date.now() - st.failedAt > RETRY_MS) {
       try {
-        const res = await fetch(URL_CH, { headers: { 'User-Agent': UA, Accept: 'application/geo+json, application/json' }, signal: AbortSignal.timeout(30000) });
+        const res = await fetch(urlFor(code), { headers: { 'User-Agent': UA, Accept: 'application/geo+json, application/json' }, signal: AbortSignal.timeout(30000) });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const body = await res.json();
         const regions = parseRegions(body);
-        await mkdir(path.dirname(file()), { recursive: true });
-        await writeFile(`${file()}.tmp`, JSON.stringify(body));
-        await rename(`${file()}.tmp`, file());
-        memo = { at: Date.now(), regions };
+        await mkdir(path.dirname(file(code)), { recursive: true });
+        await writeFile(`${file(code)}.tmp`, JSON.stringify(body));
+        await rename(`${file(code)}.tmp`, file(code));
+        st.memo = { at: Date.now(), regions };
         return regions;
       } catch (err) {
-        failedAt = Date.now();
-        log.warn(`eaws regions: ${err.message}${stored ? '; using the stored copy' : ''}`);
+        st.failedAt = Date.now();
+        log.warn(`eaws regions ${code}: ${err.message}${stored ? '; using the stored copy' : ''}`);
       }
     }
     if (stored) {
-      memo = { at: Date.now() - TTL + RETRY_MS, regions: parseRegions(stored.body) };
-      return memo.regions;
+      st.memo = { at: Date.now() - TTL + RETRY_MS, regions: parseRegions(stored.body) };
+      return st.memo.regions;
     }
     return null;
-  })().finally(() => { inflight = null; });
-  return inflight;
+  })().finally(() => { st.inflight = null; });
+  return st.inflight;
 }
+
+/** The Swiss micro-regions, or null when none have ever been loaded. */
+export const swissMicroRegions = () => microRegions('CH');
 
 /** The Swiss micro-region at a point: "CH-4222", or null. */
 export async function swissMicroRegionAt(lat, lon) {
@@ -115,8 +137,19 @@ export async function swissMicroRegionAt(lat, lon) {
   return regions ? regionIn(regions, lat, lon) : null;
 }
 
+/**
+ * The micro-region at a point in Austria or Euregio: { id: "AT-07-14", state: "AT-07" } or null.
+ * `states` narrows the files looked in (a listed region knows its state).
+ */
+export async function alpineMicroRegionAt(lat, lon, states = ALPINE_STATES) {
+  for (const code of states) {
+    const regions = await microRegions(code).catch(() => null);
+    const id = regions ? regionIn(regions, lat, lon) : null;
+    if (id) return { id, state: code };
+  }
+  return null;
+}
+
 export function _resetEaws() {
-  memo = null;
-  failedAt = 0;
-  inflight = null;
+  sets.clear();
 }

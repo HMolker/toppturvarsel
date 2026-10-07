@@ -32,6 +32,9 @@ const squareOfTour = sq.squareOf(p0.e, p0.n);
 const [ke, kn] = squareOfTour.split('-').map(Number);
 const altiFile = writeTiff({ width: 50, height: 50, values: () => swissTours[0].summit_m - 20, tile: 32, scale: [20, 20, 0], tie: [0, 0, 0, ke * 1000, (kn + 1) * 1000, 0] });
 
+const { alpineStubs } = await import('./helpers/alps.js');
+const alpine = alpineStubs({ regions, tours });
+
 const realFetch = globalThis.fetch;
 let slfBody = full, swedishHtml = '<html><img alt="Risk 2"><p>Måttlig lavinfara</p></html>', dailyRow = { station_code: 'S0', measure_date: '2026-02-15T06:00:00Z', HS: 180, HN_1D: 12 };
 const J = (b) => new Response(JSON.stringify(b), { status: 200, headers: { 'Content-Type': 'application/json' } });
@@ -45,7 +48,10 @@ globalThis.fetch = async (url) => {
   if (u.includes('aws.slf.ch')) return J(slfBody);
   if (u.endsWith('/imis/stations')) return J(swissTours.map((t, i) => ({ code: `S${i}`, label: t.name, lat: t.lat, lon: t.lon, elevation: 2500 })));
   if (u.includes('/imis/daily-snow')) return J([dailyRow]);
-  if (u.includes('regions.avalanches.org')) return J(eawsBody);
+  if (u.includes('CH_micro-regions')) return J(eawsBody);
+  const alp = alpine(u);
+  if (alp) return alp;
+  if (u.includes('mapsneu.wien.gv.at')) return new Response(PNG, { status: 200 });
   if (u.includes('/api/stac/')) {
     const id = `swissalti3d_2024_${squareOfTour}`;
     return J({ features: [{ id, properties: { datetime: '2024-01-01T00:00:00Z' }, assets: { [`${id}_2_2056_5728.tif`]: { href: `https://data.geo.admin.ch/x/${id}_2_2056_5728.tif` } } }] });

@@ -3,6 +3,29 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v6.2.0 — Austria and Euregio (2026-10-07)
+
+- **Austria, South Tyrol and Trentino**: avalanche bulletins from the EAWS daily
+  CAAMLv6 files (same format as SLF's, one file per state or province), 11
+  regions and 17 tours (Ötztal, Stubai, Zillertal, Venediger, Kitzbühel, Hohe
+  Tauern, Hochkönig, Hochschwab, Adamello–Presanella, Brenta, Dolomites). A
+  region's micro-region is found from its point in the EAWS outlines
+  (`/api/region` now answers for Austria and Euregio too), the bulletin names
+  the service that made it.
+- **Snow** from GeoSphere Austria's stations; new snow is derived from rises in
+  depth and marked as such.
+- **Maps**: basemap.at for Austria, OpenTopoMap for South Tyrol and Trentino;
+  heights from Copernicus GLO-30. Austria's 1 m terrain is not used (50 km
+  download tiles).
+- Country bar: Austria and Italy (South Tyrol & Trentino) as opt-in countries, and an
+  **Alps** chip (Switzerland, Austria, Italy). Austrian resorts from
+  OpenStreetMap; place search covers Austria and Italy.
+- `check-sources` tests the file layout (a known winter day), the outlines,
+  GeoSphere and basemap.at. The formats were read from the live services; the
+  first real refresh happens on your Pi.
+- `GEOSPHERE_URL`, `EAWS_BULLETINS_URL`, `EAWS_REGIONS_URL` override the
+  addresses (for tests).
+
 ## v6.1.0 — Switzerland in 2 m, and a bulletin for any point (2026-10-01)
 
 - **swissALTI3D**: drawn routes and tour analysis in Switzerland now read

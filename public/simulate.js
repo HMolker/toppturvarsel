@@ -114,7 +114,7 @@ export function simulate({ regions = [], tours = [], resorts = null, now = new D
   // The storm sits over one band of the mountains and fades north and south
   // of it: one storm for the Nordic mountains, one for the Alps (v6), so
   // neither is centred halfway between them.
-  const ALPS = new Set(['CH']);
+  const ALPS = new Set(['CH', 'AT', 'IT']);
   const stormLats = {};
   for (const alps of [false, true]) {
     const lats = regions.filter((r) => !r.offMap && ALPS.has(r.country) === alps).map((r) => r.lat);
@@ -187,7 +187,7 @@ export function simulate({ regions = [], tours = [], resorts = null, now = new D
     return {
       id: region.id, name: region.name, country: region.country, lat: region.lat, lon: region.lon,
       offMap: region.offMap ?? false,
-      bulletinUrl: region.noForecast ? null : { NO: 'https://www.varsom.no/snoskredvarsling/', SE: 'https://lavinprognoser.se/', CH: 'https://www.slf.ch/en/avalanche-bulletin-and-snow-situation/' }[region.country] ?? null,
+      bulletinUrl: region.noForecast ? null : { NO: 'https://www.varsom.no/snoskredvarsling/', SE: 'https://lavinprognoser.se/', CH: 'https://www.slf.ch/en/avalanche-bulletin-and-snow-situation/', AT: 'https://avalanche.report/', IT: 'https://avalanche.report/' }[region.country] ?? null,
       bulletin,
       snow: {
         depthCm: base, new24, new48, new72: Math.round(new48 * 1.3), depthMaxCm: base + 40,
@@ -232,6 +232,7 @@ export function simulate({ regions = [], tours = [], resorts = null, now = new D
       varsom: { ok: true, regions: regionRows.filter((r) => r.country === 'NO').length, simulated: true },
       lavinprognoser: { ok: true, regions: regionRows.filter((r) => r.country === 'SE').length, simulated: true },
       slf: { ok: true, regions: regionRows.filter((r) => r.country === 'CH').length, simulated: true },
+      eaws: { ok: true, regions: regionRows.filter((r) => r.country === 'AT' || r.country === 'IT').length, simulated: true },
       senorge: { ok: true, points: tourRows.length, simulated: true },
       regobs: { enabled: false },
     },

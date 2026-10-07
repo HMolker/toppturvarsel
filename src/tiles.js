@@ -14,6 +14,8 @@ import { log } from './util/log.js';
  *   se: OpenTopoMap, © OpenStreetMap contributors, SRTM; style © OpenTopoMap
  *       (CC-BY-SA). Kartverket's map stops at the border.
  *   ch, chs: swisstopo's national map and slope classes (v6), © swisstopo.
+ *   at: basemap.at, Austria's national basemap in grey (v6.2), CC BY 4.0 — credit "Grundkarte: basemap.at".
+ *       (South Tyrol and Trentino use OpenTopoMap, the 'se' source, like Sweden.)
  *
  * NOT AN OPEN PROXY. A tile is served only if it lies within ~12 km of a
  * listed tour and between zoom 9 and 16. Anything else is a 403 without
@@ -38,6 +40,9 @@ const SOURCES = {
   //   chs: "slope classes over 30°" — transparent, only where it is 30° or steeper
   ch: (z, x, y) => [`https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.pixelkarte-grau/default/current/3857/${z}/${x}/${y}.jpeg`,
     `https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.pixelkarte-grau/default/current/3857/${z}/${x}/${y}.png`],
+  // Austria (v6.2): basemap.at's WMTS in Web Mercator ("google3857"), row before column,
+  // style "normal" (capabilities read 7 Oct 2026). Open data (OGD Austria, CC BY 4.0).
+  at: (z, x, y) => `https://mapsneu.wien.gv.at/basemap/bmapgrau/normal/google3857/${z}/${y}/${x}.png`,
   chs: (z, x, y) => `https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.hangneigung-ueber_30/default/current/3857/${z}/${x}/${y}.png`,
 };
 // Overlays: "nothing to draw here" is an answer, remembered like a tile.

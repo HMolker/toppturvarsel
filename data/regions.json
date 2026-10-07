@@ -56,5 +56,17 @@
   { "id": "ch-4124",   "name": "Val d'Anniviers",                "country": "CH", "slfRegion": "CH-4124", "lat": 46.13, "lon": 7.65 },
   { "id": "ch-3222",   "name": "Alpstein–Alvier",                "country": "CH", "slfRegion": "CH-3222", "lat": 47.22, "lon": 9.4 },
   { "id": "ch-6111",   "name": "Bedretto valley",                "country": "CH", "slfRegion": "CH-6111", "lat": 46.5, "lon": 8.45 },
-  { "id": "ch-1246",   "name": "Gadmen valley",                  "country": "CH", "slfRegion": "CH-1246", "lat": 46.72, "lon": 8.4 }
+  { "id": "ch-1246",   "name": "Gadmen valley",                  "country": "CH", "slfRegion": "CH-1246", "lat": 46.72, "lon": 8.4 },
+
+  { "id": "at-oetztal", "name": "Ötztal Alps", "country": "AT", "eawsState": "AT-07", "lat": 46.8853, "lon": 10.8672 },
+  { "id": "at-stubai", "name": "Stubai Alps", "country": "AT", "eawsState": "AT-07", "lat": 46.9747, "lon": 11.1394 },
+  { "id": "at-zillertal", "name": "Zillertal Alps", "country": "AT", "eawsState": "AT-07", "lat": 47.0678, "lon": 11.6417 },
+  { "id": "at-venediger", "name": "Venediger Group", "country": "AT", "eawsState": "AT-07", "lat": 47.1089, "lon": 12.3456 },
+  { "id": "at-kitzbuehel", "name": "Kitzbühel Alps", "country": "AT", "eawsState": "AT-07", "lat": 47.4583, "lon": 12.4167 },
+  { "id": "at-sonnblick", "name": "Hohe Tauern (Rauris)", "country": "AT", "eawsState": "AT-05", "lat": 47.0544, "lon": 12.9578 },
+  { "id": "at-hochkoenig", "name": "Hochkönig", "country": "AT", "eawsState": "AT-05", "lat": 47.4194, "lon": 13.0617 },
+  { "id": "at-hochschwab", "name": "Hochschwab", "country": "AT", "eawsState": "AT-06", "lat": 47.6167, "lon": 15.1333 },
+  { "id": "it-presanella", "name": "Adamello–Presanella", "country": "IT", "eawsState": "IT-32-TN", "lat": 46.2167, "lon": 10.6667 },
+  { "id": "it-brenta", "name": "Brenta Dolomites", "country": "IT", "eawsState": "IT-32-TN", "lat": 46.1728, "lon": 10.8758 },
+  { "id": "it-puez", "name": "Dolomites (South Tyrol)", "country": "IT", "eawsState": "IT-32-BZ", "lat": 46.6414, "lon": 11.7928 }
 ]

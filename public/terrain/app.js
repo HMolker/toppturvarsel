@@ -93,7 +93,8 @@ function tileCountry(z, x, y) {
 // The topo map and the official slope map, by country: Kartverket and NVE in
 // Norway, OpenTopoMap in Sweden (no official slope map), swisstopo's map and
 // its "slope over 30°" in Switzerland (v6).
-const TOPO = { SE: 'se', CH: 'ch' };
+// Austria: basemap.at (v6.2); South Tyrol and Trentino: OpenTopoMap, like Sweden. No official slope map for them.
+const TOPO = { SE: 'se', CH: 'ch', AT: 'at', IT: 'se' };
 const SLOPEMAP = { NO: 'nve', CH: 'chs' };
 const topoUrl = (z, x, y) => (tileInZone(z, x, y) ? `tiles/${TOPO[tileCountry(z, x, y)] ?? 'no'}/${z}/${x}/${y}.png` : null);
 const nveUrl = (z, x, y) => {
@@ -107,6 +108,8 @@ const nveUrl = (z, x, y) => {
  * server once per ~1 km square (the outlines live there). Until the answer
  * comes, the nearest tour's region stands in, then the map redraws.
  */
+// Switzerland (SLF), Austria and Euregio (the EAWS files): the answer comes from the server.
+const MICRO = new Set(['CH', 'AT', 'IT']);
 const swissRegions = new Map(); // "lat,lon" (2 decimals) -> answer | null | Promise
 const rkey = (lat, lon) => `${lat.toFixed(2)},${lon.toFixed(2)}`;
 function swissLookup(lat, lon) {
@@ -137,9 +140,9 @@ function regionAt(lat, lon) {
   const n = nearest(lat, lon, S.tours);
   if (!n) return null;
   const meta = S.regionsMeta[n.item.region];
-  if (meta?.country === 'CH') {
+  if (MICRO.has(meta?.country)) {
     const s = swissLookup(lat, lon);
-    if (s) return { id: `slf:${s.microRegion}`, name: s.name, country: 'CH', micro: s.microRegion, bulletin: s.bulletin, bulletinUrl: s.bulletinUrl, tour: n.item.name, km: n.km };
+    if (s) return { id: `micro:${s.microRegion}`, name: s.name, country: s.country ?? meta.country, micro: s.microRegion, bulletin: s.bulletin, bulletinUrl: s.bulletinUrl, tour: n.item.name, km: n.km };
   }
   const live = S.bulletins[n.item.region];
   return { id: n.item.region, name: meta?.name ?? n.item.region, country: meta?.country, bulletin: live?.bulletin ?? null, bulletinUrl: live?.bulletinUrl ?? meta?.bulletinUrl ?? null, tour: n.item.name, km: n.km };
@@ -676,8 +679,8 @@ function renderPanel({ loading = false } = {}) {
   if (!w) prob += `<p class="note">No avalanche region known here.</p>`;
   else {
     const b = w.bulletin;
-    prob += `<p>${esc(w.name)}${b?.danger ? ` — ${dangerChip(b.danger)}` : ''} ${b?.problems?.length ? problemIcons(b.problems, { danger: b.danger, size: 22 }) : ''}<br><span class="note">${w.micro ? `SLF micro-region ${esc(w.micro)}, where the route is` : `region of the nearest tour, ${esc(w.tour)} (${w.km.toFixed(0)} km)`}</span></p>`;
-    if (!b) prob += `<p class="note">No bulletin today${w.country === 'SE' ? ' (Swedish forecasts run from 11 December)' : w.country === 'CH' ? ' (SLF publishes from late autumn to spring)' : ' (out of season, or not yet loaded)'} — nothing to test the route against.</p>`;
+    prob += `<p>${esc(w.name)}${b?.danger ? ` — ${dangerChip(b.danger)}` : ''} ${b?.problems?.length ? problemIcons(b.problems, { danger: b.danger, size: 22 }) : ''}<br><span class="note">${w.micro ? `${w.country === 'CH' ? 'SLF micro-region' : 'micro-region'} ${esc(w.micro)}, where the route is` : `region of the nearest tour, ${esc(w.tour)} (${w.km.toFixed(0)} km)`}</span></p>`;
+    if (!b) prob += `<p class="note">No bulletin today${w.country === 'SE' ? ' (Swedish forecasts run from 11 December)' : w.country === 'CH' ? ' (SLF publishes from late autumn to spring)' : w.country === 'AT' || w.country === 'IT' ? ' (the Austrian and Euregio services publish from late autumn to spring)' : ' (out of season, or not yet loaded)'} — nothing to test the route against.</p>`;
     else if (!b.problems?.length) prob += `<p class="okline">The bulletin names no avalanche problems.</p>`;
     else if (!a.problemSections.length) prob += `<p class="okline">No 30°+ ground on the route faces today's problem aspects at their heights.</p>`;
     else {
@@ -1014,7 +1017,7 @@ async function loadAreaGrid(box, what, { cellM = 45, maxTiles = null } = {}) {
   await refreshBudget(); // is Lantmäteriet (or GLO-30) answering right now?
   const fineHere = S.fine.includes(country);
   // Sweden or Switzerland on Open-Meteo's 90 m heights: fewer, coarser tiles.
-  const coarse = (country === 'SE' || country === 'CH') && !fineHere;
+  const coarse = ['SE', 'CH', 'AT', 'IT'].includes(country) && !fineHere;
   let r = null;
   for (let z = coarse ? DEM_MAX_Z - 1 : DEM_MAX_Z; z >= DEM_MIN_Z; z--) {
     r = tileRange(box, z);
@@ -1627,6 +1630,7 @@ async function refreshBudget() {
     if (Array.isArray(z?.fine)) S.fine = z.fine;
     if (z?.sweden) S.sweden = z.sweden;
     if (z?.switzerland) S.switzerland = z.switzerland;
+    if (z?.alps) S.alps = z.alps;
     S.lmError = z?.lantmateriet?.enabled ? z.lantmateriet.lastError : null;
     updateStatus();
   } catch { /* not important */ }
@@ -1675,8 +1679,11 @@ function renderLegend() {
   }
   parts.push(`<div class="legend-row"><span><i class="swc" style="background:var(--ink)"></i>route under 25°</span><span class="note">steeper parts of the route in the slope colours</span></div>`);
   $('#tlegend').innerHTML = parts.join('');
+  const alpsMap = country === 'AT' || country === 'IT';
   const glo = ' © DLR e.V. 2010-2014, © Airbus 2014-2018, provided under Copernicus by the EU and ESA';
-  $('#tattrib').innerHTML = country === 'CH'
+  $('#tattrib').innerHTML = alpsMap
+    ? `Map © ${country === 'AT' ? 'basemap.at (CC BY 4.0)' : 'OpenTopoMap (CC-BY-SA), © OpenStreetMap contributors'} · Heights: ${esc(S.alps ?? 'Copernicus GLO-90 via Open-Meteo')}${/GLO-30/.test(S.alps ?? '') ? glo : ''} · Bulletin: ${country === 'AT' ? 'the Austrian avalanche services' : 'Euregio avalanche services'} via avalanche.report (EAWS) · Not for navigation`
+    : country === 'CH'
     ? `Map and slope classes © swisstopo · Heights: ${esc(S.switzerland ?? 'Copernicus GLO-90 via Open-Meteo')}${/GLO-30/.test(S.switzerland ?? '') ? glo : ''} · Bulletin © SLF (CC BY 4.0) · Not for navigation`
     : `Map © ${country === 'SE' ? 'OpenTopoMap (CC-BY-SA), © OpenStreetMap contributors' : 'Kartverket'} · Slope &amp; runout © NVE (CC BY 4.0) · Heights: Kartverket DTM (Norway), ${esc(S.sweden ?? 'Copernicus GLO-90 via Open-Meteo')}${/GLO-30/.test(S.sweden ?? '') ? glo : ''} (Sweden) · Not for navigation`;
 }
@@ -1953,6 +1960,7 @@ async function init() {
   S.zoneLoaded = !!zone;
   S.sweden = zone?.sweden ?? null;
   S.switzerland = zone?.switzerland ?? null;
+  S.alps = zone?.alps ?? null;
   S.lmError = zone?.lantmateriet?.enabled ? zone.lantmateriet.lastError : null;
   if (zone?.lantmateriet?.lastError) message(`Lantmäteriet's terrain model is not being used: ${zone.lantmateriet.lastError}`);
   renderLegend();

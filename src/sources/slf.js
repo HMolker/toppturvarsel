@@ -132,7 +132,8 @@ export function heightBand(el) {
   return null;
 }
 
-export function shapeBulletin(b) {
+/** One CAAMLv6 bulletin in the shape the page reads; `source` says whose it is ('slf', or 'eaws' for Austria and Euregio). */
+export function shapeBulletin(b, source = 'slf') {
   const ratings = (b.dangerRatings ?? []).map((r) => ({
     danger: level(r.mainValue),
     sub: SUB[r.customData?.CH?.subdivision] ?? null,
@@ -159,7 +160,8 @@ export function shapeBulletin(b) {
   // SLF repeats one danger description under every problem; show it once.
   const described = [...new Set((b.avalancheProblems ?? []).map((p) => clean(p.comment)).filter(Boolean))];
   return {
-    source: 'slf',
+    source,
+    provider: b.source?.provider?.name ?? null,
     assessed: top !== null,
     danger: top?.danger ?? null,
     dangerSub: top?.sub ?? null,

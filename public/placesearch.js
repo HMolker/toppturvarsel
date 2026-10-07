@@ -55,7 +55,7 @@ export function attachPlaceSearch(input, { local = () => [], onPick, country = n
       items
         .map((x, k) => `<button type="button" class="psitem${x.place ? '' : ' own'}" data-k="${k}" role="option"><b>${esc(x.name)}</b><span>${esc(x.note ?? '')}</span></button>`)
         .join('');
-    show(`${listHtml()}<div class="psnote">Searching Norway, Sweden and Switzerland…</div>`);
+    show(`${listHtml()}<div class="psnote">Searching Norway, Sweden, Switzerland, Austria and Italy…</div>`);
     try {
       const r = await fetch(`api/places?q=${encodeURIComponent(q)}${country ? `&country=${country}` : ''}`);
       const body = await r.json();
@@ -72,7 +72,7 @@ export function attachPlaceSearch(input, { local = () => [], onPick, country = n
       const note = !items.length
         ? `<div class="psnote">Nothing found for “${esc(q)}”.</div>`
         : body.partial ? `<div class="psnote">Only part of the answer: ${esc(body.partial)}</div>` : '';
-      show(listHtml() + note + '<div class="psnote src">Names: Kartverket (Norway), © OpenStreetMap contributors (Sweden, Switzerland)</div>');
+      show(listHtml() + note + '<div class="psnote src">Names: Kartverket (Norway), © OpenStreetMap contributors (Sweden, Switzerland, Austria, Italy)</div>');
     } catch (err) {
       if (mine !== seq) return;
       show(`${listHtml()}<div class="psnote">Place search failed: ${esc(err.message)}</div>`);

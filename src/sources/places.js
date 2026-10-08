@@ -68,11 +68,11 @@ function nomQueued(fn) {
 }
 
 // v6: Switzerland too. addressdetails gives each answer's country code.
-export const NOMINATIM_COUNTRIES = ['se', 'ch', 'at', 'it'];
+export const NOMINATIM_COUNTRIES = ['se', 'ch', 'at', 'it', 'es', 'ad'];
 export function nominatimUrl(q) {
   return `${NOM}?q=${encodeURIComponent(q)}&format=jsonv2&countrycodes=${NOMINATIM_COUNTRIES.join(',')}&addressdetails=1&limit=8&accept-language=sv,de,fr,it`;
 }
-const COUNTRY_WORDS = /^(Sverige|Schweiz|Suisse|Svizzera|Svizra|Switzerland|Österreich|Austria|Italia|Italy)$/i;
+const COUNTRY_WORDS = /^(Sverige|Schweiz|Suisse|Svizzera|Svizra|Switzerland|Österreich|Austria|Italia|Italy|España|Spain|Andorra)$/i;
 // Swedish postcodes ("123 45"), Swiss and Austrian ones ("3920") and Italian ones ("39100") are not places.
 const POSTCODE = /^(\d{3} ?\d{2}|\d{4,5})$/;
 

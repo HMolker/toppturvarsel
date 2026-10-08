@@ -114,7 +114,9 @@ export function simulate({ regions = [], tours = [], resorts = null, now = new D
   // The storm sits over one band of the mountains and fades north and south
   // of it: one storm for the Nordic mountains, one for the Alps (v6), so
   // neither is centred halfway between them.
-  const ALPS = new Set(['CH', 'AT', 'IT']);
+  const ALPS = new Set(['CH', 'AT', 'IT', 'ES', 'AD']);
+  // v6.3: Spain and Andorra have no bulletin or snow source in the real service, so the demo shows none either.
+  const UNREAD = new Set(['ES', 'AD']);
   const stormLats = {};
   for (const alps of [false, true]) {
     const lats = regions.filter((r) => !r.offMap && ALPS.has(r.country) === alps).map((r) => r.lat);
@@ -157,6 +159,8 @@ export function simulate({ regions = [], tours = [], resorts = null, now = new D
 
     const bulletin = region.noForecast
       ? { source: 'none', noForecast: true, assessed: false, danger: null, headline: 'No avalanche forecast is issued for this area.' }
+      : UNREAD.has(region.country)
+      ? { source: 'none', notRead: true, assessed: false, danger: null, headline: 'A bulletin is issued for this area, but this service does not read it yet. No danger level is shown.' }
       : {
           source: 'simulated',
           simulated: true,
@@ -187,9 +191,9 @@ export function simulate({ regions = [], tours = [], resorts = null, now = new D
     return {
       id: region.id, name: region.name, country: region.country, lat: region.lat, lon: region.lon,
       offMap: region.offMap ?? false,
-      bulletinUrl: region.noForecast ? null : { NO: 'https://www.varsom.no/snoskredvarsling/', SE: 'https://lavinprognoser.se/', CH: 'https://www.slf.ch/en/avalanche-bulletin-and-snow-situation/', AT: 'https://avalanche.report/', IT: 'https://avalanche.report/' }[region.country] ?? null,
+      bulletinUrl: region.noForecast ? null : region.bulletinUrl ?? { NO: 'https://www.varsom.no/snoskredvarsling/', SE: 'https://lavinprognoser.se/', CH: 'https://www.slf.ch/en/avalanche-bulletin-and-snow-situation/', AT: 'https://avalanche.report/', IT: 'https://avalanche.report/' }[region.country] ?? null,
       bulletin,
-      snow: {
+      snow: UNREAD.has(region.country) ? null : {
         depthCm: base, new24, new48, new72: Math.round(new48 * 1.3), depthMaxCm: base + 40,
         gridAltitude: Math.round((600 + rr() * 700) / 10) * 10,
         sampleCount: inRegion.length || 1,
@@ -212,6 +216,7 @@ export function simulate({ regions = [], tours = [], resorts = null, now = new D
     const hFactor = clamp(0.55 + (t.summit_m ?? 1200) / 2600, 0.6, 1.5);
     const depth = Math.round(clamp((reg?.snow?.depthCm ?? 100) * hFactor * (0.9 + tr() * 0.25), 15, 380));
     const new48 = Math.round(clamp((reg?.snow?.new48 ?? 0) * (0.85 + tr() * 0.4) * hFactor, 0, 70));
+    if (UNREAD.has(reg?.country)) return { ...t, snow: null, snowStart: null };
     return {
       ...t,
       snow: {
@@ -274,7 +279,7 @@ export function simulate({ regions = [], tours = [], resorts = null, now = new D
         // show in the simulation; after it, cold and clear on fresh snow.
         const front = k === 2;
         const w = front ? WEATHER[0] : WEATHER[Math.min(4, k + (fr() > 0.6 ? 1 : 0))];
-        const snowCm = front ? r1(6 + fr() * 8) : r1(Math.max(0, (t.snow.new48 / 3) * (1 - k / 3) * (0.5 + fr())));
+        const snowCm = front ? r1(6 + fr() * 8) : r1(Math.max(0, ((t.snow?.new48 ?? 0) / 3) * (1 - k / 3) * (0.5 + fr())));
         const wind = front ? Math.round(17 + fr() * 4) : Math.round(clamp(16 - k * 3 + fr() * 6, 2, 26));
         return {
           date: iso(addDays(today, k)),

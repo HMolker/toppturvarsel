@@ -68,5 +68,16 @@
   { "id": "at-hochschwab", "name": "Hochschwab", "country": "AT", "eawsState": "AT-06", "lat": 47.6167, "lon": 15.1333 },
   { "id": "it-presanella", "name": "Adamello–Presanella", "country": "IT", "eawsState": "IT-32-TN", "lat": 46.2167, "lon": 10.6667 },
   { "id": "it-brenta", "name": "Brenta Dolomites", "country": "IT", "eawsState": "IT-32-TN", "lat": 46.1728, "lon": 10.8758 },
-  { "id": "it-puez", "name": "Dolomites (South Tyrol)", "country": "IT", "eawsState": "IT-32-BZ", "lat": 46.6414, "lon": 11.7928 }
+  { "id": "it-puez", "name": "Dolomites (South Tyrol)", "country": "IT", "eawsState": "IT-32-BZ", "lat": 46.6414, "lon": 11.7928 },
+
+  { "id": "es-aran", "name": "Val d'Aran", "country": "ES", "bulletinUrl": "https://bpa.icgc.cat/", "lat": 42.7, "lon": 0.8 },
+  { "id": "es-pallars", "name": "Pallars and Aigüestortes", "country": "ES", "bulletinUrl": "https://bpa.icgc.cat/", "lat": 42.6, "lon": 1.1 },
+  { "id": "es-cerdanya", "name": "Cerdanya and Ripollès", "country": "ES", "bulletinUrl": "https://bpa.icgc.cat/", "lat": 42.38, "lon": 2.12 },
+  { "id": "es-benasque", "name": "Benasque (Maladeta, Posets)", "country": "ES", "bulletinUrl": "https://www.aemet.es/es/eltiempo/prediccion/montana/boletin_peligro_aludes", "lat": 42.64, "lon": 0.55 },
+  { "id": "es-ordesa", "name": "Ordesa and Monte Perdido", "country": "ES", "bulletinUrl": "https://www.aemet.es/es/eltiempo/prediccion/montana/boletin_peligro_aludes", "lat": 42.67, "lon": 0.04 },
+  { "id": "es-tena", "name": "Tena valley (Aragonese Pyrenees)", "country": "ES", "bulletinUrl": "https://www.aemet.es/es/eltiempo/prediccion/montana/boletin_peligro_aludes", "lat": 42.8, "lon": -0.3 },
+  { "id": "es-aspe", "name": "Canfranc and Aspe", "country": "ES", "bulletinUrl": "https://www.aemet.es/es/eltiempo/prediccion/montana/boletin_peligro_aludes", "lat": 42.69, "lon": -0.48 },
+  { "id": "es-belagua", "name": "Belagua (Navarra)", "country": "ES", "bulletinUrl": "https://www.aemet.es/es/eltiempo/prediccion/montana/boletin_peligro_aludes", "lat": 42.88, "lon": -0.75 },
+  { "id": "ad-nord", "name": "Andorra North", "country": "AD", "bulletinUrl": "https://www.meteo.ad/en/snowstate", "lat": 42.62, "lon": 1.5 },
+  { "id": "ad-centre", "name": "Andorra Centre", "country": "AD", "bulletinUrl": "https://www.meteo.ad/en/snowstate", "lat": 42.55, "lon": 1.62 }
 ]

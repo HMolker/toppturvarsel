@@ -94,7 +94,8 @@ function tileCountry(z, x, y) {
 // Norway, OpenTopoMap in Sweden (no official slope map), swisstopo's map and
 // its "slope over 30°" in Switzerland (v6).
 // Austria: basemap.at (v6.2); South Tyrol and Trentino: OpenTopoMap, like Sweden. No official slope map for them.
-const TOPO = { SE: 'se', CH: 'ch', AT: 'at', IT: 'se' };
+// Spanish Pyrenees and Andorra (v6.3): OpenTopoMap too.
+const TOPO = { SE: 'se', CH: 'ch', AT: 'at', IT: 'se', ES: 'se', AD: 'se' };
 const SLOPEMAP = { NO: 'nve', CH: 'chs' };
 const topoUrl = (z, x, y) => (tileInZone(z, x, y) ? `tiles/${TOPO[tileCountry(z, x, y)] ?? 'no'}/${z}/${x}/${y}.png` : null);
 const nveUrl = (z, x, y) => {
@@ -680,7 +681,7 @@ function renderPanel({ loading = false } = {}) {
   else {
     const b = w.bulletin;
     prob += `<p>${esc(w.name)}${b?.danger ? ` — ${dangerChip(b.danger)}` : ''} ${b?.problems?.length ? problemIcons(b.problems, { danger: b.danger, size: 22 }) : ''}<br><span class="note">${w.micro ? `${w.country === 'CH' ? 'SLF micro-region' : 'micro-region'} ${esc(w.micro)}, where the route is` : `region of the nearest tour, ${esc(w.tour)} (${w.km.toFixed(0)} km)`}</span></p>`;
-    if (!b) prob += `<p class="note">No bulletin today${w.country === 'SE' ? ' (Swedish forecasts run from 11 December)' : w.country === 'CH' ? ' (SLF publishes from late autumn to spring)' : w.country === 'AT' || w.country === 'IT' ? ' (the Austrian and Euregio services publish from late autumn to spring)' : ' (out of season, or not yet loaded)'} — nothing to test the route against.</p>`;
+    if (!b) prob += `<p class="note">No bulletin today${w.country === 'SE' ? ' (Swedish forecasts run from 11 December)' : w.country === 'CH' ? ' (SLF publishes from late autumn to spring)' : w.country === 'AT' || w.country === 'IT' ? ' (the Austrian and Euregio services publish from late autumn to spring)' : w.country === 'ES' || w.country === 'AD' ? ' (bulletins for the Spanish Pyrenees and Andorra are not read by this service yet; read the official one)' : ' (out of season, or not yet loaded)'} — nothing to test the route against.</p>`;
     else if (!b.problems?.length) prob += `<p class="okline">The bulletin names no avalanche problems.</p>`;
     else if (!a.problemSections.length) prob += `<p class="okline">No 30°+ ground on the route faces today's problem aspects at their heights.</p>`;
     else {
@@ -1017,7 +1018,7 @@ async function loadAreaGrid(box, what, { cellM = 45, maxTiles = null } = {}) {
   await refreshBudget(); // is Lantmäteriet (or GLO-30) answering right now?
   const fineHere = S.fine.includes(country);
   // Sweden or Switzerland on Open-Meteo's 90 m heights: fewer, coarser tiles.
-  const coarse = ['SE', 'CH', 'AT', 'IT'].includes(country) && !fineHere;
+  const coarse = ['SE', 'CH', 'AT', 'IT', 'ES', 'AD'].includes(country) && !fineHere;
   let r = null;
   for (let z = coarse ? DEM_MAX_Z - 1 : DEM_MAX_Z; z >= DEM_MIN_Z; z--) {
     r = tileRange(box, z);
@@ -1680,8 +1681,11 @@ function renderLegend() {
   parts.push(`<div class="legend-row"><span><i class="swc" style="background:var(--ink)"></i>route under 25°</span><span class="note">steeper parts of the route in the slope colours</span></div>`);
   $('#tlegend').innerHTML = parts.join('');
   const alpsMap = country === 'AT' || country === 'IT';
+  const pyrMap = country === 'ES' || country === 'AD';
   const glo = ' © DLR e.V. 2010-2014, © Airbus 2014-2018, provided under Copernicus by the EU and ESA';
-  $('#tattrib').innerHTML = alpsMap
+  $('#tattrib').innerHTML = pyrMap
+    ? `Map © OpenTopoMap (CC-BY-SA), © OpenStreetMap contributors · Heights: ${esc(S.alps ?? 'Copernicus GLO-90 via Open-Meteo')}${/GLO-30/.test(S.alps ?? '') ? glo : ''} · No bulletin is read here yet (the Catalan, Spanish and Andorran services are linked, not shown) · Not for navigation`
+    : alpsMap
     ? `Map © ${country === 'AT' ? 'basemap.at (CC BY 4.0)' : 'OpenTopoMap (CC-BY-SA), © OpenStreetMap contributors'} · Heights: ${esc(S.alps ?? 'Copernicus GLO-90 via Open-Meteo')}${/GLO-30/.test(S.alps ?? '') ? glo : ''} · Bulletin: ${country === 'AT' ? 'the Austrian avalanche services' : 'Euregio avalanche services'} via avalanche.report (EAWS) · Not for navigation`
     : country === 'CH'
     ? `Map and slope classes © swisstopo · Heights: ${esc(S.switzerland ?? 'Copernicus GLO-90 via Open-Meteo')}${/GLO-30/.test(S.switzerland ?? '') ? glo : ''} · Bulletin © SLF (CC BY 4.0) · Not for navigation`

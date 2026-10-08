@@ -3,6 +3,22 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v6.3.0 — The Spanish Pyrenees and Andorra, without bulletins (2026-10-08)
+
+- **10 regions and 15 tours**: Val d'Aran, Pallars, Cerdanya–Ripollès,
+  Benasque, Ordesa–Monte Perdido, Tena, Canfranc–Aspe, Belagua, and Andorra
+  North and Centre. Country bar: Spain (Pyrenees) and Andorra as opt-in
+  countries, and a **Pyrenees** chip.
+- **No bulletin and no snow yet.** The services (ICGC, AEMET, Meteorologia
+  d'Andorra) offer no machine-readable danger level that I could find, and
+  their seasons start about 1 December. A region says "danger not read here
+  yet", warns on the page, and links to the official bulletin. The trip
+  planner does not rank these tours ("a bulletin exists but is not read here
+  yet"), and nothing is sent to seNorge for them.
+- OpenTopoMap, Copernicus GLO-30 heights, place search for Spain and Andorra.
+  The demo shows the same "not read" state.
+- Tour coordinates are from memory: check them in the editor.
+
 ## v6.2.0 — Austria and Euregio (2026-10-07)
 
 - **Austria, South Tyrol and Trentino**: avalanche bulletins from the EAWS daily

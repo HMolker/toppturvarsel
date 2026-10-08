@@ -43,13 +43,27 @@ export const COUNTRIES = {
     optIn: true,
     frame: [[46.85, 10.47], [46.78, 11.0], [47.0, 11.5], [47.0, 12.1], [46.75, 12.4], [46.6, 12.1], [46.45, 11.95], [46.3, 11.9], [46.15, 11.8], [46.0, 11.7], [45.85, 11.4], [45.65, 11.0], [45.6, 10.85], [45.9, 10.6], [46.2, 10.3], [46.45, 10.2], [46.6, 10.45]],
   },
+  // v6.3: the Spanish Pyrenees (Catalonia, Aragon, Navarra) as a strip along the border: a coarse
+  // outline for framing and the sketch map, not a surveyed one.
+  ES: {
+    name: 'Spain (Pyrenees)',
+    optIn: true,
+    frame: [[43.3, -1.78], [43.05, -1.4], [42.97, -0.75], [42.8, -0.53], [42.84, -0.29], [42.7, 0.13], [42.72, 0.65], [42.85, 0.72], [42.72, 1.4], [42.62, 1.42], [42.43, 1.45], [42.43, 1.72], [42.5, 1.79], [42.45, 1.95], [42.33, 2.2], [42.45, 3.17], [42.2, 3.15], [42.1, 2.7], [42.1, 2.0], [42.05, 1.5], [42.15, 0.9], [42.05, 0.3], [42.15, -0.3], [42.4, -0.7], [42.65, -1.2], [42.85, -1.65]],
+  },
+  // v6.3: Andorra, a rough outline of the principality.
+  AD: {
+    name: 'Andorra',
+    optIn: true,
+    frame: [[42.65, 1.5], [42.62, 1.62], [42.6, 1.72], [42.5, 1.79], [42.45, 1.7], [42.43, 1.55], [42.5, 1.42], [42.6, 1.42]],
+  },
 };
 
 /** Named groups of countries offered as one click, e.g. a mountain range. */
 export const GROUPS = [
   { id: 'nordic', name: 'Nordic', countries: ['NO', 'SE'] },
   { id: 'alps', name: 'Alps', countries: ['CH', 'AT', 'IT'] },
-  // { id: 'pyrenees', name: 'Pyrenees', countries: ['FR', 'ES', 'AD'] },
+  // v6.3: Spain and Andorra now; France (Météo-France) is not in yet.
+  { id: 'pyrenees', name: 'Pyrenees', countries: ['ES', 'AD'] },
 ];
 
 export const countryName = (code) => COUNTRIES[code]?.name ?? code;

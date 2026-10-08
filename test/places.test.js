@@ -43,7 +43,7 @@ globalThis.fetch = async (url, opts = {}) => {
     calls.nom++;
     calls.nomUA = opts.headers?.['User-Agent'] ?? null;
     const q = new URL(u).searchParams;
-    assert.equal(q.get('countrycodes'), 'se,ch,at,it');
+    assert.equal(q.get('countrycodes'), 'se,ch,at,it,es,ad');
     assert.equal(q.get('addressdetails'), '1');
     if (q.get('q') === 'Städjan') {
       return J([{ place_id: 1, osm_type: 'node', osm_id: 42, lat: '61.9197', lon: '12.8730', name: 'Städjan', type: 'peak', display_name: 'Städjan, Älvdalens kommun, Dalarnas län, Sverige' }]);

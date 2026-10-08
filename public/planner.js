@@ -103,7 +103,7 @@ export function gate(tour, day, prefs) {
       ? { status: 'caution', why: 'no avalanche forecast for this area: your own judgement (gentle terrain)', noForecast: true }
       : { status: 'unassessed', why: 'no avalanche forecast for this area, and the terrain is too steep to rank without one' };
   }
-  if (!Number.isFinite(D)) return { status: 'unassessed', why: 'no avalanche bulletin for this day' };
+  if (!Number.isFinite(D)) return { status: 'unassessed', why: day?.notRead ? 'a bulletin exists for this area but is not read here yet: open it before any tour' : 'no avalanche bulletin for this day' };
   const hit = problemsHit(tour, day.problems);
   const inside = hit.length > 0;
   const hitTxt = inside ? `inside ${describeProblem(hit[0])}` : day.problems?.length ? 'outside the problem aspects/elevations' : null;

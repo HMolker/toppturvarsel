@@ -16,9 +16,9 @@ import { attachPlaceSearch, pickPlace, kindName } from './placesearch.js';
 import './access.js';
 
 /** Map credit and the terrain model behind a country's maps (v6: Switzerland). */
-const MAP_CREDIT = { SE: 'OpenTopoMap, © OpenStreetMap contributors', CH: 'swisstopo', AT: 'basemap.at (CC BY 4.0)', IT: 'OpenTopoMap, © OpenStreetMap contributors' };
+const MAP_CREDIT = { SE: 'OpenTopoMap, © OpenStreetMap contributors', CH: 'swisstopo', AT: 'basemap.at (CC BY 4.0)', IT: 'OpenTopoMap, © OpenStreetMap contributors', ES: 'OpenTopoMap, © OpenStreetMap contributors', AD: 'OpenTopoMap, © OpenStreetMap contributors' };
 const mapCredit = (country) => MAP_CREDIT[country] ?? 'Kartverket';
-const ELEV_CREDIT = { SE: 'Copernicus DEM (GLO-30 / GLO-90)', CH: 'swisstopo swissALTI3D (2 m)', AT: 'Copernicus DEM (GLO-30 / GLO-90)', IT: 'Copernicus DEM (GLO-30 / GLO-90)' };
+const ELEV_CREDIT = { SE: 'Copernicus DEM (GLO-30 / GLO-90)', CH: 'swisstopo swissALTI3D (2 m)', AT: 'Copernicus DEM (GLO-30 / GLO-90)', IT: 'Copernicus DEM (GLO-30 / GLO-90)', ES: 'Copernicus DEM (GLO-30 / GLO-90)', AD: 'Copernicus DEM (GLO-30 / GLO-90)' };
 const elevCredit = (country) => ELEV_CREDIT[country] ?? 'Kartverket (DTM 1 m / 10 m)';
 const REGION_KIND = {
   NO: 'Norwegian forecast region (NVE / Varsom)',
@@ -26,6 +26,8 @@ const REGION_KIND = {
   CH: 'Swiss micro-region (SLF, WSL Institute for Snow and Avalanche Research)',
   AT: 'Austrian avalanche region (the state avalanche services, via EAWS / avalanche.report)',
   IT: 'Euregio micro-region (the avalanche services of South Tyrol and Trentino, via avalanche.report)',
+  ES: 'Spanish Pyrenees area (bulletin not read here yet; see the Catalan ICGC or AEMET bulletin)',
+  AD: 'Andorran zone (bulletin not read here yet; see Meteorologia d\'Andorra)',
 };
 
 /* ------------------------------------------------------------------ *
@@ -984,6 +986,8 @@ function dangerPill(region) {
   if (!d) {
     const why = region.bulletin?.noForecast
       ? 'no avalanche forecast here'
+      : region.bulletin?.notRead
+      ? 'not read here yet'
       : region.bulletin?.seasonOver || region.bulletin?.outOfSeason
       ? 'season over'
       : region.bulletin?.error
@@ -1001,7 +1005,9 @@ function bulletinBlock(region) {
   if (b.emergencyWarning) {
     bits.push(`<div class="warnbox"><strong>Emergency warning:</strong> ${esc(b.emergencyWarning)}</div>`);
   }
-  if (b.headline) bits.push(`<p class="bulletintext">${esc(b.headline)}</p>`);
+  if (b.headline && !b.notRead) bits.push(`<p class="bulletintext">${esc(b.headline)}</p>`);
+  // The Spanish Pyrenees and Andorra (v6.3): a forecast exists but this service does not read it yet.
+  if (b.notRead) bits.push(`<div class="warnbox"><strong>No danger level shown.</strong> A bulletin exists for this area, but this service does not read it yet. Open the bulletin below before any tour here.</div>`);
   // SLF (v6): the level's subdivision (3+, 3=, 3−) and, on spring days, the morning and afternoon levels.
   if (b.source === 'slf' && b.danger) {
     const times = (b.dangerRatings ?? []).filter((r) => r.danger && r.period !== 'all_day');
@@ -1452,7 +1458,7 @@ function selectRegion(id) {
       : '') +
     (reg.country === 'CH'
       ? `<a class="btn" href="https://www.slf.ch/en/avalanche-bulletin-and-snow-situation/measured-values/" target="_blank" rel="noopener">SLF measured values</a></div>`
-      : reg.country === 'AT' || reg.country === 'IT'
+      : reg.country === 'AT' || reg.country === 'IT' || reg.country === 'ES' || reg.country === 'AD'
         ? `</div>`
         : `<a class="btn" href="https://www.senorge.no/" target="_blank" rel="noopener">seNorge snow maps</a></div>`) +
     (inReg.length

@@ -63,7 +63,8 @@ export async function refresh({
   const allPoints = [...tourPoints, ...startPoints, ...fallbackPoints];
   // v6.2: Austria and Euregio (South Tyrol, Trentino) have the EAWS bulletin files and GeoSphere's stations.
   const alpinePoints = allPoints.filter((p) => p.country === 'AT' || p.country === 'IT');
-  const nordicPoints = allPoints.filter((p) => !['CH', 'AT', 'IT'].includes(p.country));
+  // v6.3: the Spanish Pyrenees and Andorra have no snow source here yet: they must not be sent to seNorge.
+  const nordicPoints = allPoints.filter((p) => !['CH', 'AT', 'IT', ...NO_SNOW_SOURCE].includes(p.country));
   const swissPoints = allPoints.filter((p) => p.country === 'CH');
 
   const [norway, sweden, swissFeed, eawsFeed, nordicSnow, swissSnow, alpineSnow, observations] = await Promise.all([
@@ -109,7 +110,9 @@ export async function refresh({
   const regionRows = regions.map((region) => {
     const bulletin = region.noForecast
       ? { source: 'none', noForecast: true, assessed: false, danger: null, headline: 'No avalanche forecast is issued for this area.' }
-      : { NO: norway, SE: sweden, CH: switzerland, AT: euregio, IT: euregio }[region.country]?.[region.id];
+      : NOT_READ.has(region.country)
+        ? { source: 'none', notRead: true, assessed: false, danger: null, headline: 'A bulletin is issued for this area, but this service does not read it yet. No danger level is shown.' }
+        : { NO: norway, SE: sweden, CH: switzerland, AT: euregio, IT: euregio }[region.country]?.[region.id];
 
     let snow = snowByRegion[region.id] ?? null;
     if (!snow) {
@@ -216,8 +219,13 @@ export async function refresh({
   return snapshot;
 }
 
+// v6.3: Spain (Catalonia, Aragon, Navarra) and Andorra publish bulletins this service links to but does not read.
+const NOT_READ = new Set(['ES', 'AD']);
+const NO_SNOW_SOURCE = ['ES', 'AD'];
+
 function bulletinUrl(region) {
   if (region.noForecast) return null;
+  if (region.bulletinUrl) return region.bulletinUrl;
   if (region.country === 'NO') {
     return `https://www.varsom.no/en/snow/forecast/warning/${encodeURIComponent(region.name.replace(/ \(Svalbard\)$/, ''))}/`;
   }

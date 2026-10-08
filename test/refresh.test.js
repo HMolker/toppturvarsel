@@ -27,7 +27,8 @@ const swissTours = JSON.parse(await readFile(new URL('../data/tours.json', impor
 const { evaluateAlerts } = await import('../src/alerts.js');
 const { alpineStubs } = await import('./helpers/alps.js');
 const alpine = alpineStubs({ regions: allRegions });
-const italianIds = new Set(allRegions.filter((r) => r.country === 'IT').map((r) => r.id));
+// Italy has no station in the stub, and Spain and Andorra have no snow source at all (v6.3).
+const italianIds = new Set(allRegions.filter((r) => ['IT', 'ES', 'AD'].includes(r.country)).map((r) => r.id));
 
 const realFetch = globalThis.fetch;
 

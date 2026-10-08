@@ -13,7 +13,15 @@ test('a simulated winter fills every panel with plausible numbers', () => {
   assert.equal(sim.snapshot.simulated, true);
   assert.equal(sim.snapshot.regions.length, regions.length);
   assert.equal(sim.snapshot.tours.length, tours.length);
+  // Spain and Andorra: no bulletin and no snow source in the service (v6.3), so none in the demo either.
+  const unread = (country) => country === 'ES' || country === 'AD';
   for (const r of sim.snapshot.regions) {
+    if (unread(r.country)) {
+      assert.equal(r.bulletin.danger, null, `${r.id}: no danger level without a bulletin`);
+      assert.equal(r.bulletin.notRead, true, `${r.id}: marked as not read`);
+      assert.equal(r.snow, null, `${r.id}: no snow source`);
+      continue;
+    }
     const d = r.bulletin.danger;
     assert.ok(d === null || [1, 2, 3, 4, 5].includes(d), `${r.id}: danger ${d}`);
     assert.ok(r.snow.depthCm > 0 && r.snow.depthCm < 400, `${r.id}: depth`);
@@ -21,8 +29,10 @@ test('a simulated winter fills every panel with plausible numbers', () => {
     assert.ok(r.snow.new24 <= r.snow.new48 && r.snow.new48 <= r.snow.new72, `${r.id}: 24 <= 48 <= 72`);
     for (const p of r.bulletin.problems ?? []) assert.match(p.aspects, /^[01]{8}$/, `${r.id}: aspect bits`);
   }
+  const regionCountry = Object.fromEntries(regions.map((r) => [r.id, r.country]));
   for (const t of sim.snapshot.tours) {
-    assert.ok(Number.isFinite(t.snow.depthCm) && t.snow.depthCm > 0, `${t.name}: depth`);
+    if (unread(regionCountry[t.region])) assert.equal(t.snow, null, `${t.name}: no snow source`);
+    else assert.ok(Number.isFinite(t.snow.depthCm) && t.snow.depthCm > 0, `${t.name}: depth`);
     const fc = sim.outlook.forecasts[t.name];
     assert.equal(fc.days.length, 5, `${t.name}: 5 forecast days`);
     assert.equal(fc.hourly.time.length, 7 * 24, `${t.name}: hourly, two past days + five`);
@@ -33,7 +43,7 @@ test('a simulated winter fills every panel with plausible numbers', () => {
 
 test('no bulletin passes itself off as real', () => {
   for (const r of sim.snapshot.regions) {
-    if (r.bulletin.noForecast) continue;
+    if (r.bulletin.noForecast || r.bulletin.notRead) continue;
     assert.equal(r.bulletin.simulated, true);
     assert.match(r.bulletin.headline, /[Ss]imulated/);
   }
@@ -42,7 +52,7 @@ test('no bulletin passes itself off as real', () => {
 });
 
 test('alerts fire exactly where the invented 48 h load crosses the threshold', () => {
-  const over = sim.snapshot.regions.filter((r) => !r.offMap && r.snow.new48 >= 30).map((r) => r.id).sort();
+  const over = sim.snapshot.regions.filter((r) => !r.offMap && (r.snow?.new48 ?? 0) >= 30).map((r) => r.id).sort();
   assert.deepEqual(sim.alerts.firing.map((f) => f.regionId).sort(), over);
   assert.ok(sim.alerts.firing.length > 0, 'the storm loads at least one region');
   for (let i = 1; i < sim.alerts.firing.length; i++) {

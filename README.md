@@ -26,7 +26,7 @@ process, zero npm dependencies, one Docker container.
 - **Snow depth and new snow** from NVE's seNorge 1 km model grid, sampled at
   **each tour's own coordinates** rather than a region centroid — so
   Rørnestinden gets Rørnestinden's snow, not the fjord's.
-- **131 curated tours** (24 Swiss, 17 Austrian or Euregio) with difficulty and quality ratings, filterable and
+- **146 curated tours** (24 Swiss, 17 Austrian or Euregio, 15 Spanish or Andorran) with difficulty and quality ratings, filterable and
   sortable by how much snow just fell on them, each marked with whether a
   GPX track is available (your own, or a route from OpenStreetMap).
 - **Country selection** as the first filter: pick Norway, Sweden or both, and
@@ -402,6 +402,27 @@ files carry no licence statement that I could find: the data is shown with the
 service's name and a link to avalanche.report, for personal, non-commercial
 use. Maps © basemap.at; outlines of Austria and Euregio on the sketch map are
 schematic.
+
+## The Spanish Pyrenees and Andorra (v6.3)
+
+A reduced start: 10 regions and 15 tours, with maps, heights and forecasts,
+but **no avalanche bulletin and no snow data yet**. A region shows "danger not
+read here yet" with a warning, links to the official bulletin, and the trip
+planner leaves its tours out of the ranking instead of guessing. A missing
+danger level never reads as a low one.
+
+| What | Source | Notes |
+|---|---|---|
+| Avalanche bulletin | Catalonia and Aran: ICGC (`bpa.icgc.cat`). Aragon and Navarra: AEMET. Andorra: Meteorologia d'Andorra (`meteo.ad`) | Linked only. As far as I could check (Oct 2026) none offers a machine-readable danger level: ICGC is a web viewer and a PDF, AEMET a PDF and an XML with only free text, Andorra's page shows icons and its JSON service needs permission and a fixed IP. All three are off until about 1 December. |
+| Snow depth, new snow | None | No open feed found; Spanish and Andorran tours show no snow. |
+| Map | OpenTopoMap, like Sweden | No official slope map: use Shading → slope on Plan a tour. |
+| Heights | Copernicus GLO-30 (30 m) | |
+| Forecast | Open-Meteo, MET Norway | As everywhere. |
+
+France (Météo-France) is not in yet. The tours' coordinates are approximate and
+were set from memory: check them in the tour editor before relying on them.
+Next step: read the bulletins when the season opens and the real formats can
+be seen.
 
 ## Trip planner
 

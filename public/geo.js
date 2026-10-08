@@ -16,4 +16,7 @@ export const CH_OUTLINE = [[47.525,9.594],[47.348,9.633],[47.103,9.48],[46.921,9
 import { COUNTRIES } from './countries.js';
 export const AT_OUTLINE = COUNTRIES.AT.frame;
 export const IT_OUTLINE = COUNTRIES.IT.frame;
-export const LANDS = [COAST, CH_OUTLINE, AT_OUTLINE, IT_OUTLINE];
+// v6.3: the Spanish Pyrenees and Andorra.
+export const ES_OUTLINE = COUNTRIES.ES.frame;
+export const AD_OUTLINE = COUNTRIES.AD.frame;
+export const LANDS = [COAST, CH_OUTLINE, AT_OUTLINE, IT_OUTLINE, ES_OUTLINE, AD_OUTLINE];

@@ -391,7 +391,7 @@ async function handleApi(req, res, url, ctx = { user: null, sneaky: false }) {
   if (route === '/api/places') {
     try {
       const c = url.searchParams.get('country');
-      return jsonz(req, res, 200, await searchPlaces(url.searchParams.get('q'), { country: ['NO', 'SE', 'CH', 'AT', 'IT'].includes(c) ? c : null }), { 'Cache-Control': 'public, max-age=86400' });
+      return jsonz(req, res, 200, await searchPlaces(url.searchParams.get('q'), { country: ['NO', 'SE', 'CH', 'AT', 'IT', 'ES', 'AD'].includes(c) ? c : null }), { 'Cache-Control': 'public, max-age=86400' });
     } catch (err) {
       return json(res, err.status ?? 502, { error: err.message });
     }

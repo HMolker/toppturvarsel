@@ -171,6 +171,23 @@ await page.waitForTimeout(800);
 console.log('after the clicks:', await pressed());
 await shot('1-map-pyrenees', '.mapcard, #map');
 
+// Ski resorts (v6.3.1): Overpass answers nothing here, so the built-in list is what shows.
+await page.check('#showResorts');
+await page.waitForFunction(() => document.querySelectorAll('.resorts [data-resort]').length > 0, null, { timeout: 30000 });
+await page.waitForTimeout(500);
+const rs = await page.evaluate(() => ({ n: document.querySelectorAll('.resorts [data-resort]').length, names: [...document.querySelectorAll('.resorts [data-resort]')].slice(0, 6).map((e) => e.getAttribute('data-resort')), legend: document.querySelector('.legend-row.note')?.innerText }));
+console.log('resorts on the map (Spain + Andorra):', JSON.stringify(rs));
+await shot('1b-resorts-pyrenees', '.mapcard, #map');
+for (const c of ['ES', 'AD']) await page.click(`#countryBar [data-country="${c}"]`);
+for (const c of ['AT', 'IT', 'CH']) await page.click(`#countryBar [data-country="${c}"]`);
+await page.waitForTimeout(600);
+const alp = await page.evaluate(() => document.querySelectorAll('.resorts [data-resort]').length);
+console.log('resorts on the map (Switzerland, Austria, Italy):', alp);
+await shot('1c-resorts-alps', '.mapcard, #map');
+for (const c of ['AT', 'IT', 'CH']) await page.click(`#countryBar [data-country="${c}"]`);
+for (const c of ['ES', 'AD']) await page.click(`#countryBar [data-country="${c}"]`);
+await page.waitForTimeout(400);
+
 // A region: a bulletin that exists but is not read.
 await page.locator('g.reg[data-region="es-benasque"]').click({ force: true }).catch(() => {});
 await page.waitForTimeout(400);

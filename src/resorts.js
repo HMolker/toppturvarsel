@@ -40,11 +40,16 @@ export const SOURCES = {
   ch: { fetch: () => fetchOsmResorts('CH'), ttl: () => 30 * 24 * HOUR, name: 'OpenStreetMap', min: () => Number(process.env.RESORTS_CH_MIN ?? 20) },
   // v6.2: Austria likewise. (Italy's resorts are not listed: only South Tyrol and Trentino have a bulletin here.)
   at: { fetch: () => fetchOsmResorts('AT'), ttl: () => 30 * 24 * HOUR, name: 'OpenStreetMap', min: () => Number(process.env.RESORTS_AT_MIN ?? 20) },
+  // v6.3.1: South Tyrol and Trentino (the region IT-32), the Spanish Pyrenees (Catalonia, Aragon,
+  // Navarra) and Andorra, so every country the service shows has its resorts.
+  it: { fetch: () => fetchOsmResorts('IT'), ttl: () => 30 * 24 * HOUR, name: 'OpenStreetMap', min: () => Number(process.env.RESORTS_IT_MIN ?? 8) },
+  es: { fetch: () => fetchOsmResorts('ES'), ttl: () => 30 * 24 * HOUR, name: 'OpenStreetMap', min: () => Number(process.env.RESORTS_ES_MIN ?? 8) },
+  ad: { fetch: () => fetchOsmResorts('AD'), ttl: () => 30 * 24 * HOUR, name: 'OpenStreetMap', min: () => Number(process.env.RESORTS_AD_MIN ?? 2) },
 };
 /** A list this short is a broken answer, not the country's resorts. */
 const tooFew = (key, list) => (list?.length ?? 0) < (SOURCES[key].min?.() ?? 0);
 
-const fallback = (key) => (key === 'se' ? seedResorts() : Promise.resolve([]));
+const fallback = (key) => (key === 'se' ? seedResorts() : key === 'no' ? Promise.resolve([]) : seedAlps(key.toUpperCase()));
 
 const fileFor = (key) => path.resolve(config.dataDir, 'cache', 'resorts', `${key}.json`);
 
@@ -83,6 +88,29 @@ async function seedResorts() {
     seedMemo = [];
   }
   return seedMemo;
+}
+
+/**
+ * v6.3.1: the same safety net for the other countries (data/resorts-seed.json,
+ * approximate positions). The Alpine and Pyrenean lists are fetched from
+ * OpenStreetMap too, which often fails or takes minutes; until it answers,
+ * the map should show the resorts instead of nothing.
+ */
+let alpsSeedMemo = null;
+async function seedAlps(country) {
+  if (!alpsSeedMemo) {
+    try {
+      const f = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data', 'resorts-seed.json');
+      alpsSeedMemo = JSON.parse(await readFile(f, 'utf8'));
+    } catch (err) {
+      log.warn(`resorts: built-in list: ${err.message}`);
+      alpsSeedMemo = {};
+    }
+  }
+  return (alpsSeedMemo[country] ?? []).map((r, i) => ({
+    id: `seed-${country.toLowerCase()}-${i}`, name: r.name, country, lat: r.lat, lon: r.lon,
+    url: r.url ?? null, live: false, approx: true, source: 'seed',
+  }));
 }
 
 async function getSource(key) {
@@ -144,6 +172,7 @@ export const _resetResorts = () => {
   failedAt.clear();
   inflight.clear();
   seedMemo = null;
+  alpsSeedMemo = null;
 };
 
 export async function getResorts() {

@@ -1,0 +1,598 @@
+{
+ "_note": "Approximate positions (a few km), from the village or base area, used only until OpenStreetMap answers. Not a survey.",
+ "CH": [
+  {
+   "name": "Zermatt",
+   "lat": 46.0207,
+   "lon": 7.7491
+  },
+  {
+   "name": "Verbier",
+   "lat": 46.0961,
+   "lon": 7.2286
+  },
+  {
+   "name": "Saas-Fee",
+   "lat": 46.1086,
+   "lon": 7.9272
+  },
+  {
+   "name": "St. Moritz",
+   "lat": 46.4908,
+   "lon": 9.8355
+  },
+  {
+   "name": "Davos",
+   "lat": 46.8027,
+   "lon": 9.836
+  },
+  {
+   "name": "Klosters",
+   "lat": 46.869,
+   "lon": 9.879
+  },
+  {
+   "name": "Arosa",
+   "lat": 46.7783,
+   "lon": 9.6781
+  },
+  {
+   "name": "Lenzerheide",
+   "lat": 46.728,
+   "lon": 9.556
+  },
+  {
+   "name": "Laax",
+   "lat": 46.804,
+   "lon": 9.259
+  },
+  {
+   "name": "Flims",
+   "lat": 46.835,
+   "lon": 9.285
+  },
+  {
+   "name": "Andermatt",
+   "lat": 46.635,
+   "lon": 8.594
+  },
+  {
+   "name": "Engelberg",
+   "lat": 46.821,
+   "lon": 8.404
+  },
+  {
+   "name": "Grindelwald",
+   "lat": 46.624,
+   "lon": 8.0414
+  },
+  {
+   "name": "Wengen",
+   "lat": 46.605,
+   "lon": 7.922
+  },
+  {
+   "name": "Mürren",
+   "lat": 46.559,
+   "lon": 7.892
+  },
+  {
+   "name": "Adelboden",
+   "lat": 46.493,
+   "lon": 7.56
+  },
+  {
+   "name": "Lenk",
+   "lat": 46.458,
+   "lon": 7.443
+  },
+  {
+   "name": "Gstaad",
+   "lat": 46.472,
+   "lon": 7.286
+  },
+  {
+   "name": "Les Diablerets",
+   "lat": 46.351,
+   "lon": 7.159
+  },
+  {
+   "name": "Villars",
+   "lat": 46.299,
+   "lon": 7.054
+  },
+  {
+   "name": "Crans-Montana",
+   "lat": 46.31,
+   "lon": 7.48
+  },
+  {
+   "name": "Nendaz",
+   "lat": 46.185,
+   "lon": 7.303
+  },
+  {
+   "name": "Leukerbad",
+   "lat": 46.379,
+   "lon": 7.628
+  },
+  {
+   "name": "Bettmeralp",
+   "lat": 46.42,
+   "lon": 8.06
+  },
+  {
+   "name": "Fiesch",
+   "lat": 46.404,
+   "lon": 8.134
+  },
+  {
+   "name": "Zinal",
+   "lat": 46.135,
+   "lon": 7.626
+  },
+  {
+   "name": "Grimentz",
+   "lat": 46.178,
+   "lon": 7.576
+  },
+  {
+   "name": "Obersaxen",
+   "lat": 46.75,
+   "lon": 9.1
+  },
+  {
+   "name": "Disentis",
+   "lat": 46.702,
+   "lon": 8.854
+  },
+  {
+   "name": "Sedrun",
+   "lat": 46.613,
+   "lon": 8.76
+  },
+  {
+   "name": "Scuol",
+   "lat": 46.797,
+   "lon": 10.299
+  },
+  {
+   "name": "Samnaun",
+   "lat": 46.949,
+   "lon": 10.365
+  },
+  {
+   "name": "Flumserberg",
+   "lat": 47.087,
+   "lon": 9.283
+  },
+  {
+   "name": "Wildhaus",
+   "lat": 47.205,
+   "lon": 9.351
+  },
+  {
+   "name": "Savognin",
+   "lat": 46.598,
+   "lon": 9.597
+  },
+  {
+   "name": "Melchsee-Frutt",
+   "lat": 46.771,
+   "lon": 8.28
+  },
+  {
+   "name": "Hasliberg",
+   "lat": 46.72,
+   "lon": 8.19
+  },
+  {
+   "name": "Anzère",
+   "lat": 46.297,
+   "lon": 7.398
+  },
+  {
+   "name": "Champéry",
+   "lat": 46.176,
+   "lon": 6.87
+  }
+ ],
+ "AT": [
+  {
+   "name": "St. Anton am Arlberg",
+   "lat": 47.129,
+   "lon": 10.264
+  },
+  {
+   "name": "Lech Zürs",
+   "lat": 47.209,
+   "lon": 10.142
+  },
+  {
+   "name": "Ischgl",
+   "lat": 47.013,
+   "lon": 10.29
+  },
+  {
+   "name": "Sölden",
+   "lat": 46.966,
+   "lon": 11.007
+  },
+  {
+   "name": "Kühtai",
+   "lat": 47.21,
+   "lon": 11.02
+  },
+  {
+   "name": "Mayrhofen",
+   "lat": 47.154,
+   "lon": 11.859
+  },
+  {
+   "name": "Hintertux",
+   "lat": 47.06,
+   "lon": 11.672
+  },
+  {
+   "name": "Zell am See-Kaprun",
+   "lat": 47.325,
+   "lon": 12.796
+  },
+  {
+   "name": "Saalbach-Hinterglemm",
+   "lat": 47.391,
+   "lon": 12.637
+  },
+  {
+   "name": "Kitzbühel",
+   "lat": 47.446,
+   "lon": 12.392
+  },
+  {
+   "name": "SkiWelt Wilder Kaiser-Brixental",
+   "lat": 47.513,
+   "lon": 12.297
+  },
+  {
+   "name": "Obergurgl-Hochgurgl",
+   "lat": 46.869,
+   "lon": 11.027
+  },
+  {
+   "name": "Serfaus-Fiss-Ladis",
+   "lat": 47.04,
+   "lon": 10.605
+  },
+  {
+   "name": "Pitztal",
+   "lat": 47.06,
+   "lon": 10.74
+  },
+  {
+   "name": "Stubaier Gletscher",
+   "lat": 47.002,
+   "lon": 11.11
+  },
+  {
+   "name": "Axamer Lizum",
+   "lat": 47.206,
+   "lon": 11.297
+  },
+  {
+   "name": "Seefeld",
+   "lat": 47.33,
+   "lon": 11.188
+  },
+  {
+   "name": "Obertauern",
+   "lat": 47.25,
+   "lon": 13.56
+  },
+  {
+   "name": "Schladming-Dachstein",
+   "lat": 47.395,
+   "lon": 13.686
+  },
+  {
+   "name": "Flachau",
+   "lat": 47.35,
+   "lon": 13.39
+  },
+  {
+   "name": "Bad Gastein",
+   "lat": 47.115,
+   "lon": 13.133
+  },
+  {
+   "name": "Mölltaler Gletscher",
+   "lat": 46.95,
+   "lon": 13.17
+  },
+  {
+   "name": "Katschberg",
+   "lat": 47.078,
+   "lon": 13.614
+  },
+  {
+   "name": "Nassfeld",
+   "lat": 46.56,
+   "lon": 13.27
+  },
+  {
+   "name": "Bad Kleinkirchheim",
+   "lat": 46.82,
+   "lon": 13.794
+  },
+  {
+   "name": "Hochkönig",
+   "lat": 47.4,
+   "lon": 12.899
+  },
+  {
+   "name": "Montafon",
+   "lat": 47.0,
+   "lon": 10.03
+  },
+  {
+   "name": "Warth-Schröcken",
+   "lat": 47.261,
+   "lon": 10.183
+  },
+  {
+   "name": "Damüls-Mellau",
+   "lat": 47.279,
+   "lon": 9.889
+  },
+  {
+   "name": "Brandnertal",
+   "lat": 47.095,
+   "lon": 9.726
+  },
+  {
+   "name": "Zillertal Arena",
+   "lat": 47.225,
+   "lon": 12.035
+  },
+  {
+   "name": "Lofer",
+   "lat": 47.588,
+   "lon": 12.699
+  },
+  {
+   "name": "Hinterstoder",
+   "lat": 47.699,
+   "lon": 14.119
+  },
+  {
+   "name": "Semmering",
+   "lat": 47.635,
+   "lon": 15.828
+  },
+  {
+   "name": "Lackenhof Ötscher",
+   "lat": 47.884,
+   "lon": 15.208
+  }
+ ],
+ "IT": [
+  {
+   "name": "Kronplatz",
+   "lat": 46.738,
+   "lon": 11.954
+  },
+  {
+   "name": "Alta Badia",
+   "lat": 46.55,
+   "lon": 11.876
+  },
+  {
+   "name": "Val Gardena",
+   "lat": 46.565,
+   "lon": 11.72
+  },
+  {
+   "name": "Seiser Alm",
+   "lat": 46.54,
+   "lon": 11.62
+  },
+  {
+   "name": "Val di Fassa",
+   "lat": 46.477,
+   "lon": 11.771
+  },
+  {
+   "name": "Arabba",
+   "lat": 46.5,
+   "lon": 11.876
+  },
+  {
+   "name": "Val Senales",
+   "lat": 46.74,
+   "lon": 10.84
+  },
+  {
+   "name": "Solda",
+   "lat": 46.517,
+   "lon": 10.59
+  },
+  {
+   "name": "Merano 2000",
+   "lat": 46.685,
+   "lon": 11.238
+  },
+  {
+   "name": "Ratschings",
+   "lat": 46.889,
+   "lon": 11.315
+  },
+  {
+   "name": "Sexten",
+   "lat": 46.702,
+   "lon": 12.359
+  },
+  {
+   "name": "Plose",
+   "lat": 46.7,
+   "lon": 11.683
+  },
+  {
+   "name": "Gitschberg Jochtal",
+   "lat": 46.83,
+   "lon": 11.69
+  },
+  {
+   "name": "Haideralm",
+   "lat": 46.83,
+   "lon": 10.53
+  },
+  {
+   "name": "Madonna di Campiglio",
+   "lat": 46.229,
+   "lon": 10.827
+  },
+  {
+   "name": "Pinzolo",
+   "lat": 46.158,
+   "lon": 10.77
+  },
+  {
+   "name": "Passo Tonale",
+   "lat": 46.258,
+   "lon": 10.591
+  },
+  {
+   "name": "Paganella",
+   "lat": 46.155,
+   "lon": 11.015
+  },
+  {
+   "name": "San Martino di Castrozza",
+   "lat": 46.261,
+   "lon": 11.799
+  },
+  {
+   "name": "Lavarone",
+   "lat": 45.954,
+   "lon": 11.282
+  },
+  {
+   "name": "Folgaria",
+   "lat": 45.917,
+   "lon": 11.17
+  },
+  {
+   "name": "Monte Bondone",
+   "lat": 46.012,
+   "lon": 11.056
+  },
+  {
+   "name": "Val di Fiemme",
+   "lat": 46.291,
+   "lon": 11.462
+  },
+  {
+   "name": "Obereggen",
+   "lat": 46.383,
+   "lon": 11.536
+  }
+ ],
+ "ES": [
+  {
+   "name": "Baqueira-Beret",
+   "lat": 42.699,
+   "lon": 0.937
+  },
+  {
+   "name": "Formigal",
+   "lat": 42.777,
+   "lon": -0.368
+  },
+  {
+   "name": "Cerler",
+   "lat": 42.597,
+   "lon": 0.553
+  },
+  {
+   "name": "Candanchú",
+   "lat": 42.788,
+   "lon": -0.544
+  },
+  {
+   "name": "Astún",
+   "lat": 42.803,
+   "lon": -0.52
+  },
+  {
+   "name": "Panticosa",
+   "lat": 42.743,
+   "lon": -0.259
+  },
+  {
+   "name": "La Molina",
+   "lat": 42.338,
+   "lon": 1.944
+  },
+  {
+   "name": "Masella",
+   "lat": 42.35,
+   "lon": 1.895
+  },
+  {
+   "name": "Vall de Núria",
+   "lat": 42.396,
+   "lon": 2.15
+  },
+  {
+   "name": "Vallter 2000",
+   "lat": 42.455,
+   "lon": 2.26
+  },
+  {
+   "name": "Espot",
+   "lat": 42.567,
+   "lon": 1.085
+  },
+  {
+   "name": "Port Ainé",
+   "lat": 42.483,
+   "lon": 1.22
+  },
+  {
+   "name": "Boí Taüll",
+   "lat": 42.519,
+   "lon": 0.846
+  },
+  {
+   "name": "Port del Comte",
+   "lat": 42.167,
+   "lon": 1.588
+  },
+  {
+   "name": "Larra-Belagua",
+   "lat": 42.895,
+   "lon": -0.815
+  }
+ ],
+ "AD": [
+  {
+   "name": "Grandvalira",
+   "lat": 42.56,
+   "lon": 1.67
+  },
+  {
+   "name": "Pas de la Casa",
+   "lat": 42.542,
+   "lon": 1.733
+  },
+  {
+   "name": "Vallnord Pal-Arinsal",
+   "lat": 42.565,
+   "lon": 1.49
+  },
+  {
+   "name": "Vallnord Ordino-Arcalís",
+   "lat": 42.633,
+   "lon": 1.516
+  }
+ ]
+}

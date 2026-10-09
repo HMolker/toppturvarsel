@@ -3,6 +3,21 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v6.3.1 — Ski resorts in every country (2026-10-09)
+
+- **Resorts outside the Nordics were missing.** Their lists come from one big
+  OpenStreetMap (Overpass) query per country, which the public servers often
+  refuse or take minutes over, and until it answered the map had nothing. Now
+  a **built-in list of the main resorts** (about 115, positions good to a few
+  km, marked "approximate") is shown at once and replaced by the real list as
+  soon as it arrives. It covers Switzerland, Austria, South Tyrol and
+  Trentino, the Spanish Pyrenees and Andorra.
+- **New resort lists**: South Tyrol and Trentino (region IT-32), the Spanish
+  Pyrenees (Catalonia, Aragon, Navarra, south of 41.9° N) and Andorra, from
+  OpenStreetMap like the others. `RESORTS_IT_MIN`, `RESORTS_ES_MIN`,
+  `RESORTS_AD_MIN`.
+- The resort legend names every selected country.
+
 ## v6.3.0 — The Spanish Pyrenees and Andorra, without bulletins (2026-10-08)
 
 - **10 regions and 15 tours**: Val d'Aran, Pallars, Cerdanya–Ripollès,

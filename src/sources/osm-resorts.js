@@ -2,7 +2,8 @@ import { haversineKm } from '../util/utm.js';
 import { overpass } from '../util/overpass.js';
 
 /**
- * Swedish ski resorts from OpenStreetMap: where they are, what they are
+ * Ski resorts from OpenStreetMap (Sweden, and since v6 Switzerland, Austria,
+ * South Tyrol and Trentino, the Spanish Pyrenees and Andorra): where they are, what they are
  * called, their website, and how many lifts are mapped.
  *
  * There is no open live source for lift and slope status in Sweden.
@@ -17,14 +18,27 @@ import { overpass } from '../util/overpass.js';
 
 const LIFTS = 'chair_lift|gondola|cable_car|mixed_lift|drag_lift|t-bar|j-bar|platter|rope_tow|magic_carpet';
 
-export function resortsQuery(iso = 'SE') {
+/**
+ * `area` is the Overpass area to search: a whole country by default. v6.3.1:
+ * Italy is only South Tyrol and Trentino (the region IT-32) and Spain only
+ * its Pyrenean provinces (Catalonia, Aragon, Navarra, south of 41.9° N), so
+ * the list holds the resorts the service has a region for, not all of Italy
+ * or of Spain. `bbox` is [south, west, north, east].
+ */
+export const RESORT_AREAS = {
+  IT: { area: '["ISO3166-2"="IT-32"][admin_level=4]' },
+  ES: { area: '["ISO3166-2"~"^ES-(CT|AR|NC)$"][admin_level=4]', bbox: [41.9, -2.2, 43.6, 3.4] },
+};
+
+export function resortsQuery(iso = 'SE', { area, bbox } = RESORT_AREAS[iso] ?? {}) {
+  const where = `(area.c)${bbox ? `(${bbox.join(',')})` : ''}`;
   return `[out:json][timeout:180];
-area["ISO3166-1"="${iso}"][admin_level=2]->.c;
+area${area ?? '["ISO3166-1"="' + iso + '"][admin_level=2]'}->.c;
 (
-  way["landuse"="winter_sports"]["name"](area.c);
-  relation["landuse"="winter_sports"]["name"](area.c);
-  relation["site"="piste"]["name"](area.c);
-  way["aerialway"~"^(${LIFTS})$"](area.c);
+  way["landuse"="winter_sports"]["name"]${where};
+  relation["landuse"="winter_sports"]["name"]${where};
+  relation["site"="piste"]["name"]${where};
+  way["aerialway"~"^(${LIFTS})$"]${where};
 );
 out tags center bb;`;
 }

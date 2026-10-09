@@ -84,6 +84,12 @@ const overpassAustrian = {
   ],
 };
 
+// v6.3.1: one resort each for South Tyrol/Trentino, the Spanish Pyrenees and Andorra.
+const one = (id, lat, lon, name) => ({ elements: [{ type: 'way', id, center: { lat, lon }, bounds: bb(lat, lon, 0.05), tags: { landuse: 'winter_sports', name } }] });
+const overpassItalian = one(40, 46.74, 11.95, 'Kronplatz');
+const overpassSpanish = one(41, 42.7, 0.94, 'Baqueira-Beret');
+const overpassAndorran = one(42, 42.56, 1.67, 'Grandvalira');
+
 const overpassSwiss = {
   elements: [
     { type: 'way', id: 20, center: { lat: 46.02, lon: 7.75 }, bounds: bb(46.02, 7.75, 0.05), tags: { landuse: 'winter_sports', name: 'Zermatt – Matterhorn', website: 'https://www.matterhornparadise.ch' } },
@@ -103,6 +109,17 @@ test('OSM: Swedish resorts with website and mapped lifts, no live status', () =>
   assert.equal(r.find((x) => x.name === 'Åre').url, null);
   assert.match(resortsQuery('SE'), /ISO3166-1"="SE"/);
   assert.match(resortsQuery('SE'), /out tags center bb/);
+});
+
+test('OSM queries: Italy is South Tyrol and Trentino, Spain its Pyrenean provinces, not whole countries (v6.3.1)', () => {
+  const it = resortsQuery('IT');
+  assert.match(it, /"ISO3166-2"="IT-32"/);
+  assert.doesNotMatch(it, /"ISO3166-1"="IT"/);
+  const es = resortsQuery('ES');
+  assert.match(es, /ES-\(CT\|AR\|NC\)/);
+  assert.match(es, /\(area\.c\)\(41\.9,-2\.2,43\.6,3\.4\)/, 'south of the Pyrenees is cut off');
+  assert.match(resortsQuery('AD'), /"ISO3166-1"="AD"/);
+  assert.match(resortsQuery('CH'), /\(area\.c\);/);
 });
 
 // ---- endpoint ----------------------------------------------------------
@@ -125,6 +142,9 @@ globalThis.fetch = async (url, opts = {}) => {
     // v6: the Swiss query gets a Swiss answer (one resort, two lifts).
     if (decodeURIComponent(String(opts.body)).includes('"CH"')) return J(overpassSwiss);
     if (decodeURIComponent(String(opts.body)).includes('"AT"')) return J(overpassAustrian);
+    if (decodeURIComponent(String(opts.body)).includes('IT-32')) return J(overpassItalian);
+    if (decodeURIComponent(String(opts.body)).includes('ES-(CT')) return J(overpassSpanish);
+    if (decodeURIComponent(String(opts.body)).includes('"AD"')) return J(overpassAndorran);
     return J(overpassBody);
   }
   // The test's own server may be called; nothing else may leave the test.
@@ -149,22 +169,29 @@ async function withServer(fn) {
 process.env.RESORTS_SE_MIN = '1'; // the stub has two Swedish resorts
 process.env.RESORTS_CH_MIN = '1'; // and one Swiss
 process.env.RESORTS_AT_MIN = '1'; // and one Austrian
+process.env.RESORTS_IT_MIN = '1';
+process.env.RESORTS_ES_MIN = '1';
+process.env.RESORTS_AD_MIN = '1';
 
 test('/api/resorts merges both countries, caches, and survives an outage', async () => {
   await withServer(async (base) => {
     const r = await (await fetch(`${base}/api/resorts`)).json();
-    assert.equal(r.resorts.length, 7);
+    assert.equal(r.resorts.length, 10);
     assert.equal(r.sources.no.name, 'Fnugg');
     assert.equal(r.sources.se.count, 2);
     assert.equal(r.sources.ch.count, 1);
     assert.equal(r.sources.at.count, 1);
+    for (const [k, c, n] of [['it', 'IT', 'Kronplatz'], ['es', 'ES', 'Baqueira-Beret'], ['ad', 'AD', 'Grandvalira']]) {
+      assert.equal(r.sources[k].count, 1, k);
+      assert.equal(r.resorts.find((x) => x.country === c)?.name, n, `${c} resort`);
+    }
     const zermatt = r.resorts.find((x) => x.country === 'CH');
     assert.equal(zermatt.mappedLifts, 2);
     assert.equal(zermatt.live, false);
     assert.equal(calls.fnugg, 1);
     await fetch(`${base}/api/resorts`);
     assert.equal(calls.fnugg, 1, 'served from cache');
-    assert.equal(calls.overpass, 3, 'one query each for Sweden, Switzerland and Austria');
+    assert.equal(calls.overpass, 6, 'one query each for Sweden, Switzerland, Austria, South Tyrol and Trentino, the Spanish Pyrenees and Andorra');
   });
 
   // Expire the Norwegian cache, then take Fnugg down: last good list stays.
@@ -257,4 +284,46 @@ test('names are escaped in the SVG', () => {
   const svg = resortSvg(layoutResorts([p], { detail: true, width: 560, height: 760 }));
   assert.doesNotMatch(svg, /<script>/);
   assert.match(svg, /&lt;script&gt;/);
+});
+
+test('with OpenStreetMap down, every country still shows its resorts from the built-in list (v6.3.1)', async () => {
+  const { _resetResorts, getResorts } = await import('../src/resorts.js');
+  const { rm, readdir } = await import('node:fs/promises');
+  for (const f of await readdir(path.join(tmp, 'cache', 'resorts'))) await rm(path.join(tmp, 'cache', 'resorts', f), { force: true });
+  _resetResorts();
+  const keep = globalThis.fetch;
+  globalThis.fetch = async (url, opts) => {
+    if (String(url).includes('overpass')) throw new Error('simulated Overpass outage');
+    return keep(url, opts);
+  };
+  try {
+    const r = await getResorts();
+    for (const c of ['CH', 'AT', 'IT', 'ES', 'AD']) {
+      const list = r.resorts.filter((x) => x.country === c);
+      assert.ok(list.length >= 4, `${c}: ${list.length} resorts from the built-in list`);
+      assert.ok(list.every((x) => x.approx === true && x.source === 'seed' && Number.isFinite(x.lat) && Number.isFinite(x.lon)), `${c}: marked approximate`);
+    }
+    assert.ok(r.resorts.some((x) => x.name === 'Zermatt'));
+    assert.ok(r.resorts.some((x) => x.name === 'Grandvalira'));
+    assert.match(r.sources.ch.error, /Overpass|outage/);
+  } finally {
+    globalThis.fetch = keep;
+    _resetResorts();
+  }
+});
+
+test('the built-in resorts lie where they should', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const seed = JSON.parse(await readFile(new URL('../data/resorts-seed.json', import.meta.url), 'utf8'));
+  const box = { CH: [45.8, 47.9, 5.9, 10.6], AT: [46.3, 48.0, 9.5, 17.2], IT: [45.65, 47.1, 10.3, 12.5], ES: [41.9, 43.4, -2.2, 3.4], AD: [42.4, 42.7, 1.4, 1.8] };
+  for (const [c, list] of Object.entries(seed)) {
+    if (c.startsWith('_')) continue;
+    const names = new Set();
+    for (const r of list) {
+      assert.ok(!names.has(r.name), `${c}: duplicate ${r.name}`);
+      names.add(r.name);
+      const b = box[c];
+      assert.ok(r.lat > b[0] && r.lat < b[1] && r.lon > b[2] && r.lon < b[3], `${c} ${r.name}: outside the country`);
+    }
+  }
 });

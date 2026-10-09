@@ -517,6 +517,9 @@ function resortLegend() {
         inSel('SE') && 'Sweden: location only, OpenStreetMap — no live status is published',
         inSel('CH') && 'Switzerland: location only, OpenStreetMap — no open live status',
         inSel('AT') && 'Austria: location only, OpenStreetMap — no open live status',
+        inSel('IT') && 'South Tyrol & Trentino: location only, OpenStreetMap — no open live status',
+        inSel('ES') && 'Spanish Pyrenees: location only, OpenStreetMap — no open live status',
+        inSel('AD') && 'Andorra: location only, OpenStreetMap — no open live status',
       ].filter(Boolean).join(' · ');
   return (
     `<div class="legend-row"><span class="eyebrow">Resorts — share open</span>` +

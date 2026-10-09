@@ -393,7 +393,7 @@ region or tour here yet.
 | Snow depth, new snow | GeoSphere Austria's TAWES stations (`dataset.api.hub.geosphere.at`, parameter `SCHNEE`) | The nearest station with snow data, 100 m of height counting as 1 km, up to 25 km. Most snow stations are in valleys. **New snow is derived**: the rises in depth between 6-hour readings over 24, 48 and 72 h, ignoring falls and rises under 1 cm; the page says so. South Tyrol and Trentino have no station here yet, so most of their tours show no snow. |
 | Map | basemap.at (grey), Austria, CC BY 4.0; OpenTopoMap for South Tyrol and Trentino | No official slope map for either: use Shading → slope on Plan a tour. |
 | Heights | Copernicus GLO-30 (30 m) | Austria's 1 m laser model is published as 50 km download tiles (EPSG:3035), too large to read live; not used. |
-| Resorts | OpenStreetMap, Austria only | |
+| Resorts | OpenStreetMap (v6.2), plus the built-in list (v6.3.1) | See "Ski resorts layer". |
 
 The tours' coordinates are approximate, like all the others, and a region
 takes the bulletin of the micro-region at its point: a tour a few km away can
@@ -549,6 +549,17 @@ further; hover for the numbers.
   with dashed "no status" icons, never as closed, and link to the website
   mapped in OSM where there is one. One Overpass query a month. If SLAO
   grants data access, it slots in as another source in `src/resorts.js`.
+- **Switzerland, Austria, South Tyrol and Trentino, the Spanish Pyrenees
+  and Andorra (v6.3.1): location and link only, from OpenStreetMap.** One
+  Overpass query per country a month. Italy is only the region IT-32
+  (South Tyrol and Trentino) and Spain only Catalonia, Aragon and Navarra
+  south of 41.9° N, so the list matches the regions the service has. Until
+  OpenStreetMap answers (the public servers are often busy, and the
+  queries are large) a built-in list of the main resorts (`data/resorts-seed.json`,
+  positions good to a few km) is shown, marked "approximate" in the resort
+  panel; the real list replaces it. `RESORTS_IT_MIN`, `RESORTS_ES_MIN` and
+  `RESORTS_AD_MIN` (like `RESORTS_CH_MIN`) set how short an answer counts
+  as broken.
 - Colours follow the profile: the grey scale, darker = more open (flipped
   in the dark theme so more open is always more contrast). Red stays
   reserved for alerts.

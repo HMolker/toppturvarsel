@@ -9,6 +9,8 @@ const head = (title) => `<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(title)} · Fjällskred</title>
+<link rel="stylesheet" href="vendor/molker.css">
+<link rel="stylesheet" href="/shared/molker.css">
 <link rel="stylesheet" href="styles.css">
 <link rel="icon" type="image/png" sizes="64x64" href="brand/icon-64.png">
 <style>
@@ -20,7 +22,7 @@ const head = (title) => `<!doctype html>
   .authcard label { display: grid; gap: 5px; font-size: 13px; color: var(--ink-2); margin-bottom: 12px; }
   .authcard input { font: inherit; font-size: 15px; padding: 10px 12px; border: 1px solid var(--line-2); border-radius: var(--r-ctl, 8px); background: var(--paper); color: var(--ink); }
   .authcard button { width: 100%; margin-top: 6px; justify-content: center; }
-  .authcard .err { background: #FBD6CB; color: #6E1E15; border-radius: 8px; padding: 8px 10px; font-size: 13.5px; margin-bottom: 12px; }
+  .authcard .err { background: var(--ramp-2); color: var(--ramp-6); border-radius: 8px; padding: 8px 10px; font-size: 13.5px; margin-bottom: 12px; }
   .closed .sign { font: 700 13px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: #fff; background: #C0392B; border-radius: 6px; padding: 6px 10px; display: inline-block; }
   .closed { text-align: center; }
   .closed p { color: var(--ink-2); line-height: 1.5; }

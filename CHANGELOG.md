@@ -3,6 +3,26 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v6.4.0 — The shared Molker Digital design (2026-10-11)
+
+- **One stylesheet for all my tools.** The page frame, header, buttons, cards,
+  tables, footer and light/dark themes now come from `molker.css` (repo
+  `molker-design`, served at `/shared/molker.css`). Fjällskred's own
+  `styles.css` shrank from 901 to about 600 lines and keeps only the map,
+  route, terrain, forecast and resort styles. The conditions page looks the
+  same as before on a desktop screen (checked pixel by pixel against v6.3.1).
+- **A nav bar on every page** (Conditions, Plan a tour, Forecast accuracy),
+  the same as the other tools.
+- **Safe if `/shared/` is down:** a copy of the stylesheet ships in
+  `public/vendor/molker.css` and loads first.
+- Small, deliberate differences: the footer text uses the shared 16 px side
+  padding on phones; in automatic dark mode the red-ramp colours are now the
+  dark ones (before, a pale pink notice bar showed on the dark forecast page).
+- Colours: no hard-coded hex in pages or stylesheets except as named tokens
+  (road sign, route, runout). `npm test` (323 tests) guards this.
+- New: `scripts/check-design.mjs`, `scripts/sync-molker-css.sh`,
+  `test/design.test.js`.
+
 ## v6.3.1 — Ski resorts in every country (2026-10-09)
 
 - **Resorts outside the Nordics were missing.** Their lists come from one big

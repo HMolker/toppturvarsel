@@ -36,6 +36,19 @@ process, zero npm dependencies, one Docker container.
 
 ## Look
 
+Since v6.4 the look is the shared **Molker Digital design** (the `molker-design` repo,
+served by the Pi at `/shared/molker.css`), used the same way by all my tools:
+page frame, header, nav bar, cards, buttons, tables, footer and both themes come
+from it. Each page loads `vendor/molker.css` (a copy shipped with the app, so
+the page still looks right if `/shared/` is unreachable), then `/shared/molker.css`
+(the newest version) on top, then `styles.css`, which now holds only what is
+specific to Fjällskred: the maps, the route and terrain views, the forecast
+strips and the resort and danger scales. Every page has the same nav bar
+(Conditions, Plan a tour, Forecast accuracy). To refresh the vendored copy:
+`scripts/sync-molker-css.sh https://tomtarochtroll.duckdns.org`. `npm test`
+checks that every page links the stylesheets and that no hard-coded colour sneaks
+back in (`scripts/check-design.mjs`).
+
 The interface uses Henrik Molker's graphical profile, which comes from the
 figures in his 2019 Chalmers thesis. It follows the profile's own grammar:
 

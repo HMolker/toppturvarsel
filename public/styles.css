@@ -1,207 +1,42 @@
 /* =====================================================================
- * Toppturvarsel — Henrik Molker graphical profile
+ * Fjällskred: tool-specific styles.
  *
- * Source: the colour scheme derived from H. Molker, "Industrial framework
- * for hot-spot identification and verification in automotive composite
- * structures", Chalmers 2019 (Figs. 2, 14, 16, 26).
- *
- *   Ink black     #1A1A1A   primary series, text
- *   Steel grey    #8C8880   secondary series, hairlines
- *   Signal red    #C0392B   the critical point — powder alerts only
- *   Paper white   #FFFFFF   plot/panel ground
- *   Page          #F4F3EF   surrounding ground
- *   Ramp          #FDF1ED #FBD6CB #F4A891 #E8734F #C2402A #6E1E15
- *
- * Restrained colour, used only to encode meaning, never decoration.
- * The profile defines a light, print-style look; the dark theme below is
- * derived from the same inks for pre-dawn checks and is not part of the
- * source profile.
+ * The shared Molker Digital design (tokens, page frame, header, cards,
+ * buttons, tables, footer, light and dark themes) comes from molker.css:
+ *   /shared/molker.css   served by the Pi (always the newest version)
+ *   vendor/molker.css    a copy shipped with the app; loaded first, so the
+ *                        page still looks right if /shared/ is unreachable
+ * This file holds only what belongs to Fjällskred: the map, the route and
+ * terrain views, the forecast strips, the resort and danger scales.
  * ===================================================================== */
 
-/* IBM Plex, self-hosted when present. No network fetch: if the files are
-   not in /fonts and Plex is not installed locally, the stack falls back
-   cleanly. See public/fonts/README.md. */
-@font-face { font-family: "IBM Plex Sans"; font-weight: 400; font-style: normal; font-display: swap;
-  src: local("IBM Plex Sans"), local("IBMPlexSans"), url("fonts/IBMPlexSans-Regular.woff2") format("woff2"); }
-@font-face { font-family: "IBM Plex Sans"; font-weight: 500; font-style: normal; font-display: swap;
-  src: local("IBM Plex Sans Medium"), local("IBMPlexSans-Medium"), url("fonts/IBMPlexSans-Medium.woff2") format("woff2"); }
-@font-face { font-family: "IBM Plex Sans"; font-weight: 600; font-style: normal; font-display: swap;
-  src: local("IBM Plex Sans SemiBold"), local("IBMPlexSans-SemiBold"), url("fonts/IBMPlexSans-SemiBold.woff2") format("woff2"); }
-@font-face { font-family: "IBM Plex Sans"; font-weight: 700; font-style: normal; font-display: swap;
-  src: local("IBM Plex Sans Bold"), local("IBMPlexSans-Bold"), url("fonts/IBMPlexSans-Bold.woff2") format("woff2"); }
-@font-face { font-family: "IBM Plex Mono"; font-weight: 400; font-style: normal; font-display: swap;
-  src: local("IBM Plex Mono"), local("IBMPlexMono"), url("fonts/IBMPlexMono-Regular.woff2") format("woff2"); }
-@font-face { font-family: "IBM Plex Mono"; font-weight: 600; font-style: normal; font-display: swap;
-  src: local("IBM Plex Mono SemiBold"), local("IBMPlexMono-SemiBold"), url("fonts/IBMPlexMono-SemiBold.woff2") format("woff2"); }
-
+/* Fjällskred's own tokens. Old names are kept so the map code keeps working;
+   they point at the shared tokens wherever the shared design has one. */
 :root {
-  --sans: "IBM Plex Sans", "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif;
-  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
-
-  --page: #F4F3EF;
-  --paper: #FFFFFF;
-  --ink: #1A1A1A;
-  --ink-2: #4A473F;
-  --muted: #706C64;
-  --steel: #8C8880;
-  --line: #E3E0D8;
-  --line-2: #D8D5CC;
-  --red: #C0392B;
-  --red-ink: #C0392B;
-
-  --land: #F4F3EF;
-  --coast: #8C8880;
-  --marker-edge: #1A1A1A;
-  /* Your own data (GPX you uploaded, your photos): the ramp's red step, a
-     shade apart from the alert red so the two never read as the same. */
-  --own: #C2402A; --own-ink: #FFFFFF;
-  /* Hours outside usable light in the forecast's hour strip. */
-  --night: #4A473F;
-  /* Hour quality inside the light, darker = better. */
-  --hs1: #FDF1ED; --hs2: #FBD6CB; --hs3: #F4A891; --hs4: #E8734F; --hs5: #C2402A; --hs6: #6E1E15;
-  --hw1: #FBD6CB; --hw2: #F4A891; --hw3: #E8734F; --hw4: #C2402A;
-  /* Wet-snow hours in the strip: a cold blue-grey, apart from the red scale. */
-  --wet: #7C93A8;
-
-  --r-card: 14px;
-  --r-ctl: 8px;
-}
-
-:root {
-  color-scheme: light;
+  --sans: var(--font-sans); --mono: var(--font-mono);
+  --hs1: var(--ramp-1); --hs2: var(--ramp-2); --hs3: var(--ramp-3); --hs4: var(--ramp-4); --hs5: var(--ramp-5); --hs6: var(--ramp-6);
+  --hw1: var(--ramp-2); --hw2: var(--ramp-3); --hw3: var(--ramp-4); --hw4: var(--ramp-5);
+  --land: var(--page); --coast: var(--steel); --marker-edge: var(--ink); --night: var(--ink-2);
   /* resort open-share scale: paper -> steel -> ink, darker = more open */
-  --ro1: #E3E0D8; --ro2: #B5B1A8; --ro3: #6B675F; --ro4: #1A1A1A;
+  --ro1: var(--line); --ro2: #B5B1A8; --ro3: #6B675F; --ro4: var(--ink);
   --rg1: #1A1A1A; --rg2: #1A1A1A; --rg3: #FFFFFF; --rg4: #FFFFFF;
+  /* the "slope closed" road sign: a fixed sign, the same in both themes */
+  --sign-red: #C0392B; --sign-white: #FFFFFF; --sign-ink: #1A1A1A;
 }
-
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --page: #121211;
-    --paper: #1A1A1A;
-    --ink: #EDEBE5;
-    --ink-2: #C7C4BC;
-    --muted: #A8A49B;
-    --steel: #8C8880;
-    --line: #2E2C28;
-    --line-2: #3A3833;
-    --red-ink: #E46A5C;   /* signal red lifted for text contrast on ink */
-    --land: #24231F;
-    --coast: #5E5B54;
-    --marker-edge: #EDEBE5;
-    --own: #E8734F; --own-ink: #1A1A1A;
-    --night: #050505;
+    --land: #24231F; --coast: #5E5B54; --night: #050505;
     --hw1: #3A2420; --hw2: #7A3324; --hw3: #C2402A; --hw4: #F4A891;
-    --wet: #5D7890;
-    --ro1: #3A3833; --ro2: #6B675F; --ro3: #B5B1A8; --ro4: #EDEBE5;
-    --rg1: #EDEBE5; --rg2: #FFFFFF; --rg3: #1A1A1A; --rg4: #1A1A1A;
-    color-scheme: dark;
+    --ro1: var(--line-2); --ro2: #6B675F; --ro3: #B5B1A8;
+    --rg1: var(--ink); --rg2: #FFFFFF; --rg3: #1A1A1A; --rg4: #1A1A1A;
   }
 }
 :root[data-theme="dark"] {
-  --page: #121211; --paper: #1A1A1A; --ink: #EDEBE5; --ink-2: #C7C4BC; --muted: #A8A49B;
-  --steel: #8C8880; --line: #2E2C28; --line-2: #3A3833; --red-ink: #E46A5C;
-  --hs1: #3A2A26; --hs2: #5A342C; --hs3: #8A4634; --hs4: #B45336; --hs5: #D8603F; --hs6: #F4A891;
-  --land: #24231F; --coast: #5E5B54; --marker-edge: #EDEBE5; --own: #E8734F; --own-ink: #1A1A1A; --night: #050505;
-  --hw1: #3A2420; --hw2: #7A3324; --hw3: #C2402A; --hw4: #F4A891; --wet: #5D7890;
-  --ro1: #3A3833; --ro2: #6B675F; --ro3: #B5B1A8; --ro4: #EDEBE5;
-  --rg1: #EDEBE5; --rg2: #FFFFFF; --rg3: #1A1A1A; --rg4: #1A1A1A;
-  color-scheme: dark;
+  --land: #24231F; --coast: #5E5B54; --night: #050505;
+  --hw1: #3A2420; --hw2: #7A3324; --hw3: #C2402A; --hw4: #F4A891;
+  --ro1: var(--line-2); --ro2: #6B675F; --ro3: #B5B1A8;
+  --rg1: var(--ink); --rg2: #FFFFFF; --rg3: #1A1A1A; --rg4: #1A1A1A;
 }
-
-* { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; }
-body {
-  background: var(--page);
-  color: var(--ink);
-  font-family: var(--sans);
-  font-size: 15px;
-  line-height: 1.55;
-  -webkit-text-size-adjust: 100%;
-}
-a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--steel); text-underline-offset: 2px; }
-a:hover { text-decoration-color: var(--ink); }
-:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
-.mono, code { font-family: var(--mono); }
-
-/* The profile's label voice: small mono caps, letterspaced. */
-.eyebrow {
-  font-family: var(--mono);
-  font-size: 11.5px;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-/* ---------- header ---------- */
-header.top {
-  max-width: 1440px;
-  margin: 0 auto;
-  padding: 36px 20px 22px;
-  display: flex;
-  gap: 16px;
-  align-items: flex-end;
-  flex-wrap: wrap;
-  border-bottom: 2px solid var(--ink);
-}
-/* The logotype is drawn on paper: in the dark theme it sits on a paper
-   tile rather than being inverted, so its colours stay as designed. */
-.brandmark { display: block; height: 120px; width: auto; flex: none; align-self: center; }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .brandmark { background: #F2EEE3; border-radius: var(--r-ctl, 6px); padding: 6px 8px; }
-}
-:root[data-theme="dark"] .brandmark { background: #F2EEE3; border-radius: var(--r-ctl, 6px); padding: 6px 8px; }
-header.top h1 { font-size: 30px; line-height: 1.15; margin: 6px 0 6px; font-weight: 700; letter-spacing: -.01em; }
-.sub { color: var(--ink-2); font-size: 14.5px; margin: 0; max-width: 720px; }
-.status { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.chip {
-  display: inline-flex; align-items: center; gap: 8px;
-  font-family: var(--mono); font-size: 12px; color: var(--ink-2);
-  background: var(--paper); border: 1px solid var(--line-2);
-  padding: 6px 10px; border-radius: var(--r-ctl);
-}
-.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--steel); flex: none; }
-.dot.ok { background: var(--ink); }
-.dot.warn { background: var(--steel); box-shadow: 0 0 0 2px var(--line-2); }
-.dot.bad { background: var(--red); }
-
-/* ---------- layout ---------- */
-.wrap {
-  display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
-  gap: 20px;
-  padding: 28px 20px 48px;
-  max-width: 1440px;
-  margin: 0 auto;
-}
-@media (max-width: 980px) {
-  .wrap { grid-template-columns: 1fr; padding: 16px; gap: 16px; }
-  header.top { padding: 24px 16px 18px; }
-  header.top h1 { font-size: 24px; }
-  .brandmark { height: 84px; }
-}
-
-.card {
-  background: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: var(--r-card);
-  overflow: hidden;
-}
-.card .hd {
-  padding: 14px 18px;
-  border-bottom: 1px solid var(--line);
-  display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
-}
-.card .hd h2 {
-  margin: 0;
-  font-family: var(--mono);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  color: var(--ink);
-}
-.card .bd { padding: 18px; }
-.full { grid-column: 1 / -1; }
 
 /* ---------- map ---------- */
 svg.map { display: block; width: 100%; height: auto; background: var(--paper); touch-action: manipulation; }
@@ -213,15 +48,7 @@ svg.map .mono { font-family: var(--mono); }
   background: var(--paper); border: 1px solid var(--line); padding: 3px 8px; border-radius: 6px;
   pointer-events: none;
 }
-
-.seg { display: flex; gap: 2px; background: var(--page); border: 1px solid var(--line-2); border-radius: var(--r-ctl); padding: 2px; }
-.seg button {
-  background: none; border: 0; color: var(--ink-2);
-  font: inherit; font-size: 13px; padding: 6px 11px; border-radius: 6px; cursor: pointer; min-height: 32px;
-}
-.seg button:hover { color: var(--ink); }
-.seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper); font-weight: 500; }
-
+.seg { display: flex; }
 .zoomctl {
   position: absolute; left: 12px; top: 12px; display: flex; flex-direction: column; gap: 4px;
 }
@@ -238,40 +65,17 @@ svg.map .mono { font-family: var(--mono); }
 .resortname.nolink { fill: var(--ink-2); }
 .legend-row { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
 .legend-row.note { font-size: 11.5px; color: var(--muted); }
-.legend {
-  display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center;
-  padding: 12px 18px; border-top: 1px solid var(--line);
-  font-size: 12px; color: var(--ink-2);
-}
 .legend .eyebrow { margin-right: 2px; }
 .legend-key { margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--muted); }
-.sw {
-  width: 13px; height: 13px; border-radius: 3px; display: inline-block; vertical-align: -2px; margin-right: 5px;
-  border: 1px solid var(--marker-edge);
-}
 .sw-none { background: var(--paper); border: 1px dashed var(--steel); }
 .sw-alert { background: transparent; border: 1.6px solid var(--red); border-radius: 50%; }
-
-/* ---------- tour list ---------- */
-.controls { display: flex; gap: 8px; flex-wrap: wrap; padding: 14px 18px; border-bottom: 1px solid var(--line); }
 input[type=search], select {
   background: var(--paper); border: 1px solid var(--line-2); color: var(--ink);
   border-radius: var(--r-ctl); padding: 8px 10px; font: inherit; font-size: 13.5px; min-width: 0; min-height: 38px;
 }
-input[type=search] { flex: 1 1 160px; }
 input[type=search]::placeholder { color: var(--muted); }
-input[type=checkbox] { accent-color: var(--ink); }
-
 .tourlist { max-height: 640px; overflow: auto; }
-.trow {
-  display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center;
-  padding: 12px 18px; border-bottom: 1px solid var(--line); cursor: pointer;
-}
-.trow:hover { background: var(--page); }
 .trow:focus-visible { outline-offset: -2px; }
-.trow.sel { background: var(--page); box-shadow: inset 3px 0 0 var(--ink); }
-.tname { font-weight: 600; font-size: 14.5px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.tmeta { color: var(--muted); font-size: 12.5px; }
 .stars { font-size: 12px; color: var(--ink); letter-spacing: 1px; white-space: nowrap; }
 .grade { font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
 .fav { border: 0; background: none; color: var(--steel); cursor: pointer; font-size: 15px; line-height: 1; padding: 4px; }
@@ -282,26 +86,6 @@ input[type=checkbox] { accent-color: var(--ink); }
 }
 /* Over the alert threshold: the one place red touches the list. */
 .snowbadge.hot { color: var(--red-ink); border-color: var(--red); }
-
-/* ---------- detail ---------- */
-.detail dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 18px; margin: 0 0 14px; font-size: 14px; }
-.detail dt { font-family: var(--mono); font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding-top: 2px; }
-.detail dd { margin: 0; }
-.linkrow { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
-
-.btn {
-  display: inline-flex; align-items: center; min-height: 38px;
-  background: var(--paper); border: 1px solid var(--line-2); color: var(--ink);
-  text-decoration: none; font: inherit; font-size: 13.5px; padding: 7px 13px; border-radius: var(--r-ctl); cursor: pointer;
-}
-.btn:hover { border-color: var(--ink); }
-.btn.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); font-weight: 500; }
-.btn.primary:hover { background: var(--ink-2); border-color: var(--ink-2); }
-.btn[disabled] { opacity: .5; cursor: default; }
-
-.note { font-size: 12.5px; color: var(--muted); }
-.quiet { font-size: 13.5px; color: var(--ink-2); margin: 0; }
-
 .dangerpill {
   display: inline-block; min-width: 22px; text-align: center;
   font-family: var(--mono); font-weight: 600; font-size: 12px;
@@ -316,49 +100,9 @@ input[type=checkbox] { accent-color: var(--ink); }
   margin: 16px 0 2px; font-family: var(--mono); font-size: 11.5px; font-weight: 600;
   text-transform: uppercase; letter-spacing: .08em; color: var(--muted);
 }
-.warnbox {
-  border: 1px solid var(--red); color: var(--ink);
-  padding: 10px 12px; border-radius: var(--r-ctl); font-size: 13.5px; margin: 0 0 12px;
-}
-.warnbox strong { color: var(--red-ink); }
-
-/* ---------- alerts ---------- */
-.fired {
-  display: flex; gap: 18px; align-items: flex-start;
-  border: 1px solid var(--line-2); border-radius: var(--r-ctl);
-  padding: 14px 16px; margin-bottom: 10px;
-}
-.fired .big {
-  font-size: 30px; font-weight: 700; line-height: 1; color: var(--red-ink);
-  font-variant-numeric: tabular-nums; min-width: 78px; letter-spacing: -.01em;
-}
-.fired .big span { font-family: var(--mono); font-size: 12px; font-weight: 400; color: var(--muted); }
+.fired { margin-bottom: 10px; }
 .fired .who { font-weight: 700; font-size: 15px; margin-bottom: 2px; }
-
-/* ---------- sources ---------- */
-.srcgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
-.src { border: 1px solid var(--line-2); border-radius: var(--r-ctl); padding: 12px 14px; font-size: 12.5px; }
-.src h4 { margin: 0 0 4px; font-size: 13.5px; font-weight: 600; }
-.src.bad { border-color: var(--red); }
-.src.bad h4 { color: var(--red-ink); }
-
-/* ---------- footer ---------- */
-footer {
-  max-width: 1440px; margin: 0 auto; padding: 22px 20px 56px;
-  color: var(--ink-2); font-size: 13px;
-  border-top: 1px solid var(--line-2);
-}
-footer h3 {
-  color: var(--ink); margin: 20px 0 6px;
-  font-family: var(--mono); font-size: 11.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
-}
-footer ul { margin: 0; padding-left: 18px; max-width: 980px; }
-footer p { max-width: 980px; }
-footer li { margin: 4px 0; }
-.colophon { margin-top: 26px; font-size: 11.5px; color: var(--muted); }
-
 .skeleton { color: var(--muted); padding: 28px 18px; text-align: center; font-size: 13px; }
-
 /* A storm can put seven regions over threshold at once; a grid keeps the
    alert block to a couple of rows instead of pushing the map off-screen. */
 .firedgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px; margin-bottom: 12px; }
@@ -366,12 +110,7 @@ footer li { margin: 4px 0; }
 .firedgrid .fired .big { font-size: 26px; min-width: 64px; }
 .firedgrid .linkrow { margin-top: 8px; }
 .firedgrid .btn { min-height: 34px; padding: 5px 11px; font-size: 13px; }
-
-/* ---------- tour detail: route, profile, forecast ---------- */
-.tourgrid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 28px; align-items: start; }
-@media (max-width: 980px) { .tourgrid { grid-template-columns: 1fr; } }
 .tourcol > h4:first-child { margin-top: 0; }
-
 .routemap { border: 1px solid var(--line-2); border-radius: var(--r-ctl); overflow: hidden; background: var(--page); }
 .routesvg { display: block; width: 100%; height: auto; }
 /* Topo tiles are toned down to grey so the only strong mark is the route:
@@ -383,7 +122,6 @@ footer li { margin: 4px 0; }
 :root[data-theme="dark"] .routesvg .tiles { filter: grayscale(1) invert(1) brightness(.85) contrast(.9); }
 .maplabel { font-family: var(--mono); font-size: 11px; fill: var(--ink); paint-order: stroke; stroke: var(--paper); stroke-width: 3px; stroke-linejoin: round; }
 svg.map .callout { font-family: var(--sans); font-size: 11.5px; font-weight: 700; fill: var(--ink); paint-order: stroke; stroke: var(--paper); stroke-width: 3.5px; stroke-linejoin: round; }
-
 .profile { position: relative; margin-top: 12px; }
 .profilesvg { display: block; width: 100%; height: auto; }
 .profilesvg .axis { font-family: var(--mono); font-size: 10.5px; fill: var(--muted); }
@@ -398,7 +136,6 @@ svg.map .callout { font-family: var(--sans); font-size: 11.5px; font-weight: 700
 .routehead .eyebrow { color: var(--ink); font-weight: 600; }
 .routefacts { margin: 4px 0; font-size: 14.5px; }
 .attrib { font-size: 11px; color: var(--muted); margin: 10px 0 0; }
-
 table.fc { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
 table.fc caption { text-align: left; caption-side: bottom; padding-top: 6px; }
 table.fc th, table.fc td { padding: 6px 4px; text-align: center; vertical-align: bottom; border-bottom: 1px solid var(--line); }
@@ -417,8 +154,6 @@ table.fc .eyebrow { display: block; color: var(--ink); font-weight: 600; }
 .snowbar { display: block; width: 16px; margin: 0 auto 3px; border-radius: 4px 4px 0 0; box-shadow: inset 0 0 0 1px rgba(26,26,26,.25); }
 .wind { display: inline-flex; align-items: center; gap: 3px; font-family: var(--mono); font-weight: 600; }
 .wind svg { width: 12px; height: 12px; }
-.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-
 /* ---------- contours + photos ---------- */
 .contourlabel { font-family: var(--mono); font-size: 9px; fill: var(--muted); paint-order: stroke; stroke: var(--page); stroke-width: 3px; }
 .photonum { font-family: var(--mono); font-size: 10px; font-weight: 600; fill: var(--ink); }
@@ -441,7 +176,6 @@ table.fc .eyebrow { display: block; color: var(--ink); font-weight: 600; }
   display: inline-flex; align-items: center; justify-content: center;
 }
 .photo.on .photonumtag { background: var(--ink); color: var(--paper); }
-
 /* ---------- trip planner ---------- */
 .plancontrols { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: flex-end; margin-bottom: 16px; }
 .plancontrols label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); font-family: var(--mono); letter-spacing: .02em; }
@@ -453,7 +187,10 @@ table.fc .eyebrow { display: block; color: var(--ink); font-weight: 600; }
 .daychip[aria-selected="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
 .daychip[aria-selected="true"] small { color: var(--paper); opacity: .75; }
 .plangrid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 20px; align-items: start; }
-@media (max-width: 980px) { .plangrid { grid-template-columns: 1fr; } .daychips { margin-left: 0; } }
+@media (max-width: 980px) {
+  .plangrid { grid-template-columns: 1fr; }
+  .daychips { margin-left: 0; }
+}
 .prow { display: grid; grid-template-columns: 30px 1fr 54px; gap: 4px 12px; padding: 12px 0; border-bottom: 1px solid var(--line); cursor: pointer; }
 .prow:hover .pname { text-decoration: underline; }
 .prank { font: 600 13px var(--mono); color: var(--muted); padding-top: 2px; }
@@ -487,7 +224,6 @@ table.fc .eyebrow { display: block; color: var(--ink); font-weight: 600; }
 .mlegend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; font-size: 11.5px; color: var(--muted); }
 .mlegend .cell { display: inline-block; width: 26px; line-height: 16px; margin-right: 5px; vertical-align: middle; }
 .plannote { margin-top: 14px; }
-
 /* ---------- planner: how a score is made ---------- */
 #planTip { position: fixed; z-index: 40; width: 400px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow: auto;
   background: var(--paper); color: var(--ink); border: 1px solid var(--line-2); border-radius: 10px;
@@ -518,13 +254,11 @@ table.fc .eyebrow { display: block; color: var(--ink); font-weight: 600; }
 .xgeneral { margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--line); color: var(--ink-2); font-size: 11.5px; }
 .prow:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 .pscore { cursor: help; }
-
 /* links to route descriptions on other sites */
 .morelinks { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; margin: 4px 0 14px; font-size: 13.5px; }
 .morelinks .eyebrow { flex-basis: 100%; }
 .morelinks a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--line-2); text-underline-offset: 3px; }
 .morelinks a:hover { text-decoration-color: var(--ink); }
-
 /* ---------- banner: simulated data ---------- */
 .banner { max-width: 1440px; margin: 14px auto 0; padding: 0 20px; }
 .banner > div {
@@ -532,25 +266,21 @@ table.fc .eyebrow { display: block; color: var(--ink); font-weight: 600; }
   background: var(--paper); border: 1px dashed var(--steel); border-radius: var(--r-ctl);
   padding: 10px 14px; font-size: 14px; color: var(--ink-2);
 }
-@media (max-width: 980px) { .banner { padding: 0 16px; } }
-.btn.on { background: var(--ink); border-color: var(--ink); color: var(--paper); }
-
+@media (max-width: 980px) {
+  .banner { padding: 0 16px; }
+}
 /* ---------- country selection (the first filter) ---------- */
 .countrybar {
   max-width: 1440px; margin: 0 auto; padding: 14px 20px 0;
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
 }
 .countrybar .eyebrow { margin-right: 4px; }
-.cchip {
-  font: 600 13px/1 var(--sans); color: var(--ink-2); cursor: pointer;
-  background: var(--paper); border: 1px solid var(--line-2); border-radius: 999px;
-  padding: 8px 14px; min-height: 36px;
-}
-.cchip:hover { border-color: var(--steel); }
 .cchip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
 .countrybar .cnote { margin-left: 4px; }
-@media (max-width: 980px) { .countrybar { padding: 12px 16px 0; } .countrybar .cnote { flex-basis: 100%; margin: 0; } }
-
+@media (max-width: 980px) {
+  .countrybar { padding: 12px 16px 0; }
+  .countrybar .cnote { flex-basis: 100%; margin: 0; }
+}
 /* ---------- GPX track marker in the tour list ---------- */
 .trk {
   font: 600 10px/1 var(--mono); letter-spacing: .05em; white-space: nowrap;
@@ -561,13 +291,11 @@ table.fc .eyebrow { display: block; color: var(--ink); font-weight: 600; }
 .trk.osm.path { border-style: dashed; }
 .trk.none { border-color: var(--line-2); color: var(--muted); font-weight: 400; }
 .trklegend { padding: 10px 18px 14px; margin: 0; line-height: 2; border-top: 1px solid var(--line); }
-
 /* ---------- descent aspect rose ---------- */
 svg.rose { display: inline-block; vertical-align: -2px; flex: none; }
 .asp { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
 .aspdd { display: flex; gap: 12px; align-items: center; }
 svg.rose .rosel { font-family: var(--mono); font-size: 9px; font-weight: 600; fill: var(--muted); }
-
 /* ---------- your own photos ---------- */
 .photomk.own text { fill: var(--own); }
 .photomk.own.on rect { fill: var(--own); stroke: var(--own); }
@@ -575,23 +303,21 @@ svg.rose .rosel { font-family: var(--mono); font-size: 9px; font-weight: 600; fi
 .photodir { fill: var(--own); opacity: .35; }
 .photo.own { border-color: var(--own); }
 .photo.own .photonumtag { background: var(--own); color: var(--own-ink); }
-
 /* Small button, e.g. the link to the tour editor in a card header. */
 .btn.small { min-height: 32px; padding: 6px 10px; font-size: 13px; }
-
 /* ---------- drawn relief, when no photo exists ---------- */
 svg.relief { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: var(--r-ctl); background: var(--paper); }
 svg.relief + svg.relief { margin-top: 8px; }
 svg.relief .rl { font-family: var(--mono); font-size: 10px; fill: var(--muted); }
 svg.relief.prof .rl { fill: var(--ink-2); }
 svg.relief .lbl { paint-order: stroke; stroke: var(--paper); stroke-width: 3px; fill: var(--ink-2); }
-
 /* ---------- avalanche problems, danger scale ---------- */
 :root { --hazard: rgba(194, 64, 42, .32); --hazard-edge: rgba(194, 64, 42, .55); }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --hazard: rgba(232, 115, 79, .38); --hazard-edge: rgba(232, 115, 79, .7); } }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --hazard: rgba(232, 115, 79, .38); --hazard-edge: rgba(232, 115, 79, .7); }
+}
 :root[data-theme="dark"] { --hazard: rgba(232, 115, 79, .38); --hazard-edge: rgba(232, 115, 79, .7); }
 .hazcell { fill: var(--hazard); stroke: var(--hazard-edge); stroke-width: .5; }
-
 .avdanger {
   display: inline-flex; align-items: center; gap: 6px; font: 600 13px/1 var(--mono);
   padding: 4px 8px; border-radius: 5px; cursor: help; vertical-align: middle;
@@ -626,19 +352,19 @@ svg.avrose .avl, svg.avelev .avl { font: 600 8.5px var(--mono); fill: var(--mute
 #avTip p { margin: 0 0 6px; }
 #avTip .avt-src { margin: 0; font-size: 11.5px; color: var(--muted); }
 .hazarea { fill: var(--hazard); stroke: none; }
-
 /* v4.8: daylight, best window, surface */
 .fc .hstrip { display: block; margin: 0 auto 3px; border-radius: 2px; }
 .fc .fit-tight { color: var(--ink-2); font-weight: 600; }
 .fc .fit-no, .fc .fit-dark { color: var(--red-ink); font-weight: 600; }
-
 /* v4.8: a few days in one area */
 .trip { margin-top: 22px; border-top: 1px solid var(--line); padding-top: 14px; }
 .triphd { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 16px; margin-bottom: 12px; }
 .triphd h3 { margin: 0; font-size: 15px; }
 .triphd label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); font-family: var(--mono); }
 #tripAreas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
-@media (max-width: 980px) { #tripAreas { grid-template-columns: 1fr; } }
+@media (max-width: 980px) {
+  #tripAreas { grid-template-columns: 1fr; }
+}
 .tarea { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--paper); min-width: 0; }
 .tahd { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-bottom: 8px; }
 .tahd .cell { display: inline-block; width: 32px; cursor: default; }
@@ -653,7 +379,6 @@ svg.avrose .avl, svg.avelev .avl { font: 600 8.5px var(--mono); fill: var(--mute
 .tdays .tdscore { grid-area: score; font: 600 12.5px var(--mono); align-self: center; }
 .tdays li.tdrest { cursor: default; }
 .tdays li.tdrest .tdtour { color: var(--muted); font-style: italic; text-decoration: none; }
-
 /* v4.8: proposals */
 .ideas { margin: 0; padding-left: 20px; display: grid; gap: 8px; max-width: 900px; }
 .ideas li { line-height: 1.5; color: var(--ink-2); }
@@ -672,7 +397,6 @@ svg.avrose .avl, svg.avelev .avl { font: 600 8.5px var(--mono); fill: var(--mute
 .fc .fcwet { color: var(--ink); font-weight: 600; }
 .hlegend .hlk > i:only-child { margin-right: 2px; }
 .fc tr.fcwin td { vertical-align: top; padding-top: 10px; }
-
 /* snow depth through the winter (snowhistory.js) */
 .snowhist { position: relative; margin: 6px 0 4px; }
 .shlegend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 11.5px; color: var(--ink-2); margin-bottom: 4px; }
@@ -701,7 +425,6 @@ svg.avrose .avl, svg.avelev .avl { font: 600 8.5px var(--mono); fill: var(--mute
 .shtip .k { width: 12px; height: 0; border-top: 2px solid var(--ink); display: inline-block; }
 .shtip .k.avg { border-top: 2px dashed var(--steel); }
 .shtip .k.band { height: 8px; border: 0; background: var(--ink); opacity: .12; border-radius: 2px; }
-
 /* resort panel */
 .rsstat { font-weight: 600; }
 .rsstat.open { color: var(--ink); }
@@ -718,11 +441,12 @@ svg.avrose .avl, svg.avelev .avl { font: 600 8.5px var(--mono); fill: var(--mute
 .rstours .rsscore { grid-area: s; align-self: center; font: 600 13px var(--mono); }
 .rstours .rsscore.off { color: var(--steel); }
 .resort, .resortdot { cursor: pointer; }
-
 /* resort map: runs in the profile's ramp by difficulty, novice pale to expert black */
 :root { --pd-novice: #FBD6CB; --pd-easy: #F4A891; --pd-intermediate: #C2402A; --pd-advanced: #6E1E15; --pd-expert: #1A1A1A; --pd-freeride: #1A1A1A; --pd-unknown: #8C8880;
   --pd-text-dark: #1A1A1A; --pd-text-light: #FFFFFF; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --pd-novice: #FBD6CB; --pd-easy: #F4A891; --pd-intermediate: #E8734F; --pd-advanced: #B04A33; --pd-expert: #EDEBE5; --pd-freeride: #EDEBE5; --pd-unknown: #A8A49B; --pd-text-light: #1A1A1A; } }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --pd-novice: #FBD6CB; --pd-easy: #F4A891; --pd-intermediate: #E8734F; --pd-advanced: #B04A33; --pd-expert: #EDEBE5; --pd-freeride: #EDEBE5; --pd-unknown: #A8A49B; --pd-text-light: #1A1A1A; }
+}
 :root[data-theme="dark"] { --pd-novice: #FBD6CB; --pd-easy: #F4A891; --pd-intermediate: #E8734F; --pd-advanced: #B04A33; --pd-expert: #EDEBE5; --pd-freeride: #EDEBE5; --pd-unknown: #A8A49B; --pd-text-light: #1A1A1A; }
 .rmhalo { fill: none; stroke: var(--paper); stroke-width: 4.6; stroke-opacity: .75; stroke-linecap: round; stroke-linejoin: round; }
 .rmhalo.thin { stroke-width: 3.4; }
@@ -757,18 +481,12 @@ svg.avrose .avl, svg.avelev .avl { font: 600 8.5px var(--mono); fill: var(--mute
 .rmlegend span { display: inline-flex; align-items: center; gap: 5px; }
 .rsdetails { margin: 10px 0 4px; }
 .rsdetails summary { cursor: pointer; font: 600 12px var(--mono); letter-spacing: .04em; text-transform: uppercase; color: var(--ink-2); padding: 4px 0; }
-.rstablewrap { overflow-x: auto; }
-.rstable { width: 100%; border-collapse: collapse; font-size: 12.5px; }
-.rstable th { text-align: left; font: 500 10.5px var(--mono); letter-spacing: .04em; text-transform: uppercase; color: var(--muted); padding: 4px 6px; border-bottom: 1px solid var(--line-2); }
-.rstable td { padding: 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
-.rstable .num { text-align: right; white-space: nowrap; font-family: var(--mono); font-size: 12px; }
 .rstable .note { font-size: 11px; }
 .rsruns, .rsplaces { list-style: none; margin: 0; padding: 0; columns: 2 240px; column-gap: 20px; }
 .rsruns li { display: grid; grid-template-columns: 14px 1fr; column-gap: 6px; padding: 3px 0; break-inside: avoid; font-size: 12.5px; }
 .rsruns li i { width: 12px; height: 4px; border-radius: 2px; margin-top: 7px; box-shadow: 0 0 0 .6px var(--ink-2); }
 .rsruns li .note { grid-column: 2; font-size: 11px; }
 .rsplaces li { font-size: 12.5px; padding: 2px 0; break-inside: avoid; }
-
 /* huts, lodges and remote cafés: open in winter in the profile's red, not known in paper, summer-only faded */
 .hut { cursor: pointer; }
 .hut circle { fill: var(--paper); stroke: var(--ink); stroke-width: 1.2; }
@@ -791,8 +509,6 @@ svg.avrose .avl, svg.avelev .avl { font: 600 8.5px var(--mono); fill: var(--mute
 .hutw.unknown { color: var(--ink-2); font-weight: 400; }
 .maphint { font: 11px var(--mono); fill: var(--ink-2); paint-order: stroke; stroke: var(--paper); stroke-width: 3px; }
 .legend-row span svg.hut { vertical-align: -3px; margin-right: 4px; }
-
-
 /* ---- forecast accuracy tool (skill) ---- */
 .skillctl { display: flex; flex-wrap: wrap; gap: 18px 30px; align-items: flex-end; }
 .skillctl .ctlgroup { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
@@ -806,7 +522,9 @@ svg.avrose .avl, svg.avelev .avl { font: 600 8.5px var(--mono); fill: var(--mute
 .skillctl .leadval span { font-size: 13px; color: var(--muted); }
 .skillctl .ticks { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 11px; color: var(--muted); }
 .skillgrid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px; align-items: start; }
-@media (max-width: 900px) { .skillgrid { grid-template-columns: 1fr; } }
+@media (max-width: 900px) {
+  .skillgrid { grid-template-columns: 1fr; }
+}
 .skcell { cursor: pointer; }
 .skcell:focus-visible rect { stroke: var(--ink); stroke-width: 2; }
 .skkey { width: 22px; height: 10px; display: inline-block; }
@@ -819,15 +537,6 @@ svg.avrose .avl, svg.avelev .avl { font: 600 8.5px var(--mono); fill: var(--mute
 #overallChart svg, #decayChart svg, #barsChart svg { width: 100%; height: auto; }
 .maplabel.strong { font-weight: 600; fill: var(--ink); }
 .warnline { border-left: 3px solid var(--own); padding: 6px 10px; background: var(--hs1); margin-bottom: 12px; }
-.btn.on { background: var(--own); border-color: var(--own); color: var(--own-ink); }
-
-/* ---- sub-pages (forecast accuracy, plan a tour): same frame as the main page ---- */
-main.page {
-  display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px;
-  padding: 28px 20px 48px; max-width: 1440px; margin: 0 auto;
-}
-@media (max-width: 980px) { main.page { padding: 16px; gap: 16px; } }
-
 /* ---- the map on the conditions page (v5.5): the same pan-and-zoom map as Plan a tour ---- */
 .slippy-tiles, .slippy-layer, .slippy-canvas, .slippy-svg { position: absolute; inset: 0; }
 .slippy-layer img { position: absolute; left: 0; top: 0; transform-origin: 0 0; max-width: none; pointer-events: none; }
@@ -838,7 +547,9 @@ main.page {
   background: var(--paper); cursor: grab; user-select: none; -webkit-user-select: none;
 }
 #map.mainmap:active { cursor: grabbing; }
-@media (max-width: 700px) { #map.mainmap { height: 70vh; } }
+@media (max-width: 700px) {
+  #map.mainmap { height: 70vh; }
+}
 /* Grey tiles, so the regions, tours and resorts on top read first. */
 #map.mainmap .slippy-layer { filter: grayscale(1) contrast(.85) brightness(1.06); opacity: .85; }
 @media (prefers-color-scheme: dark) {
@@ -848,7 +559,6 @@ main.page {
 #map.mainmap .slippy-svg .reg, #map.mainmap .slippy-svg .tourpin, #map.mainmap .slippy-svg [data-resort], #map.mainmap .slippy-svg [data-hut] { pointer-events: all; }
 #map.mainmap .slippy-svg .mono { font-family: var(--mono); }
 .mapattrib { padding: 0 18px 12px; margin: 0; }
-
 /* ---- place search (v5.6): a list under the box, a pin on the map ---- */
 .psanchor { position: relative; display: inline-block; }
 .psbox {
@@ -869,7 +579,6 @@ main.page {
 .needle path { fill: var(--ink); stroke: var(--paper); stroke-width: 1.5; }
 .needle circle { fill: var(--paper); }
 .needlelabel { font-size: 12.5px; }
-
 /* v5.6: the sketch map's legend and the place search above it */
 .sw.round { border-radius: 50%; }
 .mapfind input {
@@ -882,7 +591,6 @@ main.page {
 .pinbar .note { color: var(--muted); }
 .pinbar .btn { min-height: 30px; padding: 4px 11px; font-size: 13px; }
 #map.mainmap .needle path { fill: var(--ink); stroke: var(--paper); stroke-width: 1.5; }
-
 /* ---------- logins (v5.8): who is in, and the "slope closed" sign ---------- */
 .userchip .role { text-transform: uppercase; letter-spacing: .08em; font-size: 10.5px; padding: 1px 6px; border-radius: 4px; background: var(--line); color: var(--ink-2); }
 .userchip.premium .role { background: var(--ink); color: var(--paper); }
@@ -890,12 +598,14 @@ main.page {
 .userchip .out:hover { text-decoration: underline; }
 dialog.slopeclosed { max-width: min(440px, calc(100vw - 32px)); border: 1px solid var(--line-2); border-radius: var(--r-card); background: var(--paper); color: var(--ink); padding: 26px 24px 20px; text-align: center; box-shadow: 0 18px 50px rgba(0,0,0,.25); }
 dialog.slopeclosed::backdrop { background: rgba(20, 18, 16, .45); }
-dialog.slopeclosed .sc-sign { user-select: none; display: inline-grid; place-items: center; width: 92px; height: 92px; border-radius: 50%; background: #fff; border: 9px solid #C0392B; margin-bottom: 12px; position: relative; }
-dialog.slopeclosed .sc-sign::after { content: ""; position: absolute; left: 6px; right: 6px; top: 50%; height: 9px; margin-top: -4.5px; background: #C0392B; transform: rotate(-45deg); border-radius: 2px; }
-dialog.slopeclosed .sc-sign span { font: 700 10px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: #1A1A1A; position: relative; z-index: 1; background: #fff; padding: 0 2px; }
+dialog.slopeclosed .sc-sign { user-select: none; display: inline-grid; place-items: center; width: 92px; height: 92px; border-radius: 50%; background: var(--sign-white); border: 9px solid var(--sign-red); margin-bottom: 12px; position: relative; }
+dialog.slopeclosed .sc-sign::after { content: ""; position: absolute; left: 6px; right: 6px; top: 50%; height: 9px; margin-top: -4.5px; background: var(--sign-red); transform: rotate(-45deg); border-radius: 2px; }
+dialog.slopeclosed .sc-sign span { font: 700 10px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--sign-ink); position: relative; z-index: 1; background: var(--sign-white); padding: 0 2px; }
 dialog.slopeclosed h2 { font-size: 19px; margin: 4px 0 8px; line-height: 1.25; }
 dialog.slopeclosed p { color: var(--ink-2); font-size: 14px; line-height: 1.5; margin: 0 0 8px; }
 dialog.slopeclosed form { margin-top: 14px; }
 .demobanner { margin: 14px 18px 0; padding: 9px 12px; border-radius: var(--r-ctl); background: var(--hs1); border: 1px solid var(--hs2); font-size: 13.5px; color: var(--ink-2); line-height: 1.45; }
 .closedtag { font-family: var(--mono); font-size: 12px; color: var(--red-ink); }
 html[data-role="sneaky"] #gpxInBtn, html[data-role="sneaky"] #gpxOutBtn { opacity: .55; }
+
+

@@ -31,7 +31,7 @@ test('every page has the same nav bar, with the current page marked', () => {
   for (const [f, cur] of [['index.html', 'Conditions'], ['skill.html', 'Forecast accuracy'], ['terrain.html', 'Plan a tour']]) {
     const html = readFileSync(path.join(pub, f), 'utf8');
     const nav = /<nav class="subnav"[^>]*>(.*?)<\/nav>/s.exec(html)?.[1] ?? '';
-    for (const label of ['Conditions', 'Plan a tour', 'Forecast accuracy']) assert.ok(nav.includes(`>${label}</a>`), `${f} links ${label}`);
+    for (const label of ['Conditions', 'Plan a tour', 'Forecast accuracy', 'Tour editor']) assert.ok(nav.includes(`>${label}</a>`), `${f} links ${label}`);
     assert.match(nav, new RegExp(`aria-current="page">${cur}</a>`), `${f} marks ${cur}`);
   }
 });
@@ -39,4 +39,19 @@ test('every page has the same nav bar, with the current page marked', () => {
 test('the tool stylesheet no longer redefines the shared frame', () => {
   const css = readFileSync(path.join(pub, 'styles.css'), 'utf8');
   for (const sel of ['header.top {', '.card {', '.btn {', 'footer {', '.wrap {']) assert.ok(!css.includes('\n' + sel), `${sel} is shared`);
+});
+
+test('the links to the other pages live in the top nav only, not in the Tours card', () => {
+  const html = readFileSync(path.join(pub, 'index.html'), 'utf8');
+  const card = /<h2>Tours<\/h2>.*?<div class="controls">/s.exec(html)?.[0] ?? '';
+  assert.ok(card.length > 0, 'found the Tours card header');
+  for (const href of ['href="terrain"', 'href="skill"', 'href="editor"']) assert.ok(!card.includes(href), `no ${href} in the Tours card`);
+});
+
+test('the tour editor page carries the same nav when the service serves it', () => {
+  const html = readFileSync(path.join(root, 'editor/tour-editor.html'), 'utf8');
+  const nav = /<nav class="subnav" id="siteNav"[^>]*>(.*?)<\/nav>/s.exec(html)?.[1] ?? '';
+  for (const label of ['Conditions', 'Plan a tour', 'Forecast accuracy', 'Tour editor']) assert.ok(nav.includes(`>${label}</a>`), `editor links ${label}`);
+  assert.match(nav, /aria-current="page">Tour editor</);
+  assert.match(html, /siteNav'\)\.hidden = false/, 'shown only in the service copy (preview mode)');
 });

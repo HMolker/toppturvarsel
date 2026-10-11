@@ -3,6 +3,17 @@
 Every version is a git tag. To go back to one: `git checkout <tag>` and
 `docker compose up -d --build` (see INSTALL.md, step 10).
 
+## v6.4.1 — Tour editor in the top menu (2026-10-11)
+
+- **The tour editor is in the top menu** with Conditions, Plan a tour and
+  Forecast accuracy, on every page including the editor itself. The three
+  links that sat inside the Tours card are gone: the menu is the one place for
+  them. The link no longer says "(preview)".
+- The editor page still shows its preview notice, because that is what it is:
+  on the server it cannot load tracks or save files yet (that needs a login
+  that may write to the data folder). Real editing is still the file on your
+  own computer. Saving from the page is the next step for the editor.
+
 ## v6.4.0 — The shared Molker Digital design (2026-10-11)
 
 - **One stylesheet for all my tools.** The page frame, header, buttons, cards,
